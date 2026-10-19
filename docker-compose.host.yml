@@ -1,0 +1,42 @@
+# Обход, когда bridge-сеть Docker не даёт контейнерам достучаться друг до друга
+# (типично для некоторых облачных VM). Запуск:
+#   docker compose -f docker-compose.yml -f docker-compose.host.yml up --build -d
+#
+# Бэкенд и Postgres слушают порты хоста напрямую; фронт остаётся на 5173→nginx:80.
+
+services:
+  postgres:
+    network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sport -d sportdb -h 127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  identity-service:
+    network_mode: host
+    environment:
+      DB_HOST: 127.0.0.1
+
+  event-service:
+    network_mode: host
+    environment:
+      DB_HOST: 127.0.0.1
+
+  ai-moderation-service:
+    network_mode: host
+    environment:
+      DB_HOST: 127.0.0.1
+
+  doc-generator-service:
+    network_mode: host
+    environment:
+      DB_HOST: 127.0.0.1
+
+  api-gateway:
+    network_mode: host
+    environment:
+      IDENTITY_SERVICE_URL: http://127.0.0.1:8081
+      EVENT_SERVICE_URL: http://127.0.0.1:8082
+      AI_SERVICE_URL: http://127.0.0.1:8083
+      DOC_SERVICE_URL: http://127.0.0.1:8084
