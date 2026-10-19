@@ -11,6 +11,7 @@
 | [ai-moderation.md](ai-moderation.md) | Как устроена ИИ-проверка: эвристика, LLM, слияние вердиктов, настройки, как добавить категорию |
 | [frontend.md](frontend.md) | Структура SPA, сессия и заголовки, роутинг по ролям, работа с API и картами |
 | [development.md](development.md) | Запуск, сборка, логи, сброс данных, H2-консоль и рецепты типовых изменений |
+| [deployment.md](deployment.md) | Деплой на VPS через Docker Compose и `scripts/deploy-vps.sh` |
 | [decisions.md](decisions.md) | Ключевые архитектурные решения и их причины |
 | [known-issues.md](known-issues.md) | Технический долг, риски безопасности и ограничения прототипа |
 
