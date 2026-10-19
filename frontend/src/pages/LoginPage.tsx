@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
-import { homeFor, useAuth } from '../auth/AuthContext'
+import { homeFor, organizationEntryMessage, useAuth } from '../auth/AuthContext'
 import { useToast } from '../components/Toast'
 import { Avatar, Button, ErrorBox, Field, Spinner, Tabs } from '../components/ui'
 
@@ -13,7 +13,7 @@ const hints: Record<number, string> = {
   2: 'Видит только безопасные проверенные занятия; при записи формируется согласие родителя.',
   3: 'Допуск организаций, снятие событий с публикации, модерация обсуждений, настройки ИИ.',
   4: 'Допущенный клуб: публикует события без премодерации, рассматривает 2 заявки на футбол.',
-  5: 'Клуб ждёт допуска: страница скрыта, публикация событий заблокирована.',
+  5: 'Клуб ещё не подтверждён: войти нельзя, пока администратор не одобрит заявку.',
   6: 'Ещё один участник — удобно проверять события «глазами другого пользователя».',
   7: 'Организатор скандинавской ходьбы «по заявке» и события, придержанного ИИ.',
 }
@@ -28,8 +28,15 @@ const roleSticker: Record<User['role'], string> = {
 export function LoginPage() {
   const { demoAccounts, login, loading } = useAuth()
   const navigate = useNavigate()
+  const [blocked, setBlocked] = useState<string | null>(null)
 
   const enter = (user: User) => {
+    const message = organizationEntryMessage(user)
+    if (message) {
+      setBlocked(message)
+      return
+    }
+    setBlocked(null)
     login(user)
     navigate(homeFor(user))
   }
@@ -43,6 +50,11 @@ export function LoginPage() {
         <p className="mt-3 text-lg font-medium text-slate-700">
           Авторизация имитируется: выберите демо-аккаунт — пароль не нужен. Роль можно сменить в любой момент кнопкой в шапке.
         </p>
+        {blocked && (
+          <div className="mt-4">
+            <ErrorBox error={blocked} />
+          </div>
+        )}
         {loading ? (
           <Spinner />
         ) : demoAccounts.length === 0 ? (
@@ -100,11 +112,12 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         organization: kind === 'ORGANIZATION' ? { ...org, city: form.city } : undefined,
       })
       await reloadAccounts()
-      notify(
-        'success',
-        kind === 'ORGANIZATION' ? 'Заявка организации отправлена' : 'Аккаунт создан',
-        kind === 'ORGANIZATION' ? 'Администратор рассмотрит её — статус виден в разделе «Моя организация».' : undefined,
-      )
+      if (kind === 'ORGANIZATION') {
+        notify('info', 'Организация пока не подтверждена', 'Заявка ушла администратору. Войти можно после одобрения.')
+        setError(new ApiError(403, 'PENDING', 'Организация пока не подтверждена. Дождитесь решения администратора — после одобрения вход откроется.'))
+        return
+      }
+      notify('success', 'Аккаунт создан')
       onRegistered(user)
     } catch (e) {
       setError(e as ApiError)
@@ -156,7 +169,7 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         ) : (
           <div className="space-y-4 rounded-xl border-[3px] border-ink bg-pop-orange/35 p-4">
             <p className="text-sm text-ink">
-              Страница клуба появится на платформе после одобрения администратором. До этого вы видите статус заявки, но не можете публиковать события.
+              Заявка уйдёт администратору. Пока организация не подтверждена, войти в аккаунт нельзя.
             </p>
             <Field label="Название организации" error={fieldError('name')}>
               <input className="input" required value={org.name} onChange={(e) => setOrg({ ...org, name: e.target.value })} />

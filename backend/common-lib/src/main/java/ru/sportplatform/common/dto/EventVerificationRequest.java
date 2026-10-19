@@ -5,7 +5,12 @@ import java.time.LocalDateTime;
 import jakarta.validation.constraints.NotBlank;
 import ru.sportplatform.common.enums.Audience;
 
-/** Запрос event-service → ai-moderation-service при публикации мероприятия. */
+/**
+ * Запрос проверки мероприятия.
+ *
+ * @param mode {@code DRAFT} — подсказки по мере ввода, вердикт в ленту не пишется;
+ *             {@code PUBLISHED} или пусто — проверка при сохранении.
+ */
 public record EventVerificationRequest(
         Long eventId,
         @NotBlank String title,
@@ -15,6 +20,10 @@ public record EventVerificationRequest(
         Audience audience,
         LocalDateTime startAt,
         String organizerName,
-        boolean organizationEvent
+        boolean organizationEvent,
+        String mode
 ) {
+    public boolean draft() {
+        return "DRAFT".equalsIgnoreCase(mode);
+    }
 }

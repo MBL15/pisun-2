@@ -12,4 +12,6 @@ public interface SportTypeRepository extends JpaRepository<SportType, Long> {
     Optional<SportType> findByNameKey(String nameKey);
 
     List<SportType> findAllByOrderByCustomAscNameAsc();
+
+    List<SportType> findByArchivedFalseOrderByCustomAscNameAsc();
 }

@@ -1,10 +1,11 @@
-import { Baby, CalendarCheck, CalendarDays, Heart, MapPin, Pencil, PlusCircle, UserPlus, Users } from 'lucide-react'
+import { Baby, CalendarCheck, CalendarDays, Heart, MapPin, Navigation, Pencil, PlusCircle, UserPlus, Users } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { eventsApi, usersApi } from '../api/endpoints'
 import type { MyRegistration, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { RegistrationBadge } from '../components/EventBadges'
+import { RouteDialog } from '../components/RouteDialog'
 import { EventCard } from '../components/EventCard'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, Modal, Section, Spinner, Tabs } from '../components/ui'
@@ -145,6 +146,7 @@ export function CabinetPage() {
 }
 
 function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefined; error: Error | null; loading: boolean; reload: () => Promise<void> } }) {
+  const [route, setRoute] = useState<MyRegistration | null>(null)
   if (state.error) return <ErrorBox error={state.error} onRetry={state.reload} />
   if (state.loading && !state.data) return <Spinner />
   const list = state.data ?? []
@@ -161,23 +163,36 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
   const upcoming = list.filter((r) => !r.event.past)
   const past = list.filter((r) => r.event.past)
 
-  const row = ({ registration, event }: MyRegistration) => (
-    <Link key={registration.id} to={`/events/${event.id}`} className="card flex flex-col gap-3 p-4 transition lift sm:flex-row sm:items-center">
-      <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-lg font-bold">{event.title}</p>
-        <p className="text-slate-600">
-          {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
-        </p>
-        {registration.child && <p className="text-sm font-medium text-emerald-700">Участник: {registration.participantName}</p>}
-        {registration.decisionComment && <p className="text-sm text-slate-600">Организатор: {registration.decisionComment}</p>}
-        {event.status !== 'PUBLISHED' && event.moderationReason && (
-          <p className="text-sm font-medium text-red-700">Снято с публикации: {event.moderationReason}</p>
-        )}
+  const row = (item: MyRegistration) => {
+    const { registration, event } = item
+    const canRoute = registration.status === 'APPROVED' && event.latitude != null && event.longitude != null && !event.past
+    return (
+      <div key={registration.id} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <Link to={`/events/${event.id}`} className="flex min-w-0 flex-1 items-start gap-3">
+          <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
+          <span className="min-w-0">
+            <span className="block text-lg font-bold">{event.title}</span>
+            <span className="block text-slate-600">
+              {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
+            </span>
+            {registration.child && <span className="block text-sm font-medium text-emerald-700">Участник: {registration.participantName}</span>}
+            {registration.decisionComment && <span className="block text-sm text-slate-600">Организатор: {registration.decisionComment}</span>}
+            {event.status !== 'PUBLISHED' && event.moderationReason && (
+              <span className="block text-sm font-medium text-red-700">Снято с публикации: {event.moderationReason}</span>
+            )}
+          </span>
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {canRoute && (
+            <Button type="button" size="sm" variant="secondary" icon={<Navigation className="size-4" />} onClick={() => setRoute(item)}>
+              Как добраться
+            </Button>
+          )}
+          <RegistrationBadge status={registration.status} label={registration.child ? childLabel(registration.status) : undefined} />
+        </div>
       </div>
-      <RegistrationBadge status={registration.status} label={registration.child ? childLabel(registration.status) : undefined} />
-    </Link>
-  )
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -187,6 +202,14 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
           <h2 className="text-lg font-bold text-slate-600">Прошедшие</h2>
           <div className="space-y-3 opacity-75">{past.map(row)}</div>
         </div>
+      )}
+      {route?.event.latitude != null && route.event.longitude != null && (
+        <RouteDialog
+          title={route.event.title}
+          latitude={route.event.latitude}
+          longitude={route.event.longitude}
+          onClose={() => setRoute(null)}
+        />
       )}
     </div>
   )

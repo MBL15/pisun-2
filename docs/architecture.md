@@ -24,7 +24,7 @@
 | Префикс пути | Сервис |
 |---|---|
 | `/api/users`, `/api/organizations` | identity-service |
-| `/api/events`, `/api/sports`, `/api/comments` | event-service |
+| `/api/events`, `/api/sports`, `/api/comments`, `/api/maps` | event-service |
 | `/api/moderation`, `/api/ai` | ai-moderation-service |
 | `/api/documents` | doc-generator-service |
 
@@ -41,6 +41,8 @@
 | event | identity | `GET /api/users/{id}`, `GET /api/users/{id}/children` | Автор события, участник, проверка родителя | 5 с |
 | event | ai | `POST /api/ai/verify-event` | Вердикт при создании и редактировании события | 20 с |
 | event | ai | `POST /api/ai/verify-comment` | Фильтр нового комментария | 20 с |
+| event | ai | `POST /api/ai/curate-sport`, `POST /api/ai/audit` | Оценка нового вида спорта и общий журнал агентов | 20 с |
+| event | Яндекс | HTTP Геокодер и Router API | Поиск адреса и маршрут «как добраться». Ключи только на сервере | 8 с |
 | ai | identity | `GET /api/users/{id}` | Имя администратора для журнала | — |
 | ai | identity | `POST /internal/organizations/{id}/decision` | Одобрить или отклонить организацию | — |
 | ai | event | `POST /internal/events/{id}/status` | Снять, удалить, опубликовать событие | — |

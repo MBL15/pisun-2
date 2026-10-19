@@ -56,6 +56,7 @@ public class HeuristicAnalyzer {
 
     private static final List<Pattern> KIDS_MARKERS = compile(
             "\\bдет(и|ей|ям|ский|ская|ское|ские)\\b", "\\bребён\\w*", "\\bребен\\w*", "\\bшкольник\\w*", "\\bсемейн\\w*",
+            "\\bсемь(я|и|е|ёй|ей)\\w*", "для всей семьи", "\\d+\\s*лет", "\\d+\\s*\\+", "\\bдвор(е|а|у|ом|ах)?\\b",
             "\\bподрост\\w*");
 
     private static final Pattern CONTACT_IN_TEXT = Pattern.compile("(\\+7|8)[\\s(-]*\\d{3}|t\\.me/|https?://|@\\w{4,}", FLAGS);

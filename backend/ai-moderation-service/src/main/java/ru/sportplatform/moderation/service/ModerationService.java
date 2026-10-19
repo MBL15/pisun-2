@@ -13,6 +13,7 @@ import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.EventStatusChangeRequest;
 import ru.sportplatform.common.dto.OrganizationDecisionRequest;
 import ru.sportplatform.common.dto.OrganizationDto;
+import ru.sportplatform.common.dto.SportMergeRequest;
 import ru.sportplatform.common.enums.EventStatus;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.moderation.client.PlatformClients;
@@ -31,6 +32,7 @@ public class ModerationService {
     private final PlatformClients platform;
     private final ModerationActionRepository actions;
     private final SettingsService settings;
+    private final GuardianReportService guardian;
 
     // ----- организации -----
 
@@ -91,6 +93,29 @@ public class ModerationService {
         CommentSnapshotDto comment = platform.setCommentVisibility(id, new CommentVisibilityRequest(false, null, admin));
         log(current, admin, Type.COMMENT_RESTORED, "COMMENT", id, commentTitle(comment), null);
         return comment;
+    }
+
+    /** Скрывает все ещё видимые сообщения, которые эвристика считает токсичными. */
+    @Transactional
+    public int hideFlaggedComments(CurrentUser current) {
+        String admin = adminName(current);
+        int hidden = 0;
+        for (CommentSnapshotDto comment : guardian.toxicComments()) {
+            String reason = "Скрыто пакетом по предложению агента качества";
+            platform.setCommentVisibility(comment.id(), new CommentVisibilityRequest(true, reason, admin));
+            log(current, admin, Type.COMMENT_HIDDEN, "COMMENT", comment.id(), commentTitle(comment), reason);
+            hidden++;
+        }
+        return hidden;
+    }
+
+    @Transactional
+    public void mergeSports(CurrentUser current, SportMergeRequest request) {
+        String admin = adminName(current);
+        platform.mergeSports(request);
+        log(current, admin, Type.SPORT_MERGED, "SPORT", request.targetId(),
+                "Слияние #" + request.sourceId() + " → #" + request.targetId(),
+                "События перенесены на канонический вид спорта");
     }
 
     @Transactional

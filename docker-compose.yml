@@ -87,7 +87,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: http://localhost:8080
-        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-d4e98182-f969-4853-8164-04e542c8fb21}
     restart: unless-stopped
     depends_on:
       - api-gateway

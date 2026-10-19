@@ -62,6 +62,74 @@ export interface SportType {
   emoji: string | null
   custom: boolean
   eventsCount: number
+  category?: string | null
+  icon?: string | null
+  tags?: string | null
+  defaultAge?: AgeRestriction | null
+  description?: string | null
+  equipment?: string | null
+  safetyNotes?: string | null
+  typicalDurationMinutes?: number | null
+}
+
+export interface AgentSuggestion {
+  type: string
+  field: string | null
+  message: string
+  confidence: number
+  autoApplicable: boolean
+}
+
+export interface SportHit {
+  sport: SportType
+  confidence: number
+  message: string
+}
+
+export interface SportProposal {
+  decision: 'MATCH' | 'ADDED' | 'REJECTED'
+  message: string
+  sport: SportType | null
+  similar: SportHit[]
+  canonicalName: string | null
+  category: string | null
+  defaultAge: AgeRestriction | null
+  icon: string | null
+}
+
+export interface GeoPlace {
+  address: string
+  latitude: number
+  longitude: number
+}
+
+export interface RoutePlan {
+  mode: string
+  distanceMeters: number
+  durationSeconds: number
+  points: { latitude: number; longitude: number }[]
+}
+
+export interface GuardianReport {
+  checks: number
+  flagged: number
+  autoUnpublished: number
+  topReasons: string[]
+  flaggedVisibleComments: number
+  commentSuggestion: string
+}
+
+export interface SportMetrics {
+  top: SportType[]
+  orphans: SportType[]
+  recent: SportType[]
+}
+
+export interface MergeProposal {
+  source: SportType
+  target: SportType
+  confidence: number
+  reason: string
 }
 
 export interface Registration {
@@ -96,6 +164,8 @@ export interface SportEvent {
   sportName: string
   sportEmoji: string | null
   sportCustom: boolean
+  sportEquipment?: string | null
+  sportSafetyNotes?: string | null
   startAt: string
   endAt: string
   durationMinutes: number
@@ -211,6 +281,8 @@ export interface VerificationResult {
   source: string
   hold: boolean
   checkedAt: string
+  suggestions?: AgentSuggestion[]
+  ageExplanation?: string | null
 }
 
 export interface AiSettings {
@@ -237,6 +309,7 @@ export interface ModerationAction {
     | 'COMMENT_RESTORED'
     | 'COMMENT_DELETED'
     | 'SETTINGS_CHANGED'
+    | 'SPORT_MERGED'
   targetType: string
   targetId: number | null
   targetTitle: string | null

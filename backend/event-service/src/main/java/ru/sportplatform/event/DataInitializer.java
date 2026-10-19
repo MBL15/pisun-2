@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import ru.sportplatform.event.repository.SportTypeRepository;
 /** Стартовые данные: справочник направлений, мероприятия в Красноярске, заявки и обсуждения. */
 @Slf4j
 @Component
+@Order(10)
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
@@ -261,6 +263,38 @@ public class DataInitializer implements CommandLineRunner {
         comments.save(comment(run.getId(), null, DemoIds.ADULT_DMITRY, DemoIds.DMITRY_NAME, RoleType.USER, "#ca8a04",
                 false, "А если я бегаю медленнее 7:00 — не задержу группу?", now.minus(3, ChronoUnit.HOURS)));
 
+        SportType futbik = sportTypes.save(SportType.builder()
+                .name("футбик").nameKey(TextUtils.normalizeKey("футбик")).emoji("🏅").custom(true)
+                .createdByUserId(DemoIds.ADULT_DMITRY).createdAt(Instant.now().minus(120, ChronoUnit.DAYS)).build());
+        SportType jog = sportTypes.save(SportType.builder()
+                .name("бег трусцой").nameKey(TextUtils.normalizeKey("бег трусцой")).emoji("🏅").custom(true)
+                .createdByUserId(DemoIds.ADULT_IRINA).createdAt(Instant.now().minus(100, ChronoUnit.DAYS)).build());
+        events.save(SportEvent.builder()
+                .title("Утренняя партия в парке")
+                .description("Собираемся играть в шахматы на скамейках у фонтана, приносите свои доски. Это не пробежка.")
+                .sportType(sports.get("Бег"))
+                .startAt(today.plusDays(6).atTime(10, 0))
+                .durationMinutes(90)
+                .address("Центральный парк, скамейки у фонтана")
+                .latitude(56.0120).longitude(92.8700)
+                .conditions("Свои шахматы, если есть.")
+                .level(SkillLevel.ANY)
+                .audience(Audience.ALL)
+                .registrationMode(RegistrationMode.FREE)
+                .status(EventStatus.ON_REVIEW)
+                .organizerType(OrganizerType.USER)
+                .organizerUserId(DemoIds.ADULT_DMITRY)
+                .organizerName(DemoIds.DMITRY_NAME)
+                .aiStatus(AiStatus.AI_APPROVED)
+                .ageRestriction(AgeRestriction.CHILD_SAFE)
+                .aiSummary("Нарушений нет, но вид спорта не совпадает с текстом. Ждёт подтверждения администратора.")
+                .aiReasons("Вы выбрали «Бег», а в тексте упоминается «Шахматы».")
+                .build());
+        comments.save(comment(run.getId(), null, DemoIds.ADULT_IRINA, DemoIds.IRINA_NAME, RoleType.USER, "#0891b2",
+                false, "Да ты мудак, не приходи больше на пробежки", now.minus(1, ChronoUnit.HOURS)));
+
+        log.info("Event: «{}» и «{}» оставлены как грязные названия для куратора справочника",
+                futbik.getName(), jog.getName());
         log.info("Event: созданы {} направлений, {} мероприятий, {} заявок, {} сообщений, «{}» с заявками PENDING",
                 sportTypes.count(), events.count(), registrations.count(), comments.count(), football.getTitle());
     }

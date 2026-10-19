@@ -20,6 +20,8 @@ public record EventDto(
         String sportName,
         String sportEmoji,
         boolean sportCustom,
+        String sportEquipment,
+        String sportSafetyNotes,
         LocalDateTime startAt,
         LocalDateTime endAt,
         Integer durationMinutes,

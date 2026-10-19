@@ -1,6 +1,7 @@
 package ru.sportplatform.moderation.web;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import ru.sportplatform.common.dto.CommentSnapshotDto;
 import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.common.dto.ReasonRequest;
+import ru.sportplatform.common.dto.SportMergeRequest;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.moderation.domain.ModerationAction;
 import ru.sportplatform.moderation.service.ModerationService;
@@ -66,6 +69,16 @@ public class ModerationController {
     @PostMapping("/comments/{id}/delete")
     public CommentSnapshotDto deleteComment(CurrentUser user, @PathVariable Long id, @Valid @RequestBody ReasonRequest request) {
         return moderation.deleteComment(user, id, request.reason());
+    }
+
+    @PostMapping("/comments/hide-flagged")
+    public Map<String, Integer> hideFlagged(CurrentUser user) {
+        return Map.of("hidden", moderation.hideFlaggedComments(user));
+    }
+
+    @PostMapping("/sports/merge")
+    public void mergeSports(CurrentUser user, @RequestBody SportMergeRequest request) {
+        moderation.mergeSports(user, request);
     }
 
     @GetMapping("/journal")

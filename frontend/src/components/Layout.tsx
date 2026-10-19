@@ -15,8 +15,10 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ApiError } from '../api/client'
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
+import { useToast } from './Toast'
 import { roleLabels } from '../lib/format'
 import { Avatar } from './ui'
 
@@ -60,6 +62,7 @@ const roleTone: Record<string, string> = {
 
 function RoleSwitcher() {
   const { user, demoAccounts, loginById, logout } = useAuth()
+  const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -72,8 +75,16 @@ function RoleSwitcher() {
 
   const switchTo = async (id: number) => {
     setOpen(false)
-    const next = await loginById(id)
-    navigate(homeFor(next))
+    try {
+      const next = await loginById(id)
+      navigate(homeFor(next))
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'PENDING') {
+        notify('info', 'Организация пока не подтверждена', error.message)
+        return
+      }
+      throw error
+    }
   }
 
   return (
@@ -166,7 +177,9 @@ export function Layout() {
   const [largeText, toggleLargeText] = useLargeText()
   const location = useLocation()
 
-  useEffect(() => window.scrollTo(0, 0), [location.pathname])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-2 rounded-lg border-[3px] px-3 py-1.5 font-bold transition ${

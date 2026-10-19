@@ -8,13 +8,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.CommentSnapshotDto;
 import ru.sportplatform.common.dto.CommentVisibilityRequest;
 import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.EventStatusChangeRequest;
+import ru.sportplatform.common.dto.SportMergeRequest;
 import ru.sportplatform.event.service.CommentService;
 import ru.sportplatform.event.service.EventService;
+import ru.sportplatform.event.service.SportCuratorService;
+import ru.sportplatform.event.web.dto.SportTypeDto;
 
 /** Межсервисные эндпоинты (не проброшены через api-gateway). */
 @RestController
@@ -24,10 +29,16 @@ public class InternalEventController {
 
     private final EventService eventService;
     private final CommentService commentService;
+    private final SportCuratorService curator;
 
     @GetMapping("/events/{id}")
     public EventSnapshotDto event(@PathVariable Long id) {
         return eventService.snapshot(id);
+    }
+
+    @PostMapping("/sports/merge")
+    public SportTypeDto mergeSports(@RequestBody SportMergeRequest request) {
+        return curator.merge(request.sourceId(), request.targetId());
     }
 
     @PostMapping("/events/{id}/status")
@@ -35,17 +46,22 @@ public class InternalEventController {
         return eventService.changeStatus(id, request);
     }
 
-    @GetMapping("/comments/{id}")
+    @GetMapping("/comments/open")
+    public List<CommentSnapshotDto> openComments() {
+        return commentService.openSnapshots();
+    }
+
+    @GetMapping("/comments/{id:\\d+}")
     public CommentSnapshotDto comment(@PathVariable Long id) {
         return commentService.snapshot(id);
     }
 
-    @PostMapping("/comments/{id}/visibility")
+    @PostMapping("/comments/{id:\\d+}/visibility")
     public CommentSnapshotDto visibility(@PathVariable Long id, @RequestBody CommentVisibilityRequest request) {
         return commentService.setVisibility(id, request);
     }
 
-    @DeleteMapping("/comments/{id}")
+    @DeleteMapping("/comments/{id:\\d+}")
     public CommentSnapshotDto delete(@PathVariable Long id) {
         return commentService.deleteByModerator(id);
     }

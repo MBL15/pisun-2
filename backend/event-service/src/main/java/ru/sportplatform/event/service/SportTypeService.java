@@ -25,10 +25,16 @@ public class SportTypeService {
 
     @Transactional(readOnly = true)
     public List<SportTypeDto> list() {
-        return sportTypes.findAllByOrderByCustomAscNameAsc().stream()
-                .map(s -> new SportTypeDto(s.getId(), s.getName(), s.getEmoji(), s.isCustom(),
-                        events.countBySportTypeIdAndStatus(s.getId(), EventStatus.PUBLISHED)))
+        return sportTypes.findByArchivedFalseOrderByCustomAscNameAsc().stream()
+                .map(this::toDto)
                 .toList();
+    }
+
+    public SportTypeDto toDto(SportType sport) {
+        return new SportTypeDto(sport.getId(), sport.getName(), sport.getEmoji(), sport.isCustom(),
+                events.countBySportTypeIdAndStatus(sport.getId(), EventStatus.PUBLISHED),
+                sport.getCategory(), sport.getIcon(), sport.getTags(), sport.getDefaultAge(),
+                sport.getDescription(), sport.getEquipment(), sport.getSafetyNotes(), sport.getTypicalDurationMinutes());
     }
 
     /**
@@ -53,12 +59,16 @@ public class SportTypeService {
         if (key.length() < 2) {
             throw ApiException.badRequest("Название направления слишком короткое");
         }
-        return sportTypes.findByNameKey(key).orElseGet(() -> sportTypes.save(SportType.builder()
-                .name(TextUtils.prettify(name))
-                .nameKey(key)
-                .emoji(CUSTOM_EMOJI)
-                .custom(true)
-                .createdByUserId(userId)
-                .build()));
+        return sportTypes.findByNameKey(key).orElseGet(() -> {
+            SportType created = SportType.builder()
+                    .name(TextUtils.prettify(name))
+                    .nameKey(key)
+                    .emoji(CUSTOM_EMOJI)
+                    .custom(true)
+                    .createdByUserId(userId)
+                    .build();
+            SportProfiles.apply(created);
+            return sportTypes.save(created);
+        });
     }
 }

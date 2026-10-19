@@ -125,6 +125,13 @@ export function EventPage() {
             <p className="whitespace-pre-line text-lg leading-relaxed text-slate-800">
               {event.conditions || 'Организатор не указал особых требований.'}
             </p>
+            {(event.sportEquipment || event.sportSafetyNotes) && (
+              <div className="mt-4 space-y-2 rounded-xl border-[3px] border-ink bg-pop-blue/30 p-4">
+                <p className="font-bold">Что взять с собой</p>
+                {event.sportEquipment && <p className="text-slate-800">{event.sportEquipment}</p>}
+                {event.sportSafetyNotes && <p className="text-sm text-slate-700">{event.sportSafetyNotes}</p>}
+              </div>
+            )}
             <div className={`mt-4 rounded-xl border-[3px] border-ink p-4 ${event.registrationMode === 'FREE' ? 'bg-pop-green/40' : 'bg-pop-lilac/40'}`}>
               <p className="font-bold">{modeLabels[event.registrationMode]}</p>
               <p className="text-slate-800">{modeHints[event.registrationMode]}</p>
