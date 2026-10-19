@@ -75,9 +75,7 @@ export function EventLocationMap({ address, latitude, longitude, addressError, o
     }
   }, [])
 
-  const applyCoordsRef = useRef<(lat: number, lon: number, source: 'map' | 'drag' | 'search') => Promise<void>>(async () => {})
-
-  applyCoordsRef.current = async (lat: number, lon: number, source: 'map' | 'drag' | 'search') => {
+  const applyCoords = useCallback(async (lat: number, lon: number, source: 'map' | 'drag' | 'search') => {
     const ymaps = ymapsRef.current
     const map = mapRef.current
     if (!ymaps || !map) return
@@ -112,7 +110,12 @@ export function EventLocationMap({ address, latitude, longitude, addressError, o
     } finally {
       if (generation === geocodeGenRef.current) setGeocoding(false)
     }
-  }
+  }, [syncPlacemark])
+
+  const applyCoordsRef = useRef(applyCoords)
+  useEffect(() => {
+    applyCoordsRef.current = applyCoords
+  }, [applyCoords])
 
   const geocodeQuery = useCallback(
     async (query: string) => {
