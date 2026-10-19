@@ -1,6 +1,11 @@
 import type { RoleType } from './types'
 
-export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8080'
+const configuredApi = import.meta.env.VITE_API_URL as string | undefined
+/** Пустая строка в Docker — запросы на тот же origin, nginx проксирует /api на шлюз. */
+export const API_URL =
+  configuredApi === undefined || configuredApi === null
+    ? 'http://localhost:8080'
+    : configuredApi.replace(/\/$/, '')
 
 export class ApiError extends Error {
   status: number

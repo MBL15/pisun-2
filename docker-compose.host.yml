@@ -40,3 +40,7 @@ services:
       EVENT_SERVICE_URL: http://127.0.0.1:8082
       AI_SERVICE_URL: http://127.0.0.1:8083
       DOC_SERVICE_URL: http://127.0.0.1:8084
+
+  frontend:
+    environment:
+      API_UPSTREAM: http://host.docker.internal:8080
