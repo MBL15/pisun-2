@@ -24,5 +24,8 @@ services:
     build:
       args:
         VITE_API_URL: ""
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_YANDEX_GEOCODER_API_KEY: ${VITE_YANDEX_GEOCODER_API_KEY:-}
+        VITE_YANDEX_ROUTER_API_KEY: ${VITE_YANDEX_ROUTER_API_KEY:-}
     ports:
       - "80:80"

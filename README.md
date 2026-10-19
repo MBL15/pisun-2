@@ -42,7 +42,9 @@ docker compose up --build
 
 | Переменная | Где | Назначение |
 |---|---|---|
-| `VITE_YANDEX_MAPS_API_KEY` | frontend | Ключ JS API Яндекс Карт. Без ключа карты работают, но не работает поиск адреса (геокодер). |
+| `VITE_YANDEX_MAPS_API_KEY` | frontend | Ключ JavaScript API Яндекс Карт. |
+| `VITE_YANDEX_GEOCODER_API_KEY` | frontend | Ключ HTTP Geocoder (поиск адреса при создании события). |
+| `VITE_YANDEX_ROUTER_API_KEY` | frontend | Ключ HTTP Router (время и расстояние до места события). |
 | `VITE_API_URL` | frontend | Адрес шлюза, по умолчанию `http://localhost:8080`. |
 | `AI_LLM_API_KEY` | ai-moderation-service | Ключ любого OpenAI-совместимого API. Без ключа работает встроенный Java-анализатор. |
 | `AI_LLM_BASE_URL`, `AI_LLM_MODEL` | ai-moderation-service | По умолчанию `https://api.openai.com/v1` и `gpt-4o-mini`. Подойдут YandexGPT через совместимый эндпоинт или локальная Ollama. |

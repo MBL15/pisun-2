@@ -35,6 +35,10 @@ export DEPLOY_HOST=195.209.212.77   # при необходимости
 
 | Переменная | Назначение |
 |---|---|
-| `VITE_YANDEX_MAPS_API_KEY` | Ключ Яндекс Карт |
+| `VITE_YANDEX_MAPS_API_KEY` | JavaScript API 2.1 (карта на страницах) |
+| `VITE_YANDEX_GEOCODER_API_KEY` | HTTP Geocoder (поиск и обратное геокодирование при создании события) |
+| `VITE_YANDEX_ROUTER_API_KEY` | HTTP Router (оценка времени и расстояния на кнопке «Построить маршрут») |
 | `AI_LLM_API_KEY` | LLM для модерации |
 | `FRONTEND_ORIGINS` | CORS в шлюзе, по умолчанию `*` |
+
+Образец: скопируйте [env.example](../env.example) в `.env` на машине, с которой запускаете деплой — файл попадёт на сервер через rsync (в git не коммитится).

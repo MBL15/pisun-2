@@ -82,9 +82,13 @@ set -euo pipefail
 cd '$REMOTE_DIR'
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
-docker compose -f docker-compose.yml -f docker-compose.vps.yml build --parallel 2
-docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d
-docker compose -f docker-compose.yml -f docker-compose.vps.yml ps
+ENV_FILE_ARGS=()
+if [[ -f .env ]]; then
+  ENV_FILE_ARGS=(--env-file .env)
+fi
+docker compose "${ENV_FILE_ARGS[@]}" -f docker-compose.yml -f docker-compose.vps.yml build --parallel 2
+docker compose "${ENV_FILE_ARGS[@]}" -f docker-compose.yml -f docker-compose.vps.yml up -d
+docker compose "${ENV_FILE_ARGS[@]}" -f docker-compose.yml -f docker-compose.vps.yml ps
 REMOTE_UP
 
 echo ""

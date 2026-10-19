@@ -88,6 +88,8 @@ services:
       args:
         VITE_API_URL: http://localhost:8080
         VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_YANDEX_GEOCODER_API_KEY: ${VITE_YANDEX_GEOCODER_API_KEY:-}
+        VITE_YANDEX_ROUTER_API_KEY: ${VITE_YANDEX_ROUTER_API_KEY:-}
     restart: unless-stopped
     depends_on:
       - api-gateway
