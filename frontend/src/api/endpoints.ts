@@ -17,17 +17,26 @@ import type {
   SportEvent,
   SportType,
   User,
+  Family,
 } from './types'
 
 export const usersApi = {
   list: (demo = false) => api.get<User[]>(`/api/users${buildQuery({ demo })}`),
   get: (id: number) => api.get<User>(`/api/users/${id}`),
   register: (body: RegisterRequest) => api.post<User>('/api/users', body),
-  update: (id: number, body: { displayName: string; city: string | null; interests: string | null; bio: string | null }) =>
-    api.put<User>(`/api/users/${id}`, body),
+  update: (
+    id: number,
+    body: { displayName: string; city: string | null; interests: string | null; bio: string | null; gender?: User['gender'] },
+  ) => api.put<User>(`/api/users/${id}`, body),
   children: (id: number) => api.get<User[]>(`/api/users/${id}/children`),
   addChild: (id: number, body: { displayName: string; age: number; interests?: string }) =>
     api.post<User>(`/api/users/${id}/children`, body),
+}
+
+export const familiesApi = {
+  my: () => api.get<Family>('/api/families/my'),
+  eligibleSpouses: () => api.get<User[]>('/api/families/eligible-spouses'),
+  create: (spouseUserId: number) => api.post<Family>('/api/families', { spouseUserId }),
 }
 
 export const organizationsApi = {

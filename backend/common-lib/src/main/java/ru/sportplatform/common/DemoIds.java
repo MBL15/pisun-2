@@ -14,6 +14,7 @@ public final class DemoIds {
     public static final long ORG_PENDING_OWNER = 5L;
     public static final long ADULT_IRINA = 6L;
     public static final long ADULT_DMITRY = 7L;
+    public static final long ADULT_SPOUSE = 8L;
 
     public static final long ORG_APPROVED = 1L;
     public static final long ORG_PENDING = 2L;
@@ -25,6 +26,7 @@ public final class DemoIds {
     public static final String ORG_PENDING_OWNER_NAME = "Ольга Кузнецова";
     public static final String IRINA_NAME = "Ирина Соколова";
     public static final String DMITRY_NAME = "Дмитрий Орлов";
+    public static final String ADULT_SPOUSE_NAME = "Мария Петрова";
 
     public static final String ORG_APPROVED_NAME = "Дворовые легенды";
     public static final String ORG_PENDING_NAME = "Шахматный клуб «Ладья»";

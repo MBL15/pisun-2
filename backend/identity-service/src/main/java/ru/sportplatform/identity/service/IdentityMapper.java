@@ -5,8 +5,11 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.common.dto.UserDto;
+import ru.sportplatform.common.enums.RoleType;
+import ru.sportplatform.identity.domain.Family;
 import ru.sportplatform.identity.domain.Organization;
 import ru.sportplatform.identity.domain.UserAccount;
+import ru.sportplatform.identity.repository.FamilyRepository;
 import ru.sportplatform.identity.repository.OrganizationRepository;
 import ru.sportplatform.identity.repository.UserAccountRepository;
 
@@ -16,10 +19,12 @@ public class IdentityMapper {
 
     private final UserAccountRepository users;
     private final OrganizationRepository organizations;
+    private final FamilyRepository families;
 
     public UserDto toDto(UserAccount user) {
         String parentName = user.getParentId() == null ? null
                 : users.findById(user.getParentId()).map(UserAccount::getDisplayName).orElse(null);
+        String spouseName = spouseName(user);
         Organization org = user.getOrganizationId() == null ? null
                 : organizations.findById(user.getOrganizationId()).orElse(null);
         return new UserDto(
@@ -32,6 +37,9 @@ public class IdentityMapper {
                 user.getBio(),
                 user.getInterests(),
                 user.getAvatarColor(),
+                user.getGender(),
+                user.getFamilyId(),
+                spouseName,
                 user.getParentId(),
                 parentName,
                 org == null ? null : org.getId(),
@@ -40,6 +48,20 @@ public class IdentityMapper {
                 user.isDemo(),
                 user.getDemoLabel()
         );
+    }
+
+    private String spouseName(UserAccount user) {
+        if (user.getFamilyId() == null || user.getRole() != RoleType.USER) {
+            return null;
+        }
+        return families.findById(user.getFamilyId())
+                .map(f -> partnerName(f, user.getId()))
+                .orElse(null);
+    }
+
+    private String partnerName(Family family, Long userId) {
+        Long partnerId = userId.equals(family.getMaleUserId()) ? family.getFemaleUserId() : family.getMaleUserId();
+        return users.findById(partnerId).map(UserAccount::getDisplayName).orElse(null);
     }
 
     public OrganizationDto toDto(Organization org) {

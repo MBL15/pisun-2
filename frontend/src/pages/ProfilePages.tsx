@@ -1,14 +1,14 @@
-import { Baby, CalendarCheck, CalendarDays, Heart, MapPin, Pencil, PlusCircle, UserPlus, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, UserPlus, Users } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { eventsApi, usersApi } from '../api/endpoints'
-import type { MyRegistration, User } from '../api/types'
+import { eventsApi, familiesApi, usersApi } from '../api/endpoints'
+import type { Family, MyRegistration, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { RegistrationBadge } from '../components/EventBadges'
 import { EventCard } from '../components/EventCard'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, Modal, Section, Spinner, Tabs } from '../components/ui'
-import { formatRelativeDay, formatTime, plural, roleLabels } from '../lib/format'
+import { formatRelativeDay, formatTime, genderLabels, plural, roleLabels } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 export function ProfilePage() {
@@ -54,6 +54,7 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
             </span>
           )}
           {user.parentName && <span>Родитель: {user.parentName}</span>}
+          {user.spouseName && <span>Супруг(а): {user.spouseName}</span>}
         </p>
         {user.interests && (
           <p className="flex items-center gap-2 font-medium text-brand-700">
@@ -68,7 +69,7 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
   )
 }
 
-type CabinetTab = 'registrations' | 'events' | 'children'
+type CabinetTab = 'registrations' | 'events' | 'family'
 
 export function CabinetPage() {
   const { user, refreshUser } = useAuth()
@@ -76,7 +77,10 @@ export function CabinetPage() {
   const [editing, setEditing] = useState(false)
   const registrations = useAsync(() => eventsApi.myRegistrations(), [])
   const events = useAsync(() => (user?.role === 'USER' ? eventsApi.mine() : Promise.resolve([])), [user?.role])
-  const children = useAsync(() => (user?.role === 'USER' ? usersApi.children(user.id) : Promise.resolve([] as User[])), [user?.id])
+  const family = useAsync(async () => {
+    if (user?.role !== 'USER' || !user.familyId) return null
+    return familiesApi.my()
+  }, [user?.id, user?.familyId, user?.role])
 
   if (!user) return null
 
@@ -85,7 +89,7 @@ export function CabinetPage() {
   ]
   if (user.role === 'USER') {
     tabs.push({ value: 'events', label: 'Я организую', icon: <CalendarDays className="size-5" />, count: events.data?.reduce((n, e) => n + e.pendingCount, 0) })
-    tabs.push({ value: 'children', label: 'Дети', icon: <Baby className="size-5" /> })
+    tabs.push({ value: 'family', label: 'Семья', icon: <HeartHandshake className="size-5" /> })
   }
 
   return (
@@ -128,7 +132,16 @@ export function CabinetPage() {
         </div>
       )}
 
-      {tab === 'children' && <ChildrenPanel parent={user} kids={children.data ?? []} onAdded={children.reload} />}
+      {tab === 'family' && (
+        <FamilyPanel
+          user={user}
+          family={family.data ?? null}
+          familyState={family}
+          onChanged={async () => {
+            await Promise.all([family.reload(), refreshUser()])
+          }}
+        />
+      )}
 
       {editing && (
         <ProfileEditor
@@ -195,76 +208,176 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
 const childLabel = (status: MyRegistration['registration']['status']) =>
   ({ PENDING: 'Заявка ждёт решения', APPROVED: 'Ребёнок записан', REJECTED: 'Заявка отклонена', CANCELLED: 'Запись отменена' })[status]
 
-function ChildrenPanel({ parent, kids, onAdded }: { parent: User; kids: User[]; onAdded: () => Promise<void> }) {
+function FamilyPanel({
+  user,
+  family,
+  familyState,
+  onChanged,
+}: {
+  user: User
+  family: Family | null
+  familyState: { loading: boolean; error: Error | null; reload: () => Promise<void> }
+  onChanged: () => Promise<void>
+}) {
   const { notify } = useToast()
   const { reloadAccounts } = useAuth()
+  const spouses = useAsync(async () => {
+    if (user.familyId || user.role !== 'USER' || !user.gender) return []
+    const opposite = user.gender === 'MALE' ? 'FEMALE' : 'MALE'
+    const accounts = await usersApi.list(true)
+    return accounts.filter(
+      (person) => person.role === 'USER' && !person.familyId && person.gender === opposite && person.id !== user.id,
+    )
+  }, [user.id, user.familyId, user.gender, user.role])
+  const [spouseId, setSpouseId] = useState<number | ''>('')
+  const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [interests, setInterests] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [addingChild, setAddingChild] = useState(false)
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
+  if (familyState.error) return <ErrorBox error={familyState.error} onRetry={familyState.reload} />
+  if (familyState.loading && !family) return <Spinner />
+
+  const createFamily = async () => {
+    if (spouseId === '') return
+    setCreating(true)
     try {
-      const child = await usersApi.addChild(parent.id, { displayName: name.trim(), age: Number(age), interests: interests.trim() || undefined })
+      await familiesApi.create(spouseId)
+      await onChanged()
+      notify('success', 'Семья создана', 'Теперь оба родителя могут добавлять детей и записывать их на занятия.')
+    } catch (err) {
+      notify('error', 'Не удалось создать семью', (err as Error).message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const addChild = async (e: FormEvent) => {
+    e.preventDefault()
+    setAddingChild(true)
+    try {
+      const child = await usersApi.addChild(user.id, { displayName: name.trim(), age: Number(age), interests: interests.trim() || undefined })
       setName('')
       setAge('')
       setInterests('')
-      await Promise.all([onAdded(), reloadAccounts()])
+      await Promise.all([onChanged(), reloadAccounts()])
       notify('success', `Аккаунт для ${child.displayName} создан`, 'Ребёнок увидит только безопасные мероприятия.')
     } catch (err) {
       notify('error', 'Не удалось добавить', (err as Error).message)
     } finally {
-      setBusy(false)
+      setAddingChild(false)
     }
   }
 
+  if (!family) {
+    return (
+      <Section title="Создать семью" icon={<HeartHandshake className="size-6 text-brand-600" />}>
+        <div className="space-y-4">
+          {!user.gender && (
+            <p className="rounded-xl border-2 border-ink bg-pop-yellow/50 p-4 font-medium text-ink">
+              Укажите пол в профиле (кнопка «Изменить» выше) — семью могут создать мужчина и женщина.
+            </p>
+          )}
+          <p className="text-slate-700">
+            Выберите партнёра из пользователей без семьи противоположного пола. После создания семьи можно добавить детские аккаунты.
+          </p>
+          {spouses.error && <ErrorBox error={spouses.error} onRetry={spouses.reload} />}
+          {spouses.loading && !spouses.data ? (
+            <Spinner label="Ищем партнёров…" />
+          ) : (
+            <>
+              <Field label="Партнёр">
+                <select className="input" value={spouseId} onChange={(e) => setSpouseId(e.target.value === '' ? '' : Number(e.target.value))} disabled={!user.gender}>
+                  <option value="">— выберите —</option>
+                  {spouses.data?.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.displayName}
+                      {person.age ? `, ${person.age} лет` : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {user.gender && spouses.data?.length === 0 && (
+                <p className="text-slate-600">Сейчас нет подходящих партнёров — зарегистрируйте второго родителя или переключитесь на другой демо-аккаунт.</p>
+              )}
+              <Button type="button" loading={creating} disabled={spouseId === '' || !user.gender} onClick={createFamily} icon={<HeartHandshake className="size-5" />}>
+                Создать семью
+              </Button>
+            </>
+          )}
+        </div>
+      </Section>
+    )
+  }
+
+  const kids = family.children
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Section title="Детские аккаунты" icon={<Users className="size-6 text-brand-600" />}>
-        {kids.length === 0 ? (
-          <p className="text-slate-600">Добавьте ребёнка, чтобы записывать его на занятия. Для каждой записи автоматически сформируется согласие родителя.</p>
-        ) : (
-          <ul className="space-y-3">
-            {kids.map((child) => (
-              <li key={child.id} className="flex items-center gap-3 rounded-xl border-2 border-ink bg-pop-green/30 p-3">
-                <Avatar name={child.displayName} color={child.avatarColor} />
-                <div>
-                  <p className="font-bold">{child.displayName}</p>
-                  <p className="text-sm text-slate-600">
-                    {child.age} {plural(child.age ?? 0, 'год', 'года', 'лет')}
-                    {child.interests ? ` · ${child.interests}` : ''}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="space-y-6">
+      <Section title="Ваша семья" icon={<HeartHandshake className="size-6 text-brand-600" />}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border-2 border-ink bg-pop-blue/30 p-4">
+            <p className="text-sm font-semibold text-slate-600">Мужчина</p>
+            <p className="text-lg font-bold">{family.maleName}</p>
+          </div>
+          <div className="rounded-xl border-2 border-ink bg-pop-pink/30 p-4">
+            <p className="text-sm font-semibold text-slate-600">Женщина</p>
+            <p className="text-lg font-bold">{family.femaleName}</p>
+          </div>
+        </div>
       </Section>
-      <Section title="Добавить ребёнка" icon={<UserPlus className="size-6 text-brand-600" />}>
-        <form onSubmit={submit} className="space-y-4">
-          <Field label="Имя">
-            <input className="input" required value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="Возраст" hint="От 3 до 17 лет">
-            <input className="input" type="number" min={3} max={17} required value={age} onChange={(e) => setAge(e.target.value)} />
-          </Field>
-          <Field label="Интересы (необязательно)">
-            <input className="input" value={interests} onChange={(e) => setInterests(e.target.value)} />
-          </Field>
-          <Button type="submit" loading={busy} disabled={!name.trim() || !age} icon={<UserPlus className="size-5" />}>
-            Добавить
-          </Button>
-        </form>
-      </Section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section title="Дети" icon={<Users className="size-6 text-brand-600" />}>
+          {kids.length === 0 ? (
+            <p className="text-slate-600">Добавьте ребёнка — любой из родителей сможет записывать его на занятия и формировать согласие.</p>
+          ) : (
+            <ul className="space-y-3">
+              {kids.map((child) => (
+                <li key={child.id} className="flex items-center gap-3 rounded-xl border-2 border-ink bg-pop-green/30 p-3">
+                  <Avatar name={child.displayName} color={child.avatarColor} />
+                  <div>
+                    <p className="font-bold">{child.displayName}</p>
+                    <p className="text-sm text-slate-600">
+                      {child.age} {plural(child.age ?? 0, 'год', 'года', 'лет')}
+                      {child.interests ? ` · ${child.interests}` : ''}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+        <Section title="Добавить ребёнка" icon={<UserPlus className="size-6 text-brand-600" />}>
+          <form onSubmit={addChild} className="space-y-4">
+            <Field label="Имя">
+              <input className="input" required value={name} onChange={(e) => setName(e.target.value)} />
+            </Field>
+            <Field label="Возраст" hint="От 3 до 17 лет">
+              <input className="input" type="number" min={3} max={17} required value={age} onChange={(e) => setAge(e.target.value)} />
+            </Field>
+            <Field label="Интересы (необязательно)">
+              <input className="input" value={interests} onChange={(e) => setInterests(e.target.value)} />
+            </Field>
+            <Button type="submit" loading={addingChild} disabled={!name.trim() || !age} icon={<UserPlus className="size-5" />}>
+              Добавить
+            </Button>
+          </form>
+        </Section>
+      </div>
     </div>
   )
 }
 
 function ProfileEditor({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => Promise<void> }) {
   const { notify } = useToast()
-  const [form, setForm] = useState({ displayName: user.displayName, city: user.city ?? '', interests: user.interests ?? '', bio: user.bio ?? '' })
+  const [form, setForm] = useState({
+    displayName: user.displayName,
+    city: user.city ?? '',
+    interests: user.interests ?? '',
+    bio: user.bio ?? '',
+    gender: user.gender ?? '',
+  })
   const [busy, setBusy] = useState(false)
 
   const submit = async (e: FormEvent) => {
@@ -276,6 +389,7 @@ function ProfileEditor({ user, onClose, onSaved }: { user: User; onClose: () => 
         city: form.city.trim() || null,
         interests: form.interests.trim() || null,
         bio: form.bio.trim() || null,
+        gender: user.role === 'USER' && form.gender ? (form.gender as User['gender']) : undefined,
       })
       notify('success', 'Профиль обновлён')
       await onSaved()
@@ -301,6 +415,23 @@ function ProfileEditor({ user, onClose, onSaved }: { user: User; onClose: () => 
         <Field label="О себе">
           <textarea className="input min-h-24" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
         </Field>
+        {user.role === 'USER' && (
+          <Field label="Пол" hint={user.familyId ? 'В семье пол изменить нельзя' : 'Нужен для создания семьи'}>
+            <select
+              className="input"
+              value={form.gender}
+              disabled={Boolean(user.familyId)}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+            >
+              <option value="">— не указан —</option>
+              {(Object.keys(genderLabels) as Array<keyof typeof genderLabels>).map((value) => (
+                <option key={value} value={value}>
+                  {genderLabels[value]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
             Отмена

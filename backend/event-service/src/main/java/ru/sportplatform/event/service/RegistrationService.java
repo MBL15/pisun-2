@@ -53,7 +53,7 @@ public class RegistrationService {
                 throw ApiException.forbidden("Записать ребёнка может только родитель");
             }
             participant = identity.getUser(request.childId());
-            if (!me.id().equals(participant.parentId())) {
+            if (!canManageChild(me, participant)) {
                 throw ApiException.forbidden("Можно записывать только своих детей");
             }
             if (!eventService.isChildSafe(event)) {
@@ -159,6 +159,16 @@ public class RegistrationService {
                         .orElse(null))
                 .filter(java.util.Objects::nonNull)
                 .toList();
+    }
+
+    private static boolean canManageChild(UserDto adult, UserDto child) {
+        if (child.role() != RoleType.CHILD) {
+            return false;
+        }
+        if (adult.id().equals(child.parentId())) {
+            return true;
+        }
+        return adult.familyId() != null && adult.familyId().equals(child.familyId());
     }
 
     private Registration findForEvent(Long eventId, Long registrationId) {

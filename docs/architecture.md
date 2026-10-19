@@ -23,7 +23,7 @@
 
 | Префикс пути | Сервис |
 |---|---|
-| `/api/users`, `/api/organizations` | identity-service |
+| `/api/users`, `/api/organizations`, `/api/families` | identity-service |
 | `/api/events`, `/api/sports`, `/api/comments` | event-service |
 | `/api/moderation`, `/api/ai` | ai-moderation-service |
 | `/api/documents` | doc-generator-service |

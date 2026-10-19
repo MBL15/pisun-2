@@ -16,6 +16,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.sportplatform.common.enums.Gender;
 import ru.sportplatform.common.enums.RoleType;
 
 @Entity
@@ -54,6 +55,13 @@ public class UserAccount {
 
     @Column(length = 20)
     private String avatarColor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private Gender gender;
+
+    /** Семья взрослого или ребёнка. */
+    private Long familyId;
 
     /** Для детского аккаунта — id родителя. */
     private Long parentId;

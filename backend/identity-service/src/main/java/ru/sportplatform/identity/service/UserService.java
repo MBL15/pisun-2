@@ -46,6 +46,13 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserDto> children(Long parentId) {
+        UserAccount parent = find(parentId);
+        if (parent.getFamilyId() != null) {
+            return users.findByFamilyIdOrderByIdAsc(parent.getFamilyId()).stream()
+                    .filter(u -> u.getRole() == RoleType.CHILD)
+                    .map(mapper::toDto)
+                    .toList();
+        }
         return users.findByParentIdOrderByIdAsc(parentId).stream().map(mapper::toDto).toList();
     }
 
@@ -70,8 +77,12 @@ public class UserService {
                 .interests(request.interests())
                 .bio(request.bio())
                 .avatarColor(pickColor(request.displayName()))
+                .gender(request.role() == RoleType.USER ? request.gender() : null)
                 .demo(false)
                 .build());
+        if (request.role() == RoleType.USER && request.gender() == null) {
+            throw ApiException.badRequest("Укажите пол — он нужен для создания семьи");
+        }
 
         if (request.role() == RoleType.ORGANIZATION) {
             Organization org = organizations.save(newOrganization(request.organization(), user.getId()));
@@ -90,6 +101,9 @@ public class UserService {
         if (parent.getRole() != RoleType.USER) {
             throw ApiException.forbidden("Детский профиль можно привязать только к аккаунту взрослого пользователя");
         }
+        if (parent.getFamilyId() == null) {
+            throw ApiException.badRequest("Сначала создайте семью с партнёром — после этого можно добавлять детей");
+        }
         UserAccount child = users.save(UserAccount.builder()
                 .displayName(request.displayName().trim())
                 .role(RoleType.CHILD)
@@ -97,6 +111,7 @@ public class UserService {
                 .city(parent.getCity())
                 .interests(request.interests())
                 .parentId(parent.getId())
+                .familyId(parent.getFamilyId())
                 .avatarColor(pickColor(request.displayName()))
                 .demo(false)
                 .build());
@@ -107,14 +122,22 @@ public class UserService {
     public UserDto updateProfile(CurrentUser current, Long id, ProfileUpdateRequest request) {
         current.requireAuthenticated();
         UserAccount user = find(id);
+        UserAccount me = find(current.id());
         boolean isParent = user.getParentId() != null && user.getParentId().equals(current.id());
-        if (!id.equals(current.id()) && !isParent) {
+        boolean familyGuardian = user.getRole() == RoleType.CHILD && FamilyService.sharesFamily(me, user);
+        if (!id.equals(current.id()) && !isParent && !familyGuardian) {
             throw ApiException.forbidden("Можно редактировать только свой профиль или профиль своего ребёнка");
         }
         user.setDisplayName(request.displayName().trim());
         user.setCity(request.city());
         user.setInterests(request.interests());
         user.setBio(request.bio());
+        if (id.equals(current.id()) && request.gender() != null && user.getRole() == RoleType.USER) {
+            if (user.getFamilyId() != null && request.gender() != user.getGender()) {
+                throw ApiException.conflict("Нельзя сменить пол, пока вы состоите в семье");
+            }
+            user.setGender(request.gender());
+        }
         return mapper.toDto(user);
     }
 

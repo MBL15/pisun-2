@@ -1,0 +1,43 @@
+package ru.sportplatform.identity.web;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import ru.sportplatform.common.dto.FamilyDto;
+import ru.sportplatform.common.dto.UserDto;
+import ru.sportplatform.common.web.CurrentUser;
+import ru.sportplatform.identity.service.FamilyService;
+import ru.sportplatform.identity.web.dto.CreateFamilyRequest;
+
+@RestController
+@RequestMapping("/api/families")
+@RequiredArgsConstructor
+public class FamilyController {
+
+    private final FamilyService familyService;
+
+    @GetMapping("/my")
+    public FamilyDto mine(CurrentUser user) {
+        return familyService.mine(user);
+    }
+
+    @GetMapping("/eligible-spouses")
+    public List<UserDto> eligibleSpouses(CurrentUser user) {
+        return familyService.eligibleSpouses(user);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public FamilyDto create(CurrentUser user, @Valid @RequestBody CreateFamilyRequest request) {
+        return familyService.create(user, request.spouseUserId());
+    }
+}

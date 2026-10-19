@@ -11,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ru.sportplatform.common.DemoIds;
 import ru.sportplatform.common.enums.ApplicationStatus;
+import ru.sportplatform.common.enums.Gender;
 import ru.sportplatform.common.enums.RoleType;
+import ru.sportplatform.identity.domain.Family;
 import ru.sportplatform.identity.domain.Organization;
 import ru.sportplatform.identity.domain.UserAccount;
+import ru.sportplatform.identity.repository.FamilyRepository;
 import ru.sportplatform.identity.repository.OrganizationRepository;
 import ru.sportplatform.identity.repository.UserAccountRepository;
 
@@ -28,6 +31,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserAccountRepository users;
     private final OrganizationRepository organizations;
+    private final FamilyRepository families;
 
     @Override
     @Transactional
@@ -39,23 +43,31 @@ public class DataInitializer implements CommandLineRunner {
 
         UserAccount adult = users.save(user(DemoIds.ADULT_NAME, "alexey@demo.sport", RoleType.USER, 38,
                 "Футбол, бег, шахматы", "Папа Миши. По выходным собираю ребят на дворовый футбол.",
-                "#2563eb", "Взрослый", 1));
+                "#2563eb", "Взрослый", 1, Gender.MALE));
         UserAccount child = user(DemoIds.CHILD_NAME, null, RoleType.CHILD, 11,
-                "Футбол, зарядка", "Учусь в 5 классе, хочу в футбольную секцию.", "#16a34a", "Ребёнок", 2);
+                "Футбол, зарядка", "Учусь в 5 классе, хочу в футбольную секцию.", "#16a34a", "Ребёнок", 2, null);
         child.setParentId(adult.getId());
         users.save(child);
         users.save(user(DemoIds.ADMIN_NAME, "admin@demo.sport", RoleType.ADMIN, 34,
-                null, "Администратор платформы: допуск организаций и модерация.", "#dc2626", "Администратор", 3));
+                null, "Администратор платформы: допуск организаций и модерация.", "#dc2626", "Администратор", 3, null));
         UserAccount approvedOwner = users.save(user(DemoIds.ORG_APPROVED_OWNER_NAME, "legends@demo.sport",
                 RoleType.ORGANIZATION, 42, "Футбол, зарядка", "Представитель клуба «Дворовые легенды».",
-                "#ea580c", "Организация (одобрена)", 4));
+                "#ea580c", "Организация (одобрена)", 4, null));
         UserAccount pendingOwner = users.save(user(DemoIds.ORG_PENDING_OWNER_NAME, "ladya@demo.sport",
                 RoleType.ORGANIZATION, 51, "Шахматы", "Руководитель шахматного клуба.",
-                "#9333ea", "Организация (на рассмотрении)", 5));
+                "#9333ea", "Организация (на рассмотрении)", 5, null));
         users.save(user(DemoIds.IRINA_NAME, "irina@demo.sport", RoleType.USER, 29,
-                "Бег, йога", "Бегаю по утрам на Татышеве, ищу компанию.", "#0891b2", "Пользователь Ирина", 6));
+                "Бег, йога", "Бегаю по утрам на Татышеве, ищу компанию.", "#0891b2", "Пользователь Ирина", 6, Gender.FEMALE));
         users.save(user(DemoIds.DMITRY_NAME, "dmitry@demo.sport", RoleType.USER, 24,
-                "Футбол, единоборства", "Играю в футбол с универа.", "#ca8a04", "Пользователь Дмитрий", 7));
+                "Футбол, единоборства", "Играю в футбол с универа.", "#ca8a04", "Пользователь Дмитрий", 7, Gender.MALE));
+        UserAccount spouse = users.save(user(DemoIds.ADULT_SPOUSE_NAME, "maria@demo.sport", RoleType.USER, 36,
+                "Бег, семейный спорт", "Мама Миши. Помогаю мужу собирать ребят на дворовый футбол.",
+                "#db2777", "Супруга (демо)", 8, Gender.FEMALE));
+
+        Family family = families.save(Family.builder().maleUserId(adult.getId()).femaleUserId(spouse.getId()).build());
+        adult.setFamilyId(family.getId());
+        spouse.setFamilyId(family.getId());
+        child.setFamilyId(family.getId());
 
         Organization approved = organizations.save(Organization.builder()
                 .name(DemoIds.ORG_APPROVED_NAME)
@@ -89,11 +101,11 @@ public class DataInitializer implements CommandLineRunner {
                 .build());
         pendingOwner.setOrganizationId(pending.getId());
 
-        log.info("Identity: созданы демо-аккаунты (7) и организации (2)");
+        log.info("Identity: созданы демо-аккаунты (8), семья Петровых и организации (2)");
     }
 
     private static UserAccount user(String name, String email, RoleType role, int age, String interests,
-                                    String bio, String color, String demoLabel, int order) {
+                                    String bio, String color, String demoLabel, int order, Gender gender) {
         return UserAccount.builder()
                 .displayName(name)
                 .email(email)
@@ -103,6 +115,7 @@ public class DataInitializer implements CommandLineRunner {
                 .interests(interests)
                 .bio(bio)
                 .avatarColor(color)
+                .gender(gender)
                 .demo(true)
                 .demoLabel(demoLabel)
                 .demoOrder(order)

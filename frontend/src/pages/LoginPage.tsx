@@ -16,6 +16,7 @@ const hints: Record<number, string> = {
   5: 'Клуб ждёт допуска: страница скрыта, публикация событий заблокирована.',
   6: 'Ещё один участник — удобно проверять события «глазами другого пользователя».',
   7: 'Организатор скандинавской ходьбы «по заявке» и события, придержанного ИИ.',
+  8: 'Супруга Алексея в демо-семье. Может записывать Мишу на занятия так же, как отец.',
 }
 
 const roleSticker: Record<User['role'], string> = {
@@ -78,7 +79,7 @@ export function LoginPage() {
 
 function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) {
   const [kind, setKind] = useState<'USER' | 'ORGANIZATION'>('USER')
-  const [form, setForm] = useState({ displayName: '', email: '', age: '', city: 'Красноярск', interests: '' })
+  const [form, setForm] = useState({ displayName: '', email: '', age: '', city: 'Красноярск', interests: '', gender: '' as '' | 'MALE' | 'FEMALE' })
   const [org, setOrg] = useState({ name: '', description: '', sportsInterests: '', address: '', contacts: '', website: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
@@ -97,6 +98,7 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         city: form.city || undefined,
         interests: form.interests || undefined,
         role: kind,
+        gender: kind === 'USER' ? form.gender || undefined : undefined,
         organization: kind === 'ORGANIZATION' ? { ...org, city: form.city } : undefined,
       })
       await reloadAccounts()
@@ -150,9 +152,18 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         </Field>
 
         {kind === 'USER' ? (
-          <Field label="Чем хотите заниматься" hint="Например: бег, настольный теннис">
-            <input className="input" value={form.interests} onChange={(e) => setForm({ ...form, interests: e.target.value })} />
-          </Field>
+          <>
+            <Field label="Пол" error={fieldError('gender')}>
+              <select className="input" required value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as typeof form.gender })}>
+                <option value="">— выберите —</option>
+                <option value="MALE">Мужчина</option>
+                <option value="FEMALE">Женщина</option>
+              </select>
+            </Field>
+            <Field label="Чем хотите заниматься" hint="Например: бег, настольный теннис">
+              <input className="input" value={form.interests} onChange={(e) => setForm({ ...form, interests: e.target.value })} />
+            </Field>
+          </>
         ) : (
           <div className="space-y-4 rounded-xl border-[3px] border-ink bg-pop-orange/35 p-4">
             <p className="text-sm text-ink">

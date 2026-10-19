@@ -4,6 +4,7 @@ import type {
   Audience,
   EventStatus,
   RegistrationMode,
+  Gender,
   RoleType,
   SkillLevel,
 } from '../api/types'
@@ -64,6 +65,11 @@ export const roleLabels: Record<RoleType, string> = {
   CHILD: 'Ребёнок',
   ADMIN: 'Администратор',
   ORGANIZATION: 'Организация',
+}
+
+export const genderLabels: Record<Gender, string> = {
+  MALE: 'Мужчина',
+  FEMALE: 'Женщина',
 }
 
 export const modeLabels: Record<RegistrationMode, string> = {

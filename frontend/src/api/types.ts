@@ -7,6 +7,7 @@ export type AgeRestriction = 'CHILD_SAFE' | 'ADULT_ONLY'
 export type Audience = 'ALL' | 'KIDS' | 'ADULTS'
 export type OrganizerType = 'USER' | 'ORGANIZATION'
 export type SkillLevel = 'ANY' | 'BEGINNER' | 'AMATEUR' | 'PRO'
+export type Gender = 'MALE' | 'FEMALE'
 
 export interface User {
   id: number
@@ -18,6 +19,9 @@ export interface User {
   bio: string | null
   interests: string | null
   avatarColor: string | null
+  gender: Gender | null
+  familyId: number | null
+  spouseName: string | null
   parentId: number | null
   parentName: string | null
   organizationId: number | null
@@ -263,6 +267,15 @@ export interface GeneratedDocument {
   html: string
 }
 
+export interface Family {
+  id: number
+  maleUserId: number
+  maleName: string
+  femaleUserId: number
+  femaleName: string
+  children: User[]
+}
+
 export interface RegisterRequest {
   displayName: string
   email?: string
@@ -271,5 +284,6 @@ export interface RegisterRequest {
   interests?: string
   bio?: string
   role: 'USER' | 'ORGANIZATION'
+  gender?: Gender
   organization?: OrganizationForm
 }

@@ -127,7 +127,7 @@ public class DocumentService {
         UserDto parent = null;
         if (childId != null) {
             child = clients.user(childId);
-            if (!user.id().equals(child.parentId())) {
+            if (!isChildGuardian(user, child)) {
                 throw ApiException.forbidden("Согласие может сформировать только родитель этого ребёнка");
             }
             parent = user;
@@ -228,6 +228,13 @@ public class DocumentService {
     private static TemplateDto toDto(DocumentTemplate t) {
         return new TemplateDto(t.getId(), t.getCode(), t.getName(), t.getDescription(), t.getContent(),
                 t.getUpdatedBy(), t.getUpdatedAt());
+    }
+
+    private static boolean isChildGuardian(UserDto adult, UserDto child) {
+        if (adult.id().equals(child.parentId())) {
+            return true;
+        }
+        return adult.familyId() != null && adult.familyId().equals(child.familyId());
     }
 
     private static Map<String, String> placeholders() {
