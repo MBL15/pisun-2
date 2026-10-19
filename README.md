@@ -27,9 +27,11 @@
 
 ```bash
 docker compose up --build
+# или одной командой (останавливает локальные jar/vite, при необходимости — host-сеть):
+bash docker-up.sh
 ```
 
-Те же порты 5173 и 8080.
+Те же порты 5173 и 8080. Если контейнеры не видят Postgres по имени `postgres`, используйте `docker compose -f docker-compose.yml -f docker-compose.host.yml up --build -d` (см. `docker-compose.host.yml`).
 
 ### Переменные окружения (необязательные)
 
