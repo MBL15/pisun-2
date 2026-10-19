@@ -231,6 +231,9 @@ public class DocumentService {
     }
 
     private static boolean isChildGuardian(UserDto adult, UserDto child) {
+        if (child.role() != RoleType.CHILD) {
+            return false;
+        }
         if (adult.id().equals(child.parentId())) {
             return true;
         }

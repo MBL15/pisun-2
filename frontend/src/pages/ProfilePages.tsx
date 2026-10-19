@@ -223,11 +223,7 @@ function FamilyPanel({
   const { reloadAccounts } = useAuth()
   const spouses = useAsync(async () => {
     if (user.familyId || user.role !== 'USER' || !user.gender) return []
-    const opposite = user.gender === 'MALE' ? 'FEMALE' : 'MALE'
-    const accounts = await usersApi.list(true)
-    return accounts.filter(
-      (person) => person.role === 'USER' && !person.familyId && person.gender === opposite && person.id !== user.id,
-    )
+    return familiesApi.eligibleSpouses()
   }, [user.id, user.familyId, user.gender, user.role])
   const [spouseId, setSpouseId] = useState<number | ''>('')
   const [creating, setCreating] = useState(false)

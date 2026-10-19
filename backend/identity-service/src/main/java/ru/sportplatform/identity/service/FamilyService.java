@@ -87,9 +87,11 @@ public class FamilyService {
         Family family = families.save(Family.builder().maleUserId(male.getId()).femaleUserId(female.getId()).build());
         male.setFamilyId(family.getId());
         female.setFamilyId(family.getId());
-        users.findByParentIdOrderByIdAsc(male.getId()).stream()
-                .filter(c -> c.getRole() == RoleType.CHILD && c.getFamilyId() == null)
-                .forEach(c -> c.setFamilyId(family.getId()));
+        for (Long parentId : List.of(male.getId(), female.getId())) {
+            users.findByParentIdOrderByIdAsc(parentId).stream()
+                    .filter(c -> c.getRole() == RoleType.CHILD && c.getFamilyId() == null)
+                    .forEach(c -> c.setFamilyId(family.getId()));
+        }
         return toDto(family);
     }
 
