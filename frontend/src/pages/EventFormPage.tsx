@@ -259,7 +259,12 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             longitude={form.longitude}
             searchQuery={searchQuery}
             onPick={(lat, lon, address) =>
-              setForm((f) => ({ ...f, latitude: lat, longitude: lon, address: address && !f.address.trim() ? address : f.address }))
+              setForm((f) => ({
+                ...f,
+                latitude: lat,
+                longitude: lon,
+                address: address?.trim() ? address.trim() : f.address,
+              }))
             }
           />
           {form.latitude != null && form.longitude != null && (

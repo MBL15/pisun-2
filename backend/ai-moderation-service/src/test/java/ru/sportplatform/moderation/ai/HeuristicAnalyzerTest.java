@@ -38,6 +38,25 @@ class HeuristicAnalyzerTest {
         assertFalse(result.isHardBlocked());
     }
 
+    @Test
+    void hardBlock_detectsListedProfanity() {
+        HeuristicResult result = analyze("Тренировка", "на поле оставили говно");
+        assertTrue(result.isHardBlocked());
+    }
+
+    @Test
+    void forbidden_detectsGamblingAndSmoking() {
+        HeuristicResult result = analyze("Вечер", "кальян, водка и ставки на матч");
+        assertTrue(result.isFlagged());
+        assertFalse(result.isHardBlocked());
+    }
+
+    @Test
+    void hardBlock_shortWordUsesWordBoundary() {
+        HeuristicResult inWord = analyze("Мотивация", "большой интузиазм у команды");
+        assertFalse(inWord.isHardBlocked());
+    }
+
     private HeuristicResult analyze(String title, String description) {
         return analyzer.analyzeEvent(title, description, "Форма свободная", Audience.ALL,
                 LocalDateTime.now().plusDays(2), null);

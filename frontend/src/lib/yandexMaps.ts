@@ -40,5 +40,7 @@ export function loadYandexMaps(): Promise<YMaps> {
 }
 
 export function hasGeocoderKey(): boolean {
-  return Boolean(import.meta.env.VITE_YANDEX_MAPS_API_KEY)
+  const maps = (import.meta.env.VITE_YANDEX_MAPS_API_KEY as string | undefined)?.trim()
+  const geocoder = (import.meta.env.VITE_YANDEX_GEOCODER_API_KEY as string | undefined)?.trim()
+  return Boolean(maps || geocoder)
 }

@@ -29,12 +29,18 @@ public class HeuristicAnalyzer {
 
     private static final List<Category> FORBIDDEN = List.of(
             category("Азартные игры и ставки", true,
-                    "\\bставк\\w*", "\\bставим\\b", "на деньги", "\\bбукмекер\\w*", "\\bтотализатор\\w*", "\\bказино\\b"),
-            category("Алкоголь", false,
+                    "\\bставк\\w*", "\\bставим\\b", "на деньги", "\\bбукмекер\\w*", "\\bтотализатор\\w*", "\\bказино\\b",
+                    "\\bазартн\\w*", "\\bрулетк\\w*", "\\bпокер\\b", "\\bслот\\w*", "игровые автоматы"),
+            category("Алкоголь", true,
                     "\\bалкогол\\w*", "\\bпив(о|а|ом|у|ко)\\b", "\\bводк\\w*", "\\bвино\\b", "\\bшампанск\\w*",
-                    "\\bбух(ать|аем|нем|ло)\\b"),
+                    "\\bбух(ать|аем|нем|ло)\\b", "\\bвиски\\b", "\\bконьяк\\w*", "\\bсидр\\w*", "\\bкоктейл\\w*"),
+            category("Курение и вейп", true,
+                    "\\bкурени\\w*", "\\bкурить\\b", "\\bсигарет\\w*", "\\bвейп\\w*", "\\bникотин\\w*", "\\bкальян\\w*",
+                    "\\bтабак\\w*", "\\bснюс\\w*"),
             category("Наркотические вещества", true,
-                    "\\bнаркот\\w*", "\\bзакладк\\w*", "\\bспайс\\w*", "\\bтравк[аиу]\\b"),
+                    "\\bнаркот\\w*", "\\bзакладк\\w*", "\\bспайс\\w*", "\\bтравк[аиу]\\b",
+                    "\\bкокаин\\w*", "\\bгашиш\\w*", "\\bмарихуан\\w*", "\\bгероин\\w*", "\\bамфетамин\\w*",
+                    "\\bmdma\\b", "\\bэкстаз\\w*", "\\bлsd\\b", "\\bпсихоактив\\w*"),
             category("Оружие и насилие", true,
                     "\\bоружи\\w*", "\\bпистолет\\w*", "\\bтравмат(ика|ы|ом)\\b", "бои без правил",
                     "\\bдрак(а|и|у|ой)\\b", "\\bизби(ть|ваем|ли)\\b", "\\bнож(ом|и|ей)?\\b"),
@@ -58,12 +64,18 @@ public class HeuristicAnalyzer {
             "\\bдет(и|ей|ям|ский|ская|ское|ские)\\b", "\\bребён\\w*", "\\bребен\\w*", "\\bшкольник\\w*", "\\bсемейн\\w*",
             "\\bподрост\\w*");
 
-    /** Жёсткая блокировка: публикация запрещена, без очереди на проверку администратором. */
+    /**
+     * Жёсткая блокировка: публикация запрещена, без очереди администратору.
+     * Короткие формы (≤4 символа) ищутся по границам слова, длинные — как подстрока после {@link TextUtils#normalizeKey}.
+     */
     private static final List<String> HARD_BLOCK_WORDS = List.of(
-            "секс", "sex", "xxx",
-            "сиськ", "письк",
-            "порно", "porno", "porn",
-            "эротик", "проститу");
+            "секс", "sex", "xxx", "porn", "porno", "порно", "эротик", "проститу",
+            "сиськ", "письк", "пенис", "вагин", "влагалищ", "анус", "мошонк",
+            "говно", "залуп", "давалк", "блядин", "блядун", "шлюх", "еблан", "ебланищ",
+            "рукоблуд", "ссанин", "пердун", "дрочил", "пидор", "педрил", "пизд",
+            "малафь", "гомик", "путан", "шалав", "хуил", "елда", "мудил",
+            "головк", "жоп", "член", "петух", "пилотк", "манда",
+            "хер", "хуй", "туз", "очко", "сука");
 
     private static final Pattern CONTACT_IN_TEXT = Pattern.compile("(\\+7|8)[\\s(-]*\\d{3}|t\\.me/|https?://|@\\w{4,}", FLAGS);
     private static final Pattern LINK = Pattern.compile("https?://|t\\.me/|www\\.", FLAGS);
@@ -164,11 +176,19 @@ public class HeuristicAnalyzer {
         String normalized = TextUtils.normalizeKey(text);
         Set<String> hits = new LinkedHashSet<>();
         for (String word : HARD_BLOCK_WORDS) {
-            if (normalized.contains(word)) {
+            if (matchesHardBlockWord(normalized, word)) {
                 hits.add(word);
             }
         }
         return hits;
+    }
+
+    private static boolean matchesHardBlockWord(String normalized, String word) {
+        if (word.length() <= 4) {
+            Pattern boundary = Pattern.compile("(?<![\\p{L}])" + Pattern.quote(word) + "(?![\\p{L}])", FLAGS);
+            return boundary.matcher(normalized).find();
+        }
+        return normalized.contains(word);
     }
 
     private static Set<String> customStopWordHits(String text, String customStopWords) {

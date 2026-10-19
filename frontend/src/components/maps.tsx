@@ -2,7 +2,8 @@ import { MapPinOff, Navigation } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { SportEvent } from '../api/types'
 import { formatShortDate, formatTime, yandexPointUrl, yandexRouteUrl } from '../lib/format'
-import { KRASNOYARSK, loadYandexMaps, type YMaps } from '../lib/yandexMaps'
+import { geocodeAddress, hasHttpGeocoderKey, reverseGeocodeCoords } from '../lib/yandexGeocoder'
+import { hasGeocoderKey, KRASNOYARSK, loadYandexMaps, type YMaps } from '../lib/yandexMaps'
 
 type MapInstance = YMaps
 
@@ -307,19 +308,33 @@ export function PickPointMap({
   const findAddress = async () => {
     const ymaps = ymapsRef.current
     const map = mapRef.current
-    if (!ymaps || !map || !searchQuery?.trim()) return
+    if (!map || !searchQuery?.trim()) return
+    if (!hasGeocoderKey()) return
     setSearching(true)
     setSearchError(null)
     try {
-      const result = await ymaps.geocode(`Красноярск, ${searchQuery}`, { results: 1 })
-      const first = result.geoObjects.get(0)
-      if (!first) throw new Error('not found')
-      const [lat, lon] = first.geometry.getCoordinates()
+      const query = searchQuery.includes('Красноярск') ? searchQuery.trim() : `Красноярск, ${searchQuery.trim()}`
+      let lat: number
+      let lon: number
+      let address: string | undefined
+      if (hasHttpGeocoderKey()) {
+        const hit = await geocodeAddress(query)
+        if (!hit) throw new Error('not found')
+        ;({ lat, lon, address } = hit)
+      } else if (ymaps) {
+        const result = await ymaps.geocode(query, { results: 1 })
+        const first = result.geoObjects.get(0)
+        if (!first) throw new Error('not found')
+        ;[lat, lon] = first.geometry.getCoordinates()
+        address = first.getAddressLine?.()
+      } else {
+        throw new Error('no geocoder')
+      }
       map.setCenter([lat, lon], 16)
-      place(map, ymaps, [lat, lon])
-      onPickRef.current(lat, lon)
+      if (ymaps) place(map, ymaps, [lat, lon])
+      onPickRef.current(lat, lon, address)
     } catch {
-      setSearchError('Не удалось найти адрес автоматически — просто кликните по карте в нужном месте')
+      setSearchError('Не удалось найти адрес автоматически — кликните по карте в нужном месте')
     } finally {
       setSearching(false)
     }
@@ -331,7 +346,7 @@ export function PickPointMap({
       <div ref={containerRef} className="ymaps-host h-80 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>Кликните по карте или перетащите метку, чтобы указать точное место встречи.</span>
-        {searchQuery && (
+        {searchQuery && hasGeocoderKey() && (
           <button type="button" onClick={findAddress} disabled={searching} className="font-semibold text-brand-700 underline">
             {searching ? 'Ищем…' : 'Найти введённый адрес на карте'}
           </button>
@@ -343,6 +358,10 @@ export function PickPointMap({
 }
 
 async function reverseGeocode(ymaps: YMaps, lat: number, lon: number): Promise<string | undefined> {
+  if (hasHttpGeocoderKey()) {
+    const line = await reverseGeocodeCoords(lat, lon)
+    if (line) return line
+  }
   try {
     const result = await ymaps.geocode([lat, lon], { results: 1 })
     const first = result.geoObjects.get(0)
