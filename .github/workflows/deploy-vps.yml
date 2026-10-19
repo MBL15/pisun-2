@@ -1,0 +1,49 @@
+name: Deploy VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload project
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.yml,docker-compose.vps.yml,backend,frontend,scripts,env.example"
+          target: "/opt/sportvmeste"
+          strip_components: 0
+          overwrite: true
+
+      - name: Build and start
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          VITE_YANDEX_MAPS_API_KEY: ${{ secrets.VITE_YANDEX_MAPS_API_KEY }}
+          VITE_YANDEX_GEOCODER_API_KEY: ${{ secrets.VITE_YANDEX_GEOCODER_API_KEY }}
+          VITE_YANDEX_ROUTER_API_KEY: ${{ secrets.VITE_YANDEX_ROUTER_API_KEY }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: VITE_YANDEX_MAPS_API_KEY,VITE_YANDEX_GEOCODER_API_KEY,VITE_YANDEX_ROUTER_API_KEY
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/sportvmeste
+            printf '%s\n' \
+              "VITE_YANDEX_MAPS_API_KEY=${VITE_YANDEX_MAPS_API_KEY}" \
+              "VITE_YANDEX_GEOCODER_API_KEY=${VITE_YANDEX_GEOCODER_API_KEY}" \
+              "VITE_YANDEX_ROUTER_API_KEY=${VITE_YANDEX_ROUTER_API_KEY}" \
+              > .env
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sudo sh
+              sudo usermod -aG docker "$USER"
+            fi
+            export DOCKER_BUILDKIT=1
+            docker compose --env-file .env -f docker-compose.yml -f docker-compose.vps.yml build --parallel 2
+            docker compose --env-file .env -f docker-compose.yml -f docker-compose.vps.yml up -d
