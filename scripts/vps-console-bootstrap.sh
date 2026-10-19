@@ -28,9 +28,16 @@ fi
 
 cd "$DIR"
 if [[ ! -f .env ]]; then
-  echo "Создайте .env (см. env.example) с ключами VITE_YANDEX_* и повторите:" >&2
-  echo "  docker compose --env-file .env -f docker-compose.yml -f docker-compose.vps.yml up -d --build" >&2
-  exit 1
+  if [[ -n "${VITE_YANDEX_MAPS_API_KEY:-}" ]]; then
+    printf '%s\n' \
+      "VITE_YANDEX_MAPS_API_KEY=${VITE_YANDEX_MAPS_API_KEY}" \
+      "VITE_YANDEX_GEOCODER_API_KEY=${VITE_YANDEX_GEOCODER_API_KEY:-}" \
+      "VITE_YANDEX_ROUTER_API_KEY=${VITE_YANDEX_ROUTER_API_KEY:-}" \
+      > .env
+  else
+    echo "Задайте VITE_YANDEX_* или создайте .env (см. env.example):" >&2
+    exit 1
+  fi
 fi
 
 export DOCKER_BUILDKIT=1
