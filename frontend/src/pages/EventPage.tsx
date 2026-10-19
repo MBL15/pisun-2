@@ -84,8 +84,8 @@ export function EventPage() {
         <OrganizerLink event={event} />
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-        <div className="space-y-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+        <div className="min-w-0 space-y-6">
           <Section title="Когда и где" icon={<CalendarDays className="size-6 text-brand-600" />}>
             <dl className="grid gap-4 sm:grid-cols-2">
               <InfoRow icon={<CalendarDays />} label="Дата" value={formatDate(event.startAt)} />
@@ -136,7 +136,7 @@ export function EventPage() {
           <Discussion event={event} onChanged={reload} />
         </div>
 
-        <aside className="space-y-6">
+        <aside className="min-w-0 space-y-6">
           <RegistrationPanel event={event} user={user} onChanged={reload} />
           {event.viewer.organizer && <OrganizerPanel event={event} onChanged={reload} />}
           {user?.role === 'ADMIN' && <AdminPanel event={event} onChanged={reload} />}
@@ -161,9 +161,9 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-pop-yellow text-ink [&>svg]:size-5" aria-hidden>
         {icon}
       </span>
-      <div>
+      <div className="min-w-0">
         <dt className="text-xs font-bold uppercase tracking-wide text-slate-700">{label}</dt>
-        <dd className="text-lg font-bold">{value}</dd>
+        <dd className="break-words text-lg font-bold">{value}</dd>
       </div>
     </div>
   )

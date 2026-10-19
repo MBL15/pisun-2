@@ -42,7 +42,9 @@ function useYandexMap(
       const element = containerRef.current
       if (!map || !element) return
       const { width, height } = element.getBoundingClientRect()
-      if (width < 40 || height < 40 || height > window.innerHeight * 1.2) return
+      const parentWidth = element.parentElement?.clientWidth ?? window.innerWidth
+      // карта не должна подгоняться под собственный раздутый размер: иначе контейнер растёт вместе с ней
+      if (width < 40 || width > parentWidth + 1 || height < 40 || height > window.innerHeight * 1.2) return
       map.container.fitToViewport()
     })
     if (container) observer.observe(container)

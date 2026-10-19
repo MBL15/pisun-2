@@ -214,7 +214,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main id="main" key={user?.id ?? 'guest'} className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-6 lg:pb-14">
+      <main id="main" key={user?.id ?? 'guest'} className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-6 lg:pb-14">
         <Outlet />
       </main>
 

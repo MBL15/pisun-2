@@ -142,7 +142,13 @@
   }
 
   .card {
-    @apply rounded-2xl border-[3px] border-ink bg-white shadow-md;
+    @apply min-w-0 rounded-2xl border-[3px] border-ink bg-white shadow-md;
+  }
+
+  .ymaps-host {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .ymaps-host [class*="copyrights-pane"] {
