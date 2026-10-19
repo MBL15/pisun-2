@@ -1,0 +1,85 @@
+# Фронтенд
+
+React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), React Router 7, иконки Lucide, линтер oxlint. Сторонних библиотек состояния и запросов нет.
+
+## Структура `frontend/src`
+
+| Путь | Назначение |
+|---|---|
+| `main.tsx` | Точка входа: `BrowserRouter`, `AuthProvider`, тосты |
+| `App.tsx` | Таблица маршрутов и `RequireRole` |
+| `api/client.ts` | `request()`, `api.get/post/put/delete/upload`, `ApiError`, `buildQuery`, заголовки сессии |
+| `api/endpoints.ts` | Типизированные обёртки по доменам: `usersApi`, `organizationsApi`, события, комментарии, модерация, ИИ, документы |
+| `api/types.ts` | TypeScript-типы, повторяющие DTO бэкенда |
+| `auth/AuthContext.tsx` | Демо-сессия: текущий пользователь, список демо-аккаунтов, `login`, `logout`, `homeFor(user)` |
+| `components/ui.tsx` | UI-кит: кнопки, поля, карточки, `Spinner`, `EmptyState`, `LinkButton` |
+| `components/Layout.tsx` | Шапка, переключатель ролей, кнопка крупного шрифта «T», мобильная нижняя навигация |
+| `components/maps.tsx` | Карты: выбор точки, мини-карта события, карта афиши |
+| `components/Discussion.tsx` | Обсуждение события с ответами и модерацией |
+| `components/EventCard.tsx`, `EventBadges.tsx` | Карточка в афише, бейджи статусов и возраста |
+| `components/ReasonDialog.tsx` | Диалог ввода причины (отказ, снятие, скрытие) с готовыми вариантами |
+| `components/DocumentDialog.tsx` | Предпросмотр и печать документа |
+| `components/Toast.tsx` | Уведомления |
+| `lib/useAsync.ts` | Хук загрузки данных: `data`, `error`, `loading`, `reload()` без мигания, защита от гонок |
+| `lib/format.ts` | Форматирование дат, статусов и подписей на русском |
+| `lib/yandexMaps.ts` | Загрузчик Яндекс Карт JS API 2.1, центр по умолчанию — Красноярск |
+| `pages/*` | Страницы: афиша, карта, событие, форма события, клубы, кабинет, профиль, админка, вход |
+
+## Сессия и заголовки
+
+- Пароля нет. `AuthContext` хранит id выбранного аккаунта в `localStorage` под ключом `sportvmeste.userId` и при старте заново загружает пользователя через `GET /api/users/{id}`.
+- `setSession({id, role})` в `api/client.ts` — модульная переменная. Каждый `request()` добавляет `X-User-Id` и `X-User-Role`.
+- После смены роли страницы должны перезагрузить данные: ответы бэкенда зависят от того, кто смотрит. Например, `EventDto.viewer` содержит `organizer`, `canRegister`, `registrationBlockedReason`, `canSeeContacts`, `myRegistrations`.
+
+## Роутинг и роли
+
+`RequireRole` в `App.tsx`: без пользователя перенаправляет на `/login`, при неподходящей роли показывает заглушку.
+
+| Маршрут | Доступ |
+|---|---|
+| `/`, `/map`, `/events/:id`, `/organizations`, `/organizations/:id`, `/users/:id`, `/login` | Все |
+| `/events/new`, `/events/:id/edit` | `USER`, `ORGANIZATION` |
+| `/me` (кабинет) | `USER`, `CHILD` |
+| `/my-organization` | `ORGANIZATION` |
+| `/admin` | `ADMIN` |
+
+После входа `homeFor(user)` отправляет администратора в `/admin`, организацию в `/my-organization`, остальных на `/`.
+
+Проверки ролей на фронтенде нужны только для удобства. Настоящие права проверяет бэкенд, а UI показывает его ответ.
+
+## Работа с API
+
+- Ошибки приходят как `ApiError` с полями `status`, `code`, `message` и `fields`. Показывайте `message` пользователю как есть: сообщения на бэкенде уже на русском. Ошибки по полям формы лежат в `fields`.
+- Сетевая ошибка превращается в `ApiError(0, 'NETWORK', ...)` с подсказкой запустить шлюз на 8080.
+- Не дублируйте бизнес-правила на клиенте. Например, кнопку «Записаться» показывайте по `event.viewer.canRegister`, а подпись под ней берите из `registrationBlockedReason`.
+- Новый эндпоинт: тип добавьте в `api/types.ts`, обёртку в `api/endpoints.ts`, на странице используйте `useAsync`.
+
+## Карты
+
+- Скрипт `https://api-maps.yandex.ru/2.1/` загружается один раз (`loadYandexMaps`).
+- Без `VITE_YANDEX_MAPS_API_KEY` карта работает, а геокодер (поиск адреса) — нет. `hasGeocoderKey()` позволяет скрыть кнопку «Найти». Точку ставят кликом, сохраняются `latitude` и `longitude`.
+- Метки — собственные HTML-макеты (`templateLayoutFactory` в `maps.tsx`), стили `.map-pin*` и `.map-cluster` лежат в `index.css`. Клуб — оранжевый скруглённый квадрат, пользователь — голубой круг, выбранное событие — крупная жёлтая метка с подписью времени, прошедшее событие — серая метка с пунктирной обводкой. Условные обозначения выводит `MapLegend`.
+- Яндекс Карты ловят клики по `iconShape`, а не по DOM. Поэтому, если меняете размер метки, поправьте `pinShape`. Наведение делается через события `mouseenter` и `mouseleave` и свойство `pinClass`, CSS `:hover` здесь не работает.
+- Камера двигается сама только в двух случаях: при первой загрузке и при смене набора событий карта показывает все метки, а выбранное событие `revealPoint` выводит в поле зрения, если оно в кластере или под карточкой события (справа на широком экране, снизу на мобильном). Масштаб пользователя при этом сохраняется. Закрытие карточки и повторные рендеры камеру не трогают.
+- Кнопка «Построить маршрут» открывает Яндекс Карты по координатам события.
+
+## Переменные сборки
+
+Переменные `VITE_*` подставляются **на этапе сборки**. В Docker они передаются через `build.args` в `docker-compose.yml`, поэтому после изменения ключа образ фронтенда нужно пересобрать.
+
+| Переменная | По умолчанию |
+|---|---|
+| `VITE_API_URL` | `http://localhost:8080` |
+| `VITE_YANDEX_MAPS_API_KEY` | пусто |
+
+## Команды
+
+```bash
+cd frontend
+npm install
+npm run dev      # Vite на :5173
+npm run build    # tsc -b && vite build
+npm run lint     # oxlint
+```
+
+В Docker собранный `dist` раздаёт nginx (`frontend/nginx.conf`, SPA-fallback на `index.html`).

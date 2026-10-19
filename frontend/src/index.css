@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Onest", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --font-display: "Unbounded", "Onest", "Segoe UI", system-ui, sans-serif;
+
+  --color-ink: #111111;
+  --color-paper: #fff4dc;
+  --color-pop-yellow: #ffd23f;
+  --color-pop-orange: #ff8a3d;
+  --color-pop-red: #ff6b6b;
+  --color-pop-pink: #ff9ecd;
+  --color-pop-green: #5fe3a1;
+  --color-pop-blue: #7fa8ff;
+  --color-pop-lilac: #c5a3ff;
+  --color-pop-cyan: #4fd6e0;
+
+  --color-brand-50: #e9edff;
+  --color-brand-100: #d4dcff;
+  --color-brand-200: #b1bfff;
+  --color-brand-300: #8a9cff;
+  --color-brand-400: #6077ff;
+  --color-brand-500: #3e58ff;
+  --color-brand-600: #2747ff;
+  --color-brand-700: #1d35d4;
+  --color-brand-800: #1a2ca6;
+  --color-brand-900: #172577;
+
+  --color-accent-400: #ffdc66;
+  --color-accent-500: #ffd23f;
+  --color-accent-600: #f5bf0f;
+
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1rem;
+
+  --shadow-xs: 1px 1px 0 0 var(--color-ink);
+  --shadow-sm: 3px 3px 0 0 var(--color-ink);
+  --shadow: 3px 3px 0 0 var(--color-ink);
+  --shadow-md: 4px 4px 0 0 var(--color-ink);
+  --shadow-lg: 6px 6px 0 0 var(--color-ink);
+  --shadow-xl: 8px 8px 0 0 var(--color-ink);
+  --shadow-2xl: 10px 10px 0 0 var(--color-ink);
+}
+
+/* Карточка/кнопка «приподнимается» при наведении и «вдавливается» при нажатии. */
+@utility lift {
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out,
+    background-color 120ms ease-out;
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--color-ink);
+  }
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@layer base {
+  html {
+    font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html.large-text {
+    font-size: 20px;
+  }
+
+  body {
+    @apply bg-paper text-ink antialiased;
+    min-height: 100svh;
+    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    font-weight: 800;
+  }
+
+  h2,
+  h3 {
+    font-weight: 700;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px var(--color-pop-yellow);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: var(--color-pop-yellow);
+    color: var(--color-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-xl border-[3px] border-ink bg-white px-4 py-3 text-base font-medium text-ink shadow-sm transition placeholder:font-normal placeholder:text-slate-500 focus:bg-[#fffbea] focus:shadow-md focus:outline-none disabled:bg-slate-100 disabled:shadow-none;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-bold uppercase tracking-wide text-ink;
+  }
+
+  .card {
+    @apply rounded-2xl border-[3px] border-ink bg-white shadow-md;
+  }
+
+  .ymaps-host [class*="copyrights-pane"] {
+    z-index: 1 !important;
+  }
+
+  /* Метки карты: HTML-макеты Яндекс Карт. Острие «хвостика» стоит ровно в точке координат. */
+  .map-pin {
+    --pin-size: 2.5rem;
+    --pin-bg: var(--color-pop-blue);
+    --pin-shadow: 3px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* повёрнутый хвостик выступает за свой блок примерно на 3px */
+    transform: translate(-50%, calc(-100% - 3px));
+    font-family: var(--font-sans);
+    user-select: none;
+  }
+
+  .map-pin__badge {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: var(--pin-size);
+    height: var(--pin-size);
+    border: 3px solid var(--color-ink);
+    border-radius: 9999px;
+    background: var(--pin-bg);
+    box-shadow: var(--pin-shadow) var(--pin-shadow) 0 0 var(--color-ink);
+    color: var(--color-ink);
+    font-size: calc(var(--pin-size) * 0.5);
+    line-height: 1;
+    transition:
+      transform 120ms ease-out,
+      box-shadow 120ms ease-out;
+  }
+
+  .map-pin__tail {
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-top: -0.5625rem;
+    border-right: 3px solid var(--color-ink);
+    border-bottom: 3px solid var(--color-ink);
+    background: var(--pin-bg);
+    transform: rotate(45deg);
+  }
+
+  .map-pin__label {
+    position: absolute;
+    top: 0.375rem;
+    left: calc(50% + var(--pin-size) / 2 + 0.5rem);
+    padding: 0.125rem 0.5rem;
+    border: 2px solid var(--color-ink);
+    border-radius: 0.375rem;
+    background: var(--color-ink);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0 0 var(--color-pop-yellow);
+  }
+
+  .map-pin--club {
+    --pin-bg: var(--color-pop-orange);
+  }
+
+  .map-pin--club .map-pin__badge {
+    border-radius: 0.625rem;
+  }
+
+  .map-pin--hover .map-pin__badge {
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--pin-shadow) + 2px) calc(var(--pin-shadow) + 2px) 0 0 var(--color-ink);
+  }
+
+  .map-pin--past {
+    --pin-bg: #e2e8f0;
+  }
+
+  .map-pin--past .map-pin__badge {
+    border-style: dashed;
+  }
+
+  .map-pin--past .map-pin__glyph {
+    filter: grayscale(1);
+    opacity: 0.6;
+  }
+
+  .map-pin--selected,
+  .map-pin--picker {
+    --pin-size: 3.125rem;
+    --pin-bg: var(--color-pop-yellow);
+    --pin-shadow: 4px;
+  }
+
+  .map-pin--picker .map-pin__badge svg {
+    width: 55%;
+    height: 55%;
+  }
+
+  .map-cluster {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding: 0 0.5rem;
+    transform: translate(-50%, -50%);
+    border: 3px solid var(--color-ink);
+    border-radius: 0.75rem;
+    background: var(--color-ink);
+    box-shadow: 3px 3px 0 0 var(--color-pop-yellow);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-pin--hover .map-pin__badge {
+      transform: none;
+    }
+  }
+}

@@ -1,0 +1,97 @@
+name: sportvmeste
+
+x-backend: &backend
+  build:
+    context: ./backend
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  environment: &backend-env
+    SPRING_PROFILES_ACTIVE: docker
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_NAME: sportdb
+    DB_USER: sport
+    DB_PASSWORD: sport
+    IDENTITY_SERVICE_URL: http://identity-service:8081
+    EVENT_SERVICE_URL: http://event-service:8082
+    AI_SERVICE_URL: http://ai-moderation-service:8083
+    DOC_SERVICE_URL: http://doc-generator-service:8084
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sportdb
+      POSTGRES_USER: sport
+      POSTGRES_PASSWORD: sport
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sport -d sportdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  identity-service:
+    <<: *backend
+    build:
+      context: ./backend
+      args: { SERVICE: identity-service }
+    ports: ["8081:8081"]
+
+  event-service:
+    <<: *backend
+    build:
+      context: ./backend
+      args: { SERVICE: event-service }
+    ports: ["8082:8082"]
+
+  ai-moderation-service:
+    <<: *backend
+    build:
+      context: ./backend
+      args: { SERVICE: ai-moderation-service }
+    ports: ["8083:8083"]
+    environment:
+      <<: *backend-env
+      AI_LLM_API_KEY: ${AI_LLM_API_KEY:-}
+      AI_LLM_BASE_URL: ${AI_LLM_BASE_URL:-https://api.openai.com/v1}
+      AI_LLM_MODEL: ${AI_LLM_MODEL:-gpt-4o-mini}
+
+  doc-generator-service:
+    <<: *backend
+    build:
+      context: ./backend
+      args: { SERVICE: doc-generator-service }
+    ports: ["8084:8084"]
+
+  api-gateway:
+    <<: *backend
+    build:
+      context: ./backend
+      args: { SERVICE: api-gateway }
+    depends_on:
+      - identity-service
+      - event-service
+      - ai-moderation-service
+      - doc-generator-service
+    ports: ["8080:8080"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    ports: ["5173:80"]
+
+volumes:
+  pgdata:

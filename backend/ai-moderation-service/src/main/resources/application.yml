@@ -1,0 +1,52 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ai-moderation-service
+  profiles:
+    default: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+
+services:
+  identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+  event-url: ${EVENT_SERVICE_URL:http://localhost:8082}
+
+# Внешняя LLM подключается опционально: любой OpenAI-совместимый API
+# (OpenAI, YandexGPT через OpenAI-совместимый эндпоинт, локальная Ollama и т.п.).
+# Без ключа работает встроенный эвристический анализатор.
+ai:
+  llm:
+    api-key: ${AI_LLM_API_KEY:}
+    base-url: ${AI_LLM_BASE_URL:https://api.openai.com/v1}
+    model: ${AI_LLM_MODEL:gpt-4o-mini}
+    timeout-seconds: ${AI_LLM_TIMEOUT:10}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:file:${SPORT_DATA_DIR:./data}/sportdb;AUTO_SERVER=TRUE
+    username: sa
+    password:
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sportdb}
+    username: ${DB_USER:sport}
+    password: ${DB_PASSWORD:sport}

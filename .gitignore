@@ -1,0 +1,14 @@
+node_modules/
+dist/
+target/
+.tools/
+backend/data/
+backend/logs/
+*.log
+.env
+.env.local
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+.DS_Store

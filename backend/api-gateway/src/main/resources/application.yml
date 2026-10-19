@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            # Прототип открыт для проверки экспертами с любого адреса; в проде сузить через FRONTEND_ORIGINS.
+            allowed-origin-patterns: ${FRONTEND_ORIGINS:*}
+            allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowed-headers: ["*"]
+            exposed-headers: [Content-Disposition]
+            allow-credentials: false
+            max-age: 3600
+      routes:
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/users/**,/api/users,/api/organizations/**,/api/organizations
+        - id: event-service
+          uri: ${EVENT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/events/**,/api/events,/api/sports/**,/api/sports,/api/comments/**,/api/comments
+        - id: ai-moderation-service
+          uri: ${AI_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/moderation/**,/api/ai/**
+        - id: doc-generator-service
+          uri: ${DOC_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/documents/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      enabled: true
