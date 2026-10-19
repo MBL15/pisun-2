@@ -6,25 +6,36 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST="${DEPLOY_HOST:-195.209.212.77}"
 USER="${DEPLOY_USER:-ubuntu}"
 REMOTE_DIR="${DEPLOY_PATH:-/opt/sportvmeste}"
-SSH_KEY="${DEPLOY_SSH_KEY:-}"
+SSH_KEY_PATH="${DEPLOY_SSH_KEY_FILE:-}"
+SSH_KEY_INLINE="${DEPLOY_SSH_KEY:-}"
 
-if [[ -z "$SSH_KEY" ]]; then
+if [[ -z "$SSH_KEY_PATH" ]]; then
   for candidate in "$HOME/privatekey-1154735.pem" "$HOME/.ssh/vps.pem" "$ROOT/privatekey-1154735.pem"; do
     if [[ -f "$candidate" ]]; then
-      SSH_KEY="$candidate"
+      SSH_KEY_PATH="$candidate"
       break
     fi
   done
 fi
 
-if [[ -z "$SSH_KEY" || ! -f "$SSH_KEY" ]]; then
-  echo "Укажите путь к приватному ключу: export DEPLOY_SSH_KEY=/path/to/privatekey.pem" >&2
+if [[ -z "$SSH_KEY_PATH" && -n "$SSH_KEY_INLINE" ]]; then
+  if [[ -f "$SSH_KEY_INLINE" ]]; then
+    SSH_KEY_PATH="$SSH_KEY_INLINE"
+  else
+    SSH_KEY_PATH="$(mktemp)"
+    trap 'rm -f "$SSH_KEY_PATH"' EXIT
+    printf '%s\n' "$SSH_KEY_INLINE" >"$SSH_KEY_PATH"
+  fi
+fi
+
+if [[ -z "$SSH_KEY_PATH" || ! -f "$SSH_KEY_PATH" ]]; then
+  echo "Укажите ключ: export DEPLOY_SSH_KEY_FILE=/path/to/privatekey.pem или DEPLOY_SSH_KEY=\"\$(cat key.pem)\"" >&2
   exit 1
 fi
 
-chmod 600 "$SSH_KEY"
-SSH=(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${USER}@${HOST}")
-RSYNC=(rsync -az --delete -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new")
+chmod 600 "$SSH_KEY_PATH"
+SSH=(ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=accept-new "${USER}@${HOST}")
+RSYNC=(rsync -az --delete -e "ssh -i $SSH_KEY_PATH -o StrictHostKeyChecking=accept-new")
 
 echo "==> Проверка SSH (${USER}@${HOST})"
 "${SSH[@]}" 'echo ok'
