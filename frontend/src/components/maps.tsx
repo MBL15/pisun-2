@@ -82,21 +82,13 @@ const PIN_TEMPLATE =
   '{% if properties.label %}<span class="map-pin__label">{{ properties.label }}</span>{% endif %}' +
   '</div>'
 
-const PICKER_TEMPLATE =
-  '<div class="map-pin map-pin--picker">' +
-  '<span class="map-pin__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>' +
-  '<span class="map-pin__tail"></span>' +
-  '</div>'
-
 const CLUSTER_TEMPLATE = '<div class="map-cluster">{{ properties.geoObjects.length }}</div>'
 
-let layouts: { pin: YMaps; picker: YMaps; cluster: YMaps } | null = null
+let layouts: { pin: YMaps; cluster: YMaps } | null = null
 
 function mapLayouts(ymaps: YMaps) {
   layouts ??= {
     pin: ymaps.templateLayoutFactory.createClass(PIN_TEMPLATE),
-    picker: ymaps.templateLayoutFactory.createClass(PICKER_TEMPLATE),
     cluster: ymaps.templateLayoutFactory.createClass(CLUSTER_TEMPLATE),
   }
   return layouts
@@ -253,103 +245,6 @@ export function EventsMap({
 
   if (error) return <div className={className}><MapFallback message={error} /></div>
   return <div ref={containerRef} className={`ymaps-host overflow-hidden rounded-xl border-[3px] border-ink bg-white shadow-md ${className}`} />
-}
-
-/** Выбор точки проведения кликом по карте; при наличии ключа API адрес подставляется автоматически. */
-export function PickPointMap({
-  latitude,
-  longitude,
-  onPick,
-  searchQuery,
-}: {
-  latitude: number | null
-  longitude: number | null
-  onPick: (lat: number, lon: number, address?: string) => void
-  searchQuery?: string
-}) {
-  const placemarkRef = useRef<MapInstance>(null)
-  const onPickRef = useRef(onPick)
-  onPickRef.current = onPick
-  const [searching, setSearching] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
-
-  const initial: [number, number] = latitude != null && longitude != null ? [latitude, longitude] : KRASNOYARSK
-
-  const place = (map: MapInstance, ymaps: YMaps, coords: [number, number]) => {
-    if (placemarkRef.current) {
-      placemarkRef.current.geometry.setCoordinates(coords)
-      return
-    }
-    placemarkRef.current = new ymaps.Placemark(
-      coords,
-      { hintContent: 'Перетащите, чтобы уточнить место' },
-      { iconLayout: mapLayouts(ymaps).picker, iconShape: pinShape(true), draggable: true },
-    )
-    placemarkRef.current.events.add('dragend', () => {
-      const [lat, lon] = placemarkRef.current.geometry.getCoordinates()
-      reverseGeocode(ymaps, lat, lon).then((address) => onPickRef.current(lat, lon, address))
-    })
-    map.geoObjects.add(placemarkRef.current)
-  }
-
-  const { containerRef, mapRef, ymapsRef, error } = useYandexMap(
-    { center: initial, zoom: latitude != null ? 15 : 12, controls: ['zoomControl', 'geolocationControl', 'searchControl'] },
-    (map, ymaps) => {
-      if (latitude != null && longitude != null) place(map, ymaps, [latitude, longitude])
-      map.events.add('click', (event: YMaps) => {
-        const [lat, lon] = event.get('coords') as [number, number]
-        place(map, ymaps, [lat, lon])
-        reverseGeocode(ymaps, lat, lon).then((address) => onPickRef.current(lat, lon, address))
-      })
-    },
-  )
-
-  const findAddress = async () => {
-    const ymaps = ymapsRef.current
-    const map = mapRef.current
-    if (!ymaps || !map || !searchQuery?.trim()) return
-    setSearching(true)
-    setSearchError(null)
-    try {
-      const result = await ymaps.geocode(`Красноярск, ${searchQuery}`, { results: 1 })
-      const first = result.geoObjects.get(0)
-      if (!first) throw new Error('not found')
-      const [lat, lon] = first.geometry.getCoordinates()
-      map.setCenter([lat, lon], 16)
-      place(map, ymaps, [lat, lon])
-      onPickRef.current(lat, lon)
-    } catch {
-      setSearchError('Не удалось найти адрес автоматически — просто кликните по карте в нужном месте')
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  if (error) return <MapFallback message={`${error}. Адрес можно указать текстом — карта необязательна.`} />
-  return (
-    <div className="space-y-2">
-      <div ref={containerRef} className="ymaps-host h-80 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
-      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-        <span>Кликните по карте или перетащите метку, чтобы указать точное место встречи.</span>
-        {searchQuery && (
-          <button type="button" onClick={findAddress} disabled={searching} className="font-semibold text-brand-700 underline">
-            {searching ? 'Ищем…' : 'Найти введённый адрес на карте'}
-          </button>
-        )}
-      </div>
-      {searchError && <p className="inline-block rounded-md border-2 border-ink bg-pop-yellow px-2 py-0.5 text-sm font-semibold text-ink">{searchError}</p>}
-    </div>
-  )
-}
-
-async function reverseGeocode(ymaps: YMaps, lat: number, lon: number): Promise<string | undefined> {
-  try {
-    const result = await ymaps.geocode([lat, lon], { results: 1 })
-    const first = result.geoObjects.get(0)
-    return first?.getAddressLine?.() ?? undefined
-  } catch {
-    return undefined
-  }
 }
 
 /** Мини-карта в карточке события с кнопкой маршрута. */
