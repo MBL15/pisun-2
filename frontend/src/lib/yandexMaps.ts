@@ -10,6 +10,12 @@ declare global {
 
 export const KRASNOYARSK: [number, number] = [56.0153, 92.8932]
 
+/** Ограничение поиска адреса и подсказок — Красноярск и окрестности. */
+export const KRASNOYARSK_BOUNDS: [[number, number], [number, number]] = [
+  [56.005, 92.65],
+  [56.18, 93.15],
+]
+
 let loading: Promise<YMaps> | null = null
 
 export function loadYandexMaps(): Promise<YMaps> {
@@ -19,7 +25,12 @@ export function loadYandexMaps(): Promise<YMaps> {
   loading = new Promise((resolve, reject) => {
     const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY as string | undefined
     const script = document.createElement('script')
-    script.src = `https://api-maps.yandex.ru/2.1/?lang=ru_RU${apiKey ? `&apikey=${apiKey}` : ''}`
+    const params = new URLSearchParams({
+      lang: 'ru_RU',
+      load: 'package.full,suggest',
+    })
+    if (apiKey) params.set('apikey', apiKey)
+    script.src = `https://api-maps.yandex.ru/2.1/?${params.toString()}`
     script.async = true
     script.onload = () => {
       if (!window.ymaps) {

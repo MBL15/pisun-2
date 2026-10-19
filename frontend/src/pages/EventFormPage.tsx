@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { eventsApi, sportsApi } from '../api/endpoints'
 import type { Audience, EventForm, RegistrationMode, SkillLevel, SportEvent } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { PickPointMap } from '../components/maps'
+import { EventLocationMap } from '../components/EventLocationMap'
 import { useToast } from '../components/Toast'
 import { Button, EmptyState, ErrorBox, Field, LinkButton, PageHeader, Section, Spinner } from '../components/ui'
 import { audienceLabels, levelLabels, modeHints, modeLabels, toLocalInput } from '../lib/format'
@@ -104,8 +104,6 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [sportChoice, setSportChoice] = useState<number | ''>(event?.sportTypeId ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const [searchQuery, setSearchQuery] = useState<string>()
-
   const chooseSport = (choice: number | '') => {
     setSportChoice(choice)
     if (choice === CUSTOM) setForm((f) => ({ ...f, sportTypeId: null }))
@@ -230,37 +228,15 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
 
       <Section title="Где" icon={<MapPin className="size-6 text-brand-600" />}>
         <div className="space-y-5">
-          <Field label="Адрес или место" error={errors.address} hint="Кликните по карте, чтобы поставить точку. Участники смогут построить маршрут.">
-            <div className="flex gap-2">
-              <input
-                className="input"
-                value={form.address}
-                maxLength={300}
-                placeholder="Красноярск, о. Татышев, у главного входа"
-                onChange={(e) => set('address', e.target.value)}
-              />
-              <Button type="button" variant="secondary" onClick={() => setSearchQuery(form.address.trim() || undefined)} disabled={!form.address.trim()}>
-                Найти
-              </Button>
-            </div>
-          </Field>
-          <PickPointMap
+          <EventLocationMap
+            address={form.address}
             latitude={form.latitude}
             longitude={form.longitude}
-            searchQuery={searchQuery}
-            onPick={(lat, lon, address) =>
-              setForm((f) => ({ ...f, latitude: lat, longitude: lon, address: address && !f.address.trim() ? address : f.address }))
-            }
+            addressError={errors.address}
+            onAddressChange={(address) => set('address', address)}
+            onCoordsChange={(latitude, longitude) => setForm((f) => ({ ...f, latitude, longitude }))}
           />
-          {form.latitude != null && form.longitude != null && (
-            <p className="text-sm text-slate-600">
-              Точка: {form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}{' '}
-              <button type="button" className="font-semibold underline" onClick={() => setForm((f) => ({ ...f, latitude: null, longitude: null }))}>
-                убрать
-              </button>
-            </p>
-          )}
-          <Field label="Как найти (необязательно)">
+          <Field label="Как найти (необязательно)" hint="Уточнение для участников: вход, ориентир, этаж">
             <input className="input" maxLength={500} placeholder="Вход со стороны парковки, ищите оранжевую палатку" value={form.locationNote ?? ''} onChange={(e) => set('locationNote', e.target.value)} />
           </Field>
         </div>
