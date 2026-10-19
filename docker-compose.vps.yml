@@ -1,0 +1,28 @@
+# Профиль для VPS (~2 ГБ RAM): меньше heap у Java, фронт на порту 80, API через тот же origin.
+services:
+  identity-service:
+    environment:
+      JAVA_OPTS: "-Xmx256m"
+
+  event-service:
+    environment:
+      JAVA_OPTS: "-Xmx256m"
+
+  ai-moderation-service:
+    environment:
+      JAVA_OPTS: "-Xmx256m"
+
+  doc-generator-service:
+    environment:
+      JAVA_OPTS: "-Xmx256m"
+
+  api-gateway:
+    environment:
+      JAVA_OPTS: "-Xmx256m"
+
+  frontend:
+    build:
+      args:
+        VITE_API_URL: ""
+    ports:
+      - "80:80"
