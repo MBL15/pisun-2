@@ -21,6 +21,8 @@ public record EventVerificationResult(
         List<String> recommendations,
         String source,
         boolean hold,
-        Instant checkedAt
+        Instant checkedAt,
+        List<AgentSuggestion> suggestions,
+        String ageExplanation
 ) {
 }

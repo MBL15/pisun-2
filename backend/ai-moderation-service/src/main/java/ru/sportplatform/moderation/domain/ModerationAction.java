@@ -36,7 +36,8 @@ public class ModerationAction {
         COMMENT_HIDDEN,
         COMMENT_RESTORED,
         COMMENT_DELETED,
-        SETTINGS_CHANGED
+        SETTINGS_CHANGED,
+        SPORT_MERGED
     }
 
     @Id

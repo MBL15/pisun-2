@@ -14,9 +14,17 @@ import type {
   OrganizationForm,
   RegisterRequest,
   Registration,
+  GeoPlace,
+  GuardianReport,
+  MergeProposal,
+  RoutePlan,
   SportEvent,
+  SportHit,
+  SportMetrics,
+  SportProposal,
   SportType,
   User,
+  VerificationResult,
 } from './types'
 
 export const usersApi = {
@@ -41,6 +49,17 @@ export const organizationsApi = {
 
 export const sportsApi = {
   list: () => api.get<SportType[]>('/api/sports'),
+  suggest: (q: string) => api.get<SportHit[]>(`/api/sports/suggest${buildQuery({ q })}`),
+  propose: (body: { name: string; description?: string }) => api.post<SportProposal>('/api/sports/propose', body),
+  mergeProposals: () => api.get<MergeProposal[]>('/api/sports/merge-proposals'),
+  metrics: () => api.get<SportMetrics>('/api/sports/metrics'),
+}
+
+export const mapsApi = {
+  geocode: (q: string) => api.get<GeoPlace[]>(`/api/maps/geocode${buildQuery({ q })}`),
+  reverse: (lat: number, lon: number) => api.get<GeoPlace>(`/api/maps/reverse${buildQuery({ lat, lon })}`),
+  route: (fromLat: number, fromLon: number, toLat: number, toLon: number, mode: string) =>
+    api.get<RoutePlan>(`/api/maps/route${buildQuery({ fromLat, fromLon, toLat, toLon, mode })}`),
 }
 
 export const eventsApi = {
@@ -78,6 +97,9 @@ export const moderationApi = {
   restoreComment: (id: number) => api.post(`/api/moderation/comments/${id}/restore`),
   deleteComment: (id: number, reason: string) => api.post(`/api/moderation/comments/${id}/delete`, { reason }),
   journal: () => api.get<ModerationAction[]>('/api/moderation/journal'),
+  hideFlaggedComments: () => api.post<{ hidden: number }>('/api/moderation/comments/hide-flagged'),
+  mergeSports: (sourceId: number, targetId: number) =>
+    api.post<void>('/api/moderation/sports/merge', { sourceId, targetId }),
 }
 
 export const aiApi = {
@@ -85,6 +107,11 @@ export const aiApi = {
   settings: () => api.get<AiSettings>('/api/ai/settings'),
   updateSettings: (body: Omit<AiSettings, 'llmConfigured' | 'llmModel' | 'updatedAt' | 'updatedBy'>) =>
     api.put<AiSettings>('/api/ai/settings', body),
+  verifyDraft: (body: Record<string, unknown>, signal?: AbortSignal) =>
+    api.post<VerificationResult>('/api/ai/verify-event', { ...body, mode: 'DRAFT' }, { signal }),
+  improve: (body: { title: string; description: string; conditions?: string; sportName?: string; address?: string }) =>
+    api.post<{ variants: string[]; source: string }>('/api/ai/improve-event', body),
+  guardianReport: () => api.get<GuardianReport>('/api/ai/guardian/report'),
 }
 
 export const documentsApi = {

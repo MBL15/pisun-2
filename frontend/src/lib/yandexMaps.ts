@@ -10,6 +10,9 @@ declare global {
 
 export const KRASNOYARSK: [number, number] = [56.0153, 92.8932]
 
+/** Демо-ключ JS API (суточный лимит). В проде задайте VITE_YANDEX_MAPS_API_KEY. */
+const DEFAULT_JS_KEY = 'd4e98182-f969-4853-8164-04e542c8fb21'
+
 let loading: Promise<YMaps> | null = null
 
 export function loadYandexMaps(): Promise<YMaps> {
@@ -17,7 +20,7 @@ export function loadYandexMaps(): Promise<YMaps> {
   if (loading) return loading
 
   loading = new Promise((resolve, reject) => {
-    const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY as string | undefined
+    const apiKey = (import.meta.env.VITE_YANDEX_MAPS_API_KEY as string | undefined) || DEFAULT_JS_KEY
     const script = document.createElement('script')
     script.src = `https://api-maps.yandex.ru/2.1/?lang=ru_RU${apiKey ? `&apikey=${apiKey}` : ''}`
     script.async = true
@@ -40,5 +43,5 @@ export function loadYandexMaps(): Promise<YMaps> {
 }
 
 export function hasGeocoderKey(): boolean {
-  return Boolean(import.meta.env.VITE_YANDEX_MAPS_API_KEY)
+  return true
 }

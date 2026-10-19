@@ -1,10 +1,16 @@
 import { MapPinOff, Navigation } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { mapsApi } from '../api/endpoints'
 import type { SportEvent } from '../api/types'
 import { formatShortDate, formatTime, yandexPointUrl, yandexRouteUrl } from '../lib/format'
 import { KRASNOYARSK, loadYandexMaps, type YMaps } from '../lib/yandexMaps'
 
 type MapInstance = YMaps
+
+function destroyYandexMap(map: unknown) {
+  const candidate = map as { destroy?: () => void }
+  if (typeof candidate?.destroy === 'function') candidate.destroy()
+}
 
 /** Создаёт карту в контейнере и отдаёт её в onReady; при размонтировании уничтожает. */
 function useYandexMap(
@@ -51,7 +57,7 @@ function useYandexMap(
     return () => {
       cancelled = true
       observer.disconnect()
-      mapRef.current?.destroy()
+      destroyYandexMap(mapRef.current)
       mapRef.current = null
     }
     // карта создаётся один раз; обновления делаются через mapRef
@@ -307,18 +313,35 @@ export function PickPointMap({
   const findAddress = async () => {
     const ymaps = ymapsRef.current
     const map = mapRef.current
-    if (!ymaps || !map || !searchQuery?.trim()) return
+    if (!map || !searchQuery?.trim()) return
     setSearching(true)
     setSearchError(null)
     try {
-      const result = await ymaps.geocode(`Красноярск, ${searchQuery}`, { results: 1 })
-      const first = result.geoObjects.get(0)
-      if (!first) throw new Error('not found')
-      const [lat, lon] = first.geometry.getCoordinates()
-      map.setCenter([lat, lon], 16)
-      place(map, ymaps, [lat, lon])
-      onPickRef.current(lat, lon)
+      const places = await mapsApi.geocode(searchQuery.trim())
+      if (places.length === 0) throw new Error('not found')
+      const first = places[0]
+      if (ymaps) {
+        map.setCenter([first.latitude, first.longitude], 16)
+        place(map, ymaps, [first.latitude, first.longitude])
+      }
+      onPickRef.current(first.latitude, first.longitude, first.address)
     } catch {
+      if (ymapsRef.current && mapRef.current) {
+        try {
+          const ymaps = ymapsRef.current
+          const result = await ymaps.geocode(`Красноярск, ${searchQuery}`, { results: 1 })
+          const first = result.geoObjects.get(0)
+          if (first) {
+            const [lat, lon] = first.geometry.getCoordinates()
+            mapRef.current.setCenter([lat, lon], 16)
+            place(mapRef.current, ymaps, [lat, lon])
+            onPickRef.current(lat, lon)
+            return
+          }
+        } catch {
+          /* fallback below */
+        }
+      }
       setSearchError('Не удалось найти адрес автоматически — просто кликните по карте в нужном месте')
     } finally {
       setSearching(false)
@@ -344,11 +367,16 @@ export function PickPointMap({
 
 async function reverseGeocode(ymaps: YMaps, lat: number, lon: number): Promise<string | undefined> {
   try {
-    const result = await ymaps.geocode([lat, lon], { results: 1 })
-    const first = result.geoObjects.get(0)
-    return first?.getAddressLine?.() ?? undefined
+    const place = await mapsApi.reverse(lat, lon)
+    return place.address
   } catch {
-    return undefined
+    try {
+      const result = await ymaps.geocode([lat, lon], { results: 1 })
+      const first = result.geoObjects.get(0)
+      return first?.getAddressLine?.() ?? undefined
+    } catch {
+      return undefined
+    }
   }
 }
 

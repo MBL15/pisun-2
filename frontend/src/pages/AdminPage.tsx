@@ -12,14 +12,27 @@ import {
   RotateCcw,
   Save,
   Search,
+  Sparkles,
   Trash2,
   Upload,
   XCircle,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { aiApi, commentsApi, documentsApi, eventsApi, moderationApi, organizationsApi } from '../api/endpoints'
-import type { AiSettings, ApplicationStatus, Comment, DocumentTemplate, EventStatus, ModerationAction, Organization, SportEvent } from '../api/types'
+import { aiApi, commentsApi, documentsApi, eventsApi, moderationApi, organizationsApi, sportsApi } from '../api/endpoints'
+import type {
+  AiSettings,
+  ApplicationStatus,
+  Comment,
+  DocumentTemplate,
+  EventStatus,
+  GuardianReport,
+  MergeProposal,
+  ModerationAction,
+  Organization,
+  SportEvent,
+  SportMetrics,
+} from '../api/types'
 import { AgeBadge, AiBadge, EventStatusBadge, ModeBadge } from '../components/EventBadges'
 import { ReasonDialog } from '../components/ReasonDialog'
 import { useToast } from '../components/Toast'
@@ -27,7 +40,7 @@ import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, Modal, PageHeader, 
 import { formatDateTime, organizationStatusLabels } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
-type AdminTab = 'organizations' | 'events' | 'comments' | 'ai' | 'templates' | 'journal'
+type AdminTab = 'organizations' | 'events' | 'comments' | 'agents' | 'ai' | 'templates' | 'journal'
 
 type ReasonRequest = {
   title: string
@@ -55,6 +68,7 @@ export function AdminPage() {
             { value: 'organizations', label: 'Организации', icon: <Building2 className="size-5" />, count: pendingOrgs.data?.length },
             { value: 'events', label: 'Мероприятия', icon: <CalendarDays className="size-5" />, count: reviewEvents.data?.length },
             { value: 'comments', label: 'Обсуждения', icon: <MessageSquare className="size-5" />, count: hiddenComments.data?.length },
+            { value: 'agents', label: 'Агенты', icon: <Sparkles className="size-5" /> },
             { value: 'ai', label: 'ИИ-модерация', icon: <Bot className="size-5" /> },
             { value: 'templates', label: 'Шаблоны документов', icon: <FileText className="size-5" /> },
             { value: 'journal', label: 'Журнал', icon: <History className="size-5" /> },
@@ -64,6 +78,7 @@ export function AdminPage() {
       {tab === 'organizations' && <OrganizationsTab />}
       {tab === 'events' && <EventsTab />}
       {tab === 'comments' && <CommentsTab />}
+      {tab === 'agents' && <AgentsTab />}
       {tab === 'ai' && <AiTab />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'journal' && <JournalTab />}
@@ -133,6 +148,7 @@ function OrganizationsTab() {
 
   return (
     <div className="space-y-4">
+      <p className="text-slate-700">Новые клубы ждут одобрения. Пока статус «На рассмотрении», представитель не может войти в аккаунт.</p>
       <StatusFilter
         value={status}
         onChange={setStatus}
@@ -244,6 +260,9 @@ function EventsTab() {
 
   return (
     <div className="space-y-4">
+      <p className="text-slate-700">
+        Мероприятия пользователей попадают в афишу только после кнопки «Подтвердить». Одобренные организации публикуют сами.
+      </p>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <StatusFilter
           value={status}
@@ -298,7 +317,7 @@ function EventsTab() {
             )}
             {(event.status === 'ON_REVIEW' || event.status === 'UNPUBLISHED' || event.status === 'DELETED') && (
               <Button variant="success" size="sm" icon={<RotateCcw className="size-4" />} onClick={() => publish(event)}>
-                Опубликовать
+                {event.status === 'ON_REVIEW' ? 'Подтвердить' : 'Вернуть в афишу'}
               </Button>
             )}
             {event.status !== 'DELETED' && (
@@ -691,6 +710,130 @@ function TemplatesTab() {
   )
 }
 
+function AgentsTab() {
+  const { notify } = useToast()
+  const report = useAsync(() => aiApi.guardianReport(), [])
+  const metrics = useAsync<SportMetrics>(() => sportsApi.metrics(), [])
+  const merges = useAsync<MergeProposal[]>(() => sportsApi.mergeProposals(), [])
+  const [busy, setBusy] = useState(false)
+
+  const hideFlagged = async () => {
+    setBusy(true)
+    try {
+      const result = await moderationApi.hideFlaggedComments()
+      notify('success', `Скрыто сообщений: ${result.hidden}`)
+      await report.reload()
+    } catch (error) {
+      notify('error', 'Не удалось скрыть', (error as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const merge = async (proposal: MergeProposal) => {
+    setBusy(true)
+    try {
+      await moderationApi.mergeSports(proposal.source.id, proposal.target.id)
+      notify('success', `Слито: «${proposal.source.name}» → «${proposal.target.name}»`)
+      await merges.reload()
+      await metrics.reload()
+    } catch (error) {
+      notify('error', 'Слияние не удалось', (error as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-2">
+      <section className="card space-y-3 p-5">
+        <h2 className="text-xl font-bold">Хранитель качества (сутки)</h2>
+        {report.error && <ErrorBox error={report.error} onRetry={report.reload} />}
+        {report.loading && !report.data && <Spinner />}
+        {report.data && <GuardianStats data={report.data} onHide={hideFlagged} busy={busy} />}
+      </section>
+      <section className="card space-y-3 p-5">
+        <h2 className="text-xl font-bold">Куратор справочника</h2>
+        {metrics.error && <ErrorBox error={metrics.error} onRetry={metrics.reload} />}
+        {metrics.loading && !metrics.data && <Spinner />}
+        {metrics.data && <SportColumn title="Топ-5 по событиям" sports={metrics.data.top} />}
+        {metrics.data && metrics.data.recent.length > 0 && (
+          <SportColumn title="Новые виды за 7 дней" sports={metrics.data.recent} />
+        )}
+        {metrics.data && metrics.data.orphans.length > 0 && (
+          <SportColumn title="Сироты (90+ дней без событий)" sports={metrics.data.orphans} />
+        )}
+      </section>
+      <section className="card space-y-3 p-5 xl:col-span-2">
+        <h2 className="text-xl font-bold">Предложения слияния</h2>
+        {merges.error && <ErrorBox error={merges.error} onRetry={merges.reload} />}
+        {merges.loading && !merges.data && <Spinner />}
+        {merges.data?.length === 0 && <p className="text-slate-600">Похожих пар для слияния нет.</p>}
+        {merges.data?.map((proposal) => (
+          <article key={`${proposal.source.id}-${proposal.target.id}`} className="rounded-xl border-2 border-ink bg-white p-4">
+            <p className="font-bold">
+              «{proposal.source.name}» → «{proposal.target.name}» ({Math.round(proposal.confidence * 100)}%)
+            </p>
+            <p className="mt-1 text-sm text-slate-700">{proposal.reason}</p>
+            <Button type="button" size="sm" className="mt-2" disabled={busy} onClick={() => merge(proposal)}>
+              Слить
+            </Button>
+          </article>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+function GuardianStats({ data, onHide, busy }: { data: GuardianReport; onHide: () => void; busy: boolean }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Stat label="Проверок" value={data.checks} />
+        <Stat label="Флагов" value={data.flagged} />
+        <Stat label="Авто-снятий" value={data.autoUnpublished} />
+      </div>
+      <p className="text-sm font-semibold">Топ причин:</p>
+      <ul className="list-inside list-disc text-sm text-slate-700">
+        {data.topReasons.map((reason) => (
+          <li key={reason}>{reason}</li>
+        ))}
+      </ul>
+      <p className="text-sm text-slate-700">{data.commentSuggestion}</p>
+      {data.flaggedVisibleComments > 0 && (
+        <Button type="button" size="sm" disabled={busy} onClick={onHide}>
+          Скрыть все отмеченные комментарии
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border-2 border-ink bg-pop-yellow/40 p-3 text-center">
+      <p className="text-2xl font-black">{value}</p>
+      <p className="text-sm font-semibold">{label}</p>
+    </div>
+  )
+}
+
+function SportColumn({ title, sports }: { title: string; sports: SportMetrics['top'] }) {
+  return (
+    <div>
+      <p className="font-bold">{title}</p>
+      <ul className="mt-1 space-y-1 text-sm text-slate-700">
+        {sports.map((sport) => (
+          <li key={sport.id}>
+            {sport.emoji} {sport.name}
+            {sport.eventsCount > 0 && <span className="text-slate-500"> · {sport.eventsCount}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 const journalLabels: Record<ModerationAction['type'], { label: string; tone: 'green' | 'red' | 'amber' | 'slate' | 'brand' }> = {
   ORGANIZATION_APPROVED: { label: 'Организация одобрена', tone: 'green' },
   ORGANIZATION_REJECTED: { label: 'Организация отклонена', tone: 'red' },
@@ -701,6 +844,7 @@ const journalLabels: Record<ModerationAction['type'], { label: string; tone: 'gr
   COMMENT_RESTORED: { label: 'Сообщение восстановлено', tone: 'green' },
   COMMENT_DELETED: { label: 'Сообщение удалено', tone: 'red' },
   SETTINGS_CHANGED: { label: 'Настройки ИИ', tone: 'brand' },
+  SPORT_MERGED: { label: 'Слияние видов спорта', tone: 'brand' },
 }
 
 function JournalTab() {

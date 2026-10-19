@@ -39,8 +39,36 @@ public class SportType {
     @Column(length = 16)
     private String emoji;
 
-    /** true — направление добавлено пользователем при создании события. */
+    /** true — направление добавлено пользователем, а не из реестра. */
     private boolean custom;
+
+    /** командный, индивидуальный, дворовый или интеллектуальный. */
+    @Column(length = 40)
+    private String category;
+
+    /** Имя иконки Lucide, чтобы карточка вида спорта была узнаваемой. */
+    @Column(length = 40)
+    private String icon;
+
+    @Column(length = 200)
+    private String tags;
+
+    @Column(length = 20)
+    private String defaultAge;
+
+    @Column(length = 500)
+    private String description;
+
+    @Column(length = 300)
+    private String equipment;
+
+    @Column(length = 400)
+    private String safetyNotes;
+
+    private Integer typicalDurationMinutes;
+
+    /** Скрыт из выбора после слияния. События при этом уже перенесены. */
+    private boolean archived;
 
     private Long createdByUserId;
 

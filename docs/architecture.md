@@ -24,7 +24,7 @@
 | Префикс пути | Сервис |
 |---|---|
 | `/api/users`, `/api/organizations` | identity-service |
-| `/api/events`, `/api/sports`, `/api/comments` | event-service |
+| `/api/events`, `/api/sports`, `/api/comments`, `/api/maps` | event-service |
 | `/api/moderation`, `/api/ai` | ai-moderation-service |
 | `/api/documents` | doc-generator-service |
 
@@ -41,6 +41,8 @@
 | event | identity | `GET /api/users/{id}`, `GET /api/users/{id}/children` | Автор события, участник, проверка родителя | 5 с |
 | event | ai | `POST /api/ai/verify-event` | Вердикт при создании и редактировании события | 20 с |
 | event | ai | `POST /api/ai/verify-comment` | Фильтр нового комментария | 20 с |
+| event | ai | `POST /api/ai/curate-sport`, `POST /api/ai/audit` | Оценка нового вида спорта и общий журнал агентов | 20 с |
+| event | Яндекс | HTTP Геокодер и Router API | Поиск адреса и маршрут «как добраться». Ключи только на сервере | 8 с |
 | ai | identity | `GET /api/users/{id}` | Имя администратора для журнала | — |
 | ai | identity | `POST /internal/organizations/{id}/decision` | Одобрить или отклонить организацию | — |
 | ai | event | `POST /internal/events/{id}/status` | Снять, удалить, опубликовать событие | — |
@@ -53,7 +55,7 @@
 
 ### Поведение при отказах
 
-- **ai-moderation-service недоступен при создании события.** `AiClient.verifyEvent` ловит любое исключение и возвращает вердикт `FALLBACK`: `AI_APPROVED`, возраст `CHILD_SAFE` (или `ADULT_ONLY`, если аудитория «Взрослые»), `hold = false`. Событие публикуется сразу.
+- **ai-moderation-service недоступен при создании события.** `AiClient.verifyEvent` ловит любое исключение и возвращает вердикт `FALLBACK`: `AI_APPROVED`, возраст `CHILD_SAFE` (или `ADULT_ONLY`, если аудитория «Взрослые»), `hold = false`. Дальше `EventService.applyVerdict`: мероприятие **пользователя** всё равно остаётся в `ON_REVIEW`; **допущенная организация** публикуется сразу (`PUBLISHED`).
 - **ai-moderation-service недоступен при отправке комментария.** Комментарий сохраняется видимым.
 - **LLM недоступна или вернула мусор.** `LlmClient.verify` возвращает `Optional.empty()`, остаётся только эвристика.
 - **Остальные сервисы недоступны.** `GlobalExceptionHandler` превращает `ResourceAccessException` в `503 SERVICE_UNAVAILABLE` с русским сообщением.

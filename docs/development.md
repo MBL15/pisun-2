@@ -12,8 +12,8 @@
 | Задача | Windows | Linux, macOS |
 |---|---|---|
 | Запустить всё | `.\start.ps1` | `./start.sh` |
-| Пересобрать бэкенд и запустить | `.\start.ps1 -Rebuild` | — |
-| Сбросить данные к демо-состоянию | `.\start.ps1 -ResetData` | — |
+| Пересобрать бэкенд и запустить | `.\start.ps1 -Rebuild` | `./start.sh --rebuild` |
+| Сбросить данные к демо-состоянию | `.\start.ps1 -ResetData` | `./start.sh --reset` (можно вместе с `--rebuild`) |
 | Только бэкенд | `.\start.ps1 -NoFrontend` | — |
 | Остановить | `.\stop.ps1` | `./stop.sh` |
 | Docker с PostgreSQL | `docker compose up --build` | то же |
@@ -96,7 +96,7 @@ Id и роли демо-аккаунтов есть в корневом [README]
 
 ### Добавить демо-аккаунт
 
-Добавьте его **в конец** списка в `identity-service/DataInitializer` и константу в `DemoIds`. Вставка в середину сдвинет id и сломает ссылки в демо-данных других сервисов. Затем запустите с `-ResetData`.
+Добавьте его **в конец** списка в `identity-service/DataInitializer` и константу в `DemoIds`. Вставка в середину сдвинет id и сломает ссылки в демо-данных других сервисов. Затем запустите с `-ResetData` или `./start.sh --reset`.
 
 ### Добавить шаблон документа
 

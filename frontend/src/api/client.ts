@@ -67,7 +67,8 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   let response: Response
   try {
     response = await fetch(`${API_URL}${path}`, { ...init, headers: finalHeaders })
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new ApiError(0, 'NETWORK', 'Нет связи с сервером. Запустите бэкенд (api-gateway на порту 8080) и обновите страницу.')
   }
   if (!response.ok) throw await parseError(response)
@@ -77,9 +78,13 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
+  get: <T>(path: string, init?: RequestInit) => request<T>(path, init),
+  post: <T>(path: string, body?: unknown, init?: RequestInit) =>
+    request<T>(path, {
+      ...init,
+      method: 'POST',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   upload: <T>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form }),

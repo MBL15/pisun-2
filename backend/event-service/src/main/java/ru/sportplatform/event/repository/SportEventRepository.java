@@ -16,4 +16,8 @@ public interface SportEventRepository extends JpaRepository<SportEvent, Long> {
     List<SportEvent> findByOrganizerUserIdOrderByStartAtDesc(Long organizerUserId);
 
     long countBySportTypeIdAndStatus(Long sportTypeId, EventStatus status);
+
+    long countBySportTypeId(Long sportTypeId);
+
+    List<SportEvent> findBySportTypeId(Long sportTypeId);
 }

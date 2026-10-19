@@ -204,20 +204,62 @@ public class EventService {
     private static EventVerificationRequest verificationRequest(SportEvent event) {
         return new EventVerificationRequest(event.getId(), event.getTitle(), event.getDescription(),
                 event.getConditions(), event.getSportType().getName(), event.getAudience(), event.getStartAt(),
-                event.getOrganizerName(), event.getOrganizerType() == OrganizerType.ORGANIZATION);
+                event.getOrganizerName(), event.getOrganizerType() == OrganizerType.ORGANIZATION, "PUBLISHED");
     }
 
     /**
-     * Событие пользователя с вердиктом FLAGGED уходит на проверку администратору. Допущенная организация
-     * публикует без премодерации — вердикт ИИ лишь подсвечивается администратору.
+     * Мероприятие пользователя всегда ждёт подтверждения администратора и до этого не попадает в афишу.
+     * Допущенная организация публикует сразу. Если после публикации вердикт сменился с одобрения на FLAGGED,
+     * хранитель качества снимает событие сам.
      */
-    private static void applyVerdict(SportEvent event, EventVerificationResult verdict) {
+    private void applyVerdict(SportEvent event, EventVerificationResult verdict) {
+        AiStatus previousAi = event.getAiStatus();
+        EventStatus previousStatus = event.getStatus();
+        boolean creating = event.getId() == null;
+
         event.setAiStatus(verdict.status());
         event.setAgeRestriction(event.getAudience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : verdict.ageRestriction());
         event.setAiSummary(verdict.summary());
         event.setAiReasons(verdict.reasons() == null ? null : String.join("\n", verdict.reasons()));
-        boolean hold = verdict.hold() && event.getOrganizerType() == OrganizerType.USER;
-        event.setStatus(hold ? EventStatus.ON_REVIEW : EventStatus.PUBLISHED);
+
+        boolean userEvent = event.getOrganizerType() == OrganizerType.USER;
+        boolean flagged = verdict.status() == AiStatus.FLAGGED;
+
+        if (creating) {
+            if (userEvent) {
+                event.setStatus(EventStatus.ON_REVIEW);
+                event.setAiSummary("Мероприятие пользователя появится в афише после подтверждения администратором. "
+                        + nullToEmpty(verdict.summary()));
+            } else {
+                event.setStatus(EventStatus.PUBLISHED);
+            }
+            return;
+        }
+
+        if (previousStatus == EventStatus.PUBLISHED && previousAi == AiStatus.AI_APPROVED && flagged) {
+            String reason = "Агент качества снял мероприятие с публикации: после правки проверка больше не проходит. "
+                    + firstReason(verdict);
+            event.setStatus(EventStatus.UNPUBLISHED);
+            event.setModerationReason(reason);
+            event.setModeratedBy("Хранитель качества");
+            event.setModeratedAt(Instant.now());
+            ai.audit("GUARDIAN", "UNPUBLISH", "FLAGGED", verdict.source(), reason);
+            return;
+        }
+        if (previousStatus == EventStatus.ON_REVIEW || (userEvent && previousStatus != EventStatus.PUBLISHED)) {
+            event.setStatus(EventStatus.ON_REVIEW);
+            return;
+        }
+        if (previousStatus != null) {
+            event.setStatus(previousStatus);
+        }
+    }
+
+    private static String firstReason(EventVerificationResult verdict) {
+        if (verdict.reasons() == null || verdict.reasons().isEmpty()) {
+            return "Подробности есть в карточке мероприятия.";
+        }
+        return verdict.reasons().get(0);
     }
 
     // ---------- модерация (вызывается ai-moderation-service) ----------
@@ -314,6 +356,7 @@ public class EventService {
         return new EventDto(
                 e.getId(), e.getTitle(), e.getDescription(),
                 e.getSportType().getId(), e.getSportType().getName(), e.getSportType().getEmoji(), e.getSportType().isCustom(),
+                e.getSportType().getEquipment(), e.getSportType().getSafetyNotes(),
                 e.getStartAt(), e.getEndAt(), e.getDurationMinutes(),
                 e.getAddress(), e.getLocationNote(), e.getLatitude(), e.getLongitude(),
                 e.getConditions(), e.getLevel(), e.getAudience(), e.getCapacity(),

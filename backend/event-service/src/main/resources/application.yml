@@ -15,6 +15,11 @@ services:
   identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   ai-url: ${AI_SERVICE_URL:http://localhost:8083}
 
+# Ключи Яндекса: JS API остаётся на фронтенде, геокодер и маршруты вызываются отсюда.
+yandex:
+  geocoder-key: ${YANDEX_GEOCODER_KEY:d2666b62-953d-49cd-98d3-9a9bb57cd4b3}
+  router-key: ${YANDEX_ROUTER_KEY:6d63d361-a038-44be-873a-bafb1c9c6be6}
+
 management:
   endpoints:
     web:

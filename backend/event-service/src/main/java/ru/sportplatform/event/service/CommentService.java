@@ -137,6 +137,14 @@ public class CommentService {
         return snapshot(find(id));
     }
 
+    @Transactional(readOnly = true)
+    public List<CommentSnapshotDto> openSnapshots() {
+        return comments.findAllByOrderByCreatedAtDesc().stream()
+                .filter(comment -> !comment.isHidden())
+                .map(this::snapshot)
+                .toList();
+    }
+
     private CommentSnapshotDto snapshot(EventComment c) {
         String title = events.findById(c.getEventId()).map(SportEvent::getTitle).orElse(null);
         return new CommentSnapshotDto(c.getId(), c.getEventId(), title, c.getAuthorId(), c.getAuthorName(),

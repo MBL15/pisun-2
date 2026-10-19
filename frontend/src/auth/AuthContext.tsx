@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { setSession } from '../api/client'
+import { ApiError, setSession } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
 
@@ -40,13 +40,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = Number(localStorage.getItem(STORAGE_KEY))
-    const restore = saved ? usersApi.get(saved).then(apply).catch(() => apply(null)) : Promise.resolve()
+    const restore = saved
+      ? usersApi
+          .get(saved)
+          .then((next) => {
+            if (organizationEntryMessage(next)) {
+              apply(null)
+              return
+            }
+            apply(next)
+          })
+          .catch(() => apply(null))
+      : Promise.resolve()
     Promise.all([restore, reloadAccounts()]).finally(() => setLoading(false))
   }, [apply, reloadAccounts])
 
   const loginById = useCallback(
     async (id: number) => {
       const next = await usersApi.get(id)
+      const block = organizationEntryMessage(next)
+      if (block) throw new ApiError(403, 'PENDING', block)
       apply(next)
       return next
     },
@@ -78,6 +91,12 @@ export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext)
   if (!context) throw new Error('useAuth must be used inside AuthProvider')
   return context
+}
+
+/** Организация в статусе PENDING не может войти, пока админ не одобрит заявку. */
+export function organizationEntryMessage(user: User): string | null {
+  if (user.role !== 'ORGANIZATION' || user.organizationStatus !== 'PENDING') return null
+  return 'Организация пока не подтверждена. Дождитесь решения администратора — после одобрения вход откроется.'
 }
 
 /** Стартовая страница роли после входа. */

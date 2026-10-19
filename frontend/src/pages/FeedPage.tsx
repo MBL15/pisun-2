@@ -71,7 +71,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
   const isChild = user?.role === 'CHILD'
   const canCreate = user?.role === 'USER' || (user?.role === 'ORGANIZATION' && user.organizationStatus === 'APPROVED')
   const hasFilters = Boolean(appliedQuery || sportTypeId || mode || kidsOnly || range !== 'any')
-  const popularSports = (sports.data ?? []).filter((sport) => sport.eventsCount > 0 || !sport.custom)
+  const popularSports = (sports.data ?? []).filter((sport) => sport.eventsCount > 0)
 
   const reset = () => {
     setQuery('')

@@ -1,6 +1,7 @@
 package ru.sportplatform.moderation.ai;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,6 +63,57 @@ public class LlmClient {
         return model;
     }
 
+    public Optional<List<String>> rewriteVariants(String title, String description, String sport) {
+        if (!isConfigured()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode json = complete("""
+                    Перепиши описание спортивного мероприятия по-русски. Не добавляй контакты, цены и факты, которых нет в тексте.
+                    Верни ТОЛЬКО JSON: {"variants":["вариант 1","вариант 2","вариант 3"]}
+                    """, "Название: " + nz(title) + "\nВид спорта: " + nz(sport) + "\nОписание: " + nz(description));
+            if (json == null || !json.path("variants").isArray()) {
+                return Optional.empty();
+            }
+            List<String> variants = new ArrayList<>();
+            json.path("variants").forEach(node -> {
+                if (!node.asText("").isBlank()) {
+                    variants.add(node.asText());
+                }
+            });
+            return variants.isEmpty() ? Optional.empty() : Optional.of(variants.stream().limit(3).toList());
+        } catch (Exception e) {
+            log.warn("LLM rewrite failed: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** Оценка свободного названия вида спорта. Пустой ответ — остаёмся на эвристике. */
+    public Optional<SportCuration> curateSport(String name, String description) {
+        if (!isConfigured()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode json = complete("""
+                    Ты куратор справочника видов спорта. Реши, похоже ли название на реальный спорт или подвижную активность.
+                    Откажи (adequate=false), если это оскорбление, реклама, наркотики, азарт или бессмыслица.
+                    category: командный, индивидуальный, дворовый или интеллектуальный.
+                    Верни ТОЛЬКО JSON: {"adequate":true,"canonicalName":"...","category":"...","childSafe":true,"reason":"..."}
+                    """, "Название: " + nz(name) + "\nОписание: " + nz(description));
+            if (json == null || !json.has("adequate")) {
+                return Optional.empty();
+            }
+            return Optional.of(new SportCuration(json.path("adequate").asBoolean(false),
+                    json.path("canonicalName").asText(name),
+                    json.path("category").asText("индивидуальный"),
+                    json.path("childSafe").asBoolean(true),
+                    json.path("reason").asText("")));
+        } catch (Exception e) {
+            log.warn("LLM sport curation failed: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     public Optional<LlmVerdict> verify(EventVerificationRequest request) {
         if (!isConfigured()) {
             return Optional.empty();
@@ -95,6 +147,31 @@ public class LlmClient {
         }
     }
 
+    private JsonNode complete(String system, String user) throws Exception {
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "temperature", 0,
+                "messages", List.of(
+                        Map.of("role", "system", "content", system),
+                        Map.of("role", "user", "content", user)));
+        JsonNode response = client.post().uri("/chat/completions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class);
+        String content = response == null ? null : response.path("choices").path(0).path("message").path("content").asText(null);
+        if (content == null) {
+            return null;
+        }
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        return objectMapper.readTree(content.substring(start, end + 1));
+    }
+
     private LlmVerdict parse(String content) throws Exception {
         if (content == null) {
             return null;
@@ -117,5 +194,8 @@ public class LlmClient {
     }
 
     public record LlmVerdict(boolean flagged, boolean childSafe, String summary, List<String> reasons) {
+    }
+
+    public record SportCuration(boolean adequate, String canonicalName, String category, boolean childSafe, String reason) {
     }
 }

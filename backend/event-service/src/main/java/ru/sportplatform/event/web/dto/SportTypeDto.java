@@ -5,6 +5,14 @@ public record SportTypeDto(
         String name,
         String emoji,
         boolean custom,
-        long eventsCount
+        long eventsCount,
+        String category,
+        String icon,
+        String tags,
+        String defaultAge,
+        String description,
+        String equipment,
+        String safetyNotes,
+        Integer typicalDurationMinutes
 ) {
 }

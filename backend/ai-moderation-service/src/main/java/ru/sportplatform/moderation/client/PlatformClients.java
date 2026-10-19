@@ -1,6 +1,7 @@
 package ru.sportplatform.moderation.client;
 
 import java.time.Duration;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -13,6 +14,7 @@ import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.EventStatusChangeRequest;
 import ru.sportplatform.common.dto.OrganizationDecisionRequest;
 import ru.sportplatform.common.dto.OrganizationDto;
+import ru.sportplatform.common.dto.SportMergeRequest;
 import ru.sportplatform.common.dto.UserDto;
 
 /** Вызовы внутренних эндпоинтов identity-service и event-service от имени администратора. */
@@ -41,9 +43,18 @@ public class PlatformClients {
                 .body(OrganizationDto.class);
     }
 
+    public void mergeSports(SportMergeRequest request) {
+        events.post().uri("/internal/sports/merge").body(request).retrieve().toBodilessEntity();
+    }
+
     public EventSnapshotDto changeEventStatus(Long id, EventStatusChangeRequest request) {
         return events.post().uri("/internal/events/{id}/status", id).body(request).retrieve()
                 .body(EventSnapshotDto.class);
+    }
+
+    public List<CommentSnapshotDto> openComments() {
+        CommentSnapshotDto[] body = events.get().uri("/internal/comments/open").retrieve().body(CommentSnapshotDto[].class);
+        return body == null ? List.of() : List.of(body);
     }
 
     public CommentSnapshotDto setCommentVisibility(Long id, CommentVisibilityRequest request) {

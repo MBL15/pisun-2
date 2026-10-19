@@ -27,7 +27,7 @@ spring:
         - id: event-service
           uri: ${EVENT_SERVICE_URL:http://localhost:8082}
           predicates:
-            - Path=/api/events/**,/api/events,/api/sports/**,/api/sports,/api/comments/**,/api/comments
+            - Path=/api/events/**,/api/events,/api/sports/**,/api/sports,/api/comments/**,/api/comments,/api/maps/**,/api/maps
         - id: ai-moderation-service
           uri: ${AI_SERVICE_URL:http://localhost:8083}
           predicates:
