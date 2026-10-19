@@ -55,7 +55,7 @@
 
 ### Поведение при отказах
 
-- **ai-moderation-service недоступен при создании события.** `AiClient.verifyEvent` ловит любое исключение и возвращает вердикт `FALLBACK`: `AI_APPROVED`, возраст `CHILD_SAFE` (или `ADULT_ONLY`, если аудитория «Взрослые»), `hold = false`. Событие публикуется сразу.
+- **ai-moderation-service недоступен при создании события.** `AiClient.verifyEvent` ловит любое исключение и возвращает вердикт `FALLBACK`: `AI_APPROVED`, возраст `CHILD_SAFE` (или `ADULT_ONLY`, если аудитория «Взрослые»), `hold = false`. Дальше `EventService.applyVerdict`: мероприятие **пользователя** всё равно остаётся в `ON_REVIEW`; **допущенная организация** публикуется сразу (`PUBLISHED`).
 - **ai-moderation-service недоступен при отправке комментария.** Комментарий сохраняется видимым.
 - **LLM недоступна или вернула мусор.** `LlmClient.verify` возвращает `Optional.empty()`, остаётся только эвристика.
 - **Остальные сервисы недоступны.** `GlobalExceptionHandler` превращает `ResourceAccessException` в `503 SERVICE_UNAVAILABLE` с русским сообщением.

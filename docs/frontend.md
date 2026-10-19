@@ -11,7 +11,7 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 | `api/client.ts` | `request()`, `api.get/post/put/delete/upload`, `ApiError`, `buildQuery`, заголовки сессии |
 | `api/endpoints.ts` | Типизированные обёртки по доменам: `usersApi`, `organizationsApi`, события, комментарии, модерация, ИИ, документы |
 | `api/types.ts` | TypeScript-типы, повторяющие DTO бэкенда |
-| `auth/AuthContext.tsx` | Демо-сессия: текущий пользователь, список демо-аккаунтов, `login`, `logout`, `homeFor(user)` |
+| `auth/AuthContext.tsx` | Демо-сессия: текущий пользователь, список демо-аккаунтов, `login`, `logout`, `homeFor(user)`, `organizationEntryMessage` |
 | `components/ui.tsx` | UI-кит: кнопки, поля, карточки, `Spinner`, `EmptyState`, `LinkButton` |
 | `components/Layout.tsx` | Шапка, переключатель ролей, кнопка крупного шрифта «T», мобильная нижняя навигация |
 | `components/maps.tsx` | Карты: выбор точки, мини-карта события, карта афиши |
@@ -30,6 +30,7 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 ## Сессия и заголовки
 
 - Пароля нет. `AuthContext` хранит id выбранного аккаунта в `localStorage` под ключом `sportvmeste.userId` и при старте заново загружает пользователя через `GET /api/users/{id}`.
+- Организация в статусе `PENDING` не получает сессию: `login` и восстановление сессии бросают `ApiError(403, PENDING, …)` с текстом «Организация пока не подтверждена». Отклонённая (`REJECTED`) может войти, чтобы прочитать причину и отправить заявку снова.
 - `setSession({id, role})` в `api/client.ts` — модульная переменная. Каждый `request()` добавляет `X-User-Id` и `X-User-Role`.
 - После смены роли страницы должны перезагрузить данные: ответы бэкенда зависят от того, кто смотрит. Например, `EventDto.viewer` содержит `organizer`, `canRegister`, `registrationBlockedReason`, `canSeeContacts`, `myRegistrations`.
 
@@ -46,6 +47,8 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 | `/admin` | `ADMIN` |
 
 После входа `homeFor(user)` отправляет администратора в `/admin`, организацию в `/my-organization`, остальных на `/`.
+
+Страница **«Админка»** (`AdminPage.tsx`): вкладки «Организации», «Мероприятия», «Обсуждения», **«Агенты»** (сводка Хранителя, куратор справочника, слияния), «ИИ-модерация», «Шаблоны», «Журнал».
 
 Проверки ролей на фронтенде нужны только для удобства. Настоящие права проверяет бэкенд, а UI показывает его ответ.
 

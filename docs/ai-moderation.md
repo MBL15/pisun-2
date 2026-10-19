@@ -28,8 +28,30 @@ sequenceDiagram
     AI->>AI: слияние, сохранение AiVerdict
     AI-->>EV: EventVerificationResult
   end
-  EV->>EV: applyVerdict → PUBLISHED или ON_REVIEW
+  EV->>EV: applyVerdict → организация PUBLISHED, пользователь ON_REVIEW
 ```
+
+## Два агента
+
+| Агент | Где живёт | Публичные вызовы | Задача |
+|---|---|---|---|
+| **Хранитель качества** | ai-moderation-service (`GuardianAdvisor`, `AiVerificationService`) | `POST /api/ai/verify-event`, `POST /api/ai/improve-event`, `GET /api/ai/guardian/report` | Вердикт, возраст, `AgentSuggestion` на форме, варианты текста, сводка за сутки |
+| **Куратор справочника** | event-service (`SportCuratorService`, `FuzzySportMatcher`) | `GET /api/sports/suggest`, `POST /api/sports/propose`, `GET /api/sports/metrics`, `GET /api/sports/merge-proposals` | Реестр `SportLexicon`, заявка «своего» вида, метрики и пары для слияния |
+
+Эвристики работают без ключей. LLM подключается через `AI_LLM_API_KEY` для вердикта события и (опционально) для оценки нового вида спорта (`POST /api/ai/curate-sport` из event-service).
+
+### Журнал `ai_audit_log`
+
+Таблица в ai-moderation-service. Пишется через `POST /api/ai/audit` (вызывает event-service после авто-снятия и при каждой проверке). Поля: агент (`GUARDIAN`, `CURATOR`…), действие (`VERIFY`, `VERIFY_DRAFT`, `UNPUBLISH`…), вердикт, источник (`HEURISTIC`, `LLM`, `MERGED`, `FALLBACK`), деталь, время. Черновик формы (`mode=DRAFT`) в `ai_verdicts` не сохраняется, но в аудит попадает.
+
+### Подсказки `AgentSuggestion`
+
+Record в `common-lib`: `type` (например `SPORT_MISMATCH`, `CHILD_TRIGGER`), `field`, `message`, `confidence`, `blocking`. Возвращаются в `EventVerificationResult.suggestions`. На форме их показывает `AgentHintsPanel`; сохранение события они не блокируют — решение об афише принимает `applyVerdict`.
+
+### Админка «Агенты»
+
+- **Хранитель:** число проверок, флагов и авто-снятий за сутки, топ причин, подсказка по комментариям; кнопка скрыть все видимые комментарии с вердиктом ИИ (`POST /api/moderation/comments/hide-flagged`).
+- **Куратор:** топ направлений, новые виды за 7 дней, «сироты» без событий 90+ дней; список предложений слияния с кнопкой «Слить» → `POST /api/moderation/sports/merge` (журнал `SPORT_MERGED`).
 
 ## Правила слияния вердиктов
 
@@ -37,7 +59,7 @@ sequenceDiagram
 
 - `flagged` — нарушение нашёл хотя бы один анализатор.
 - `adultOnly` — эвристика нашла взрослые маркеры, **или** есть нарушение, **или** LLM считает, что событие не для детей. Итог: «безопасно для детей» только при согласии обоих анализаторов.
-- `hold = flagged && autoHoldFlagged`. Придержку применяет event-service и только к событиям пользователей.
+- `hold = flagged && autoHoldFlagged`. В `applyVerdict` поле `hold` не переключает статус: пользовательские события и так создаются в `ON_REVIEW`, организационные при создании всегда `PUBLISHED`.
 - Причины LLM добавляются с префиксом `LLM:`. К причинам добавляются взрослые или детские маркеры, в зависимости от итоговой метки.
 - `source`: `HEURISTIC`, `LLM+HEURISTIC`, `DISABLED`; event-service при недоступности сервиса подставляет `FALLBACK`.
 - Каждый вердикт сохраняется в `ai_verdicts`. Лента в админке показывает последние 100.

@@ -44,7 +44,8 @@ stateDiagram-v2
 
 - Статус ставится в `EventService.applyVerdict` при создании и редактировании.
 - Событие пользователя (`organizerType == USER`) создаётся в `ON_REVIEW` и появляется в афише только после «Подтвердить» в админке. Повторное редактирование на проверке само его не публикует.
-- Допущенная организация публикует сразу. Вердикт `FLAGGED` у неё подсвечивается, но не прячет событие.
+- Допущенная организация публикует сразу. Вердикт `FLAGGED` у неё подсвечивается на карточке, но статус `PUBLISHED` при создании не меняет.
+- Настройка `autoHoldFlagged` влияет на поле `hold` в вердикте и текст сводки; для пользователей афиша закрыта уже потому, что любое их событие создаётся в `ON_REVIEW`.
 - Если опубликованное событие было `AI_APPROVED`, а после правки стало `FLAGGED`, Хранитель качества сам ставит `UNPUBLISHED` и пишет причину. Это закрывает обход «одобрили, потом переписали».
 - `UNPUBLISHED` и `DELETED` организатор редактировать не может (403 с причиной).
 - Любой переход, кроме перехода в `PUBLISHED`, требует причину (`EventService.changeStatus`). При публикации причина очищается. Если событие было `FLAGGED`, к `aiSummary` добавляется «Проверено администратором вручную».
@@ -167,4 +168,6 @@ stateDiagram-v2
 2. Вызывает `/internal/**` профильного сервиса.
 3. Пишет `ModerationAction` в журнал.
 
-Типы действий: `ORGANIZATION_APPROVED`, `ORGANIZATION_REJECTED`, `EVENT_UNPUBLISHED`, `EVENT_DELETED`, `EVENT_PUBLISHED`, `COMMENT_HIDDEN`, `COMMENT_RESTORED`, `COMMENT_DELETED`, `SETTINGS_CHANGED`. Журнал отдаёт последние 200 записей.
+Типы действий: `ORGANIZATION_APPROVED`, `ORGANIZATION_REJECTED`, `EVENT_UNPUBLISHED`, `EVENT_DELETED`, `EVENT_PUBLISHED`, `COMMENT_HIDDEN`, `COMMENT_RESTORED`, `COMMENT_DELETED`, `SETTINGS_CHANGED`, `SPORT_MERGED` (слияние дублей справочника). Журнал отдаёт последние 200 записей.
+
+Во вкладке **«Агенты»** админки: сводка Хранителя за сутки (`GET /api/ai/guardian/report`), метрики и предложения слияния видов спорта, кнопка `POST /api/moderation/comments/hide-flagged` — массово скрыть комментарии, которые ИИ пометил, но ещё видны в ленте.
