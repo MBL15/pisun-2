@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-PIDS="$(cd "$(dirname "$0")" && pwd)/backend/logs/pids.txt"
-if [ ! -f "$PIDS" ]; then
-  [ "${1:-}" = "--quiet" ] || echo "Запущенных сервисов не найдено."
-  exit 0
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+PIDS="$ROOT/backend/logs/pids.txt"
+if [ -f "$PIDS" ]; then
+  while read -r pid; do
+    [ -n "$pid" ] && kill "$pid" 2>/dev/null
+  done < "$PIDS"
+  rm -f "$PIDS"
 fi
-while read -r pid; do
-  [ -n "$pid" ] && kill "$pid" 2>/dev/null
-done < "$PIDS"
-# npm запускает vite дочерним процессом
+# На случай «зомби» после сбоя: освобождаем порты сервисов
+for port in 8081 8082 8083 8084 8080; do
+  pids=$(lsof -ti :"$port" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    kill $pids 2>/dev/null || true
+  fi
+done
 pkill -f "vite.*--host" 2>/dev/null || true
-rm -f "$PIDS"
 [ "${1:-}" = "--quiet" ] || echo "Все сервисы остановлены."

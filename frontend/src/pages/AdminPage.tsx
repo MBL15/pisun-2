@@ -34,6 +34,7 @@ type ReasonRequest = {
   description: string
   confirmLabel: string
   presets: string[]
+  reasonOptional?: boolean
   run: (reason: string) => Promise<unknown>
   done: string
 }
@@ -81,6 +82,7 @@ function useReasonDialog() {
       description={request?.description}
       confirmLabel={request?.confirmLabel ?? 'Подтвердить'}
       presets={request?.presets}
+      reasonOptional={request?.reasonOptional}
       onClose={() => setRequest(null)}
       onConfirm={async (reason) => {
         if (!request) return
@@ -228,6 +230,20 @@ function EventsTab() {
     }
   }
 
+  const rejectReview = (event: SportEvent) =>
+    ask({
+      title: `Отклонить предложение: ${event.title}`,
+      description: 'Организатор увидит причину в своём профиле. Поле можно оставить пустым.',
+      confirmLabel: 'Отклонить',
+      presets: eventPresets,
+      reasonOptional: true,
+      run: async (reason) => {
+        await moderationApi.unpublishEvent(event.id, reason.trim() || 'Отклонено администратором')
+        await reload()
+      },
+      done: 'Предложение отклонено',
+    })
+
   const askAction = (event: SportEvent, action: 'unpublish' | 'delete') =>
     ask({
       title: `${action === 'delete' ? 'Удалить' : 'Снять с публикации'}: ${event.title}`,
@@ -294,6 +310,11 @@ function EventsTab() {
             {event.status === 'PUBLISHED' && (
               <Button variant="danger" size="sm" icon={<Ban className="size-4" />} onClick={() => askAction(event, 'unpublish')}>
                 Снять
+              </Button>
+            )}
+            {event.status === 'ON_REVIEW' && (
+              <Button variant="danger" size="sm" icon={<XCircle className="size-4" />} onClick={() => rejectReview(event)}>
+                Отклонить
               </Button>
             )}
             {(event.status === 'ON_REVIEW' || event.status === 'UNPUBLISHED' || event.status === 'DELETED') && (

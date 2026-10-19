@@ -214,7 +214,7 @@ function StatusBanner({ event }: { event: SportEvent }) {
         <TriangleAlert className="size-8 shrink-0" aria-hidden />
         <div>
           <p className="text-lg font-bold">Мероприятие на проверке у администратора</p>
-          <p className="mt-1">ИИ-модератор нашёл возможные нарушения. Пока событие видите только вы и администратор.</p>
+          <p className="mt-1">После одобрения оно появится в общей афише. Пока карточку видите только вы и администратор.</p>
         </div>
       </div>
     )

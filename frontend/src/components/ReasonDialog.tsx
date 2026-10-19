@@ -9,6 +9,7 @@ export function ReasonDialog({
   confirmLabel,
   presets = [],
   danger = true,
+  reasonOptional = false,
   onClose,
   onConfirm,
 }: {
@@ -18,6 +19,7 @@ export function ReasonDialog({
   confirmLabel: string
   presets?: string[]
   danger?: boolean
+  reasonOptional?: boolean
   onClose: () => void
   onConfirm: (reason: string) => Promise<void>
 }) {
@@ -33,7 +35,7 @@ export function ReasonDialog({
   }, [open])
 
   const submit = async () => {
-    if (!reason.trim()) {
+    if (!reasonOptional && !reason.trim()) {
       setError('Укажите причину — её увидит пользователь')
       return
     }

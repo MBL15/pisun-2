@@ -147,8 +147,18 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
     }
     try {
       const saved = event ? await eventsApi.update(event.id, body) : await eventsApi.create(body)
-      if (saved.status === 'ON_REVIEW') {
-        notify('error', 'Отправлено на проверку', saved.aiSummary ?? 'ИИ-модератор нашёл возможные нарушения — администратор проверит мероприятие.')
+      if (saved.status === 'UNPUBLISHED') {
+        notify(
+          'error',
+          'Публикация заблокирована',
+          saved.moderationReason ?? saved.aiSummary ?? 'Уберите запрещённые слова из описания и сохраните снова.',
+        )
+      } else if (saved.status === 'ON_REVIEW') {
+        notify(
+          'success',
+          'Отправлено администратору',
+          saved.aiSummary ?? 'Мероприятие появится в афише после одобрения администратора.',
+        )
       } else {
         notify('success', event ? 'Изменения сохранены' : 'Мероприятие опубликовано', saved.aiSummary ?? undefined)
       }
@@ -164,7 +174,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
     <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" noValidate>
       <PageHeader
         title={event ? 'Редактирование' : 'Новое мероприятие'}
-        subtitle="Перед публикацией описание проверит ИИ-модератор и определит, подходит ли событие детям."
+        subtitle="Обычный пользователь отправляет мероприятие администратору на проверку. ИИ также проверяет текст и блокирует запрещённые слова."
       />
 
       <Section title="Что за событие">

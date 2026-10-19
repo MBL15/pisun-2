@@ -58,12 +58,23 @@ public class HeuristicAnalyzer {
             "\\bдет(и|ей|ям|ский|ская|ское|ские)\\b", "\\bребён\\w*", "\\bребен\\w*", "\\bшкольник\\w*", "\\bсемейн\\w*",
             "\\bподрост\\w*");
 
+    /** Жёсткая блокировка: публикация запрещена, без очереди на проверку администратором. */
+    private static final List<String> HARD_BLOCK_WORDS = List.of(
+            "секс", "sex", "xxx",
+            "сиськ", "письк",
+            "порно", "porno", "porn",
+            "эротик", "проститу");
+
     private static final Pattern CONTACT_IN_TEXT = Pattern.compile("(\\+7|8)[\\s(-]*\\d{3}|t\\.me/|https?://|@\\w{4,}", FLAGS);
     private static final Pattern LINK = Pattern.compile("https?://|t\\.me/|www\\.", FLAGS);
 
     public HeuristicResult analyzeEvent(String title, String description, String conditions, Audience audience,
                                         LocalDateTime startAt, String customStopWords) {
         String text = String.join("\n", nz(title), nz(description), nz(conditions));
+        Set<String> blockHits = hardBlockHits(text);
+        List<String> blocked = blockHits.isEmpty() ? List.of()
+                : List.of("Запрещённые слова: " + quote(blockHits));
+
         List<String> flagged = new ArrayList<>();
         for (Category category : FORBIDDEN) {
             Set<String> hits = matches(category.patterns(), text);
@@ -110,7 +121,7 @@ public class HeuristicAnalyzer {
         if (CONTACT_IN_TEXT.matcher(nz(description)).find()) {
             recommendations.add("Телефон и ссылки лучше перенести в поле «Информация для участников» — её увидят только подтверждённые участники");
         }
-        return new HeuristicResult(flagged, adult, kids, recommendations);
+        return new HeuristicResult(flagged, blocked, adult, kids, recommendations);
     }
 
     public List<String> analyzeComment(String text, String customStopWords) {
@@ -144,6 +155,17 @@ public class HeuristicAnalyzer {
             Matcher matcher = pattern.matcher(text);
             while (matcher.find() && hits.size() < 5) {
                 hits.add(matcher.group().toLowerCase());
+            }
+        }
+        return hits;
+    }
+
+    private static Set<String> hardBlockHits(String text) {
+        String normalized = TextUtils.normalizeKey(text);
+        Set<String> hits = new LinkedHashSet<>();
+        for (String word : HARD_BLOCK_WORDS) {
+            if (normalized.contains(word)) {
+                hits.add(word);
             }
         }
         return hits;
@@ -190,6 +212,7 @@ public class HeuristicAnalyzer {
 
     public record HeuristicResult(
             List<String> flagged,
+            List<String> blockedReasons,
             List<String> adultReasons,
             List<String> kidsReasons,
             List<String> recommendations
@@ -198,8 +221,12 @@ public class HeuristicAnalyzer {
             return !flagged.isEmpty();
         }
 
+        public boolean isHardBlocked() {
+            return !blockedReasons.isEmpty();
+        }
+
         public boolean isAdultOnly() {
-            return isFlagged() || !adultReasons.isEmpty();
+            return isHardBlocked() || isFlagged() || !adultReasons.isEmpty();
         }
     }
 }
