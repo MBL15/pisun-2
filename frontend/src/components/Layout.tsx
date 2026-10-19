@@ -166,7 +166,10 @@ export function Layout() {
   const [largeText, toggleLargeText] = useLargeText()
   const location = useLocation()
 
-  useEffect(() => window.scrollTo(0, 0), [location.pathname])
+  useEffect(() => {
+    // Не возвращать результат: в актуальном Chrome scrollTo отдаёт Promise, и React принимает его за очистку эффекта.
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-2 rounded-lg border-[3px] px-3 py-1.5 font-bold transition ${
