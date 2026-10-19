@@ -40,7 +40,7 @@ public class AiClient {
         AgeRestriction age = request.audience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : AgeRestriction.CHILD_SAFE;
         return new EventVerificationResult(null, AiStatus.AI_APPROVED, age,
                 "ИИ-модератор временно недоступен: событие опубликовано, администратор может проверить его вручную.",
-                List.of(), List.of(), "FALLBACK", false, Instant.now());
+                List.of(), List.of(), "FALLBACK", false, false, Instant.now());
     }
 
     public CommentVerificationResult verifyComment(CommentVerificationRequest request) {

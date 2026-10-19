@@ -147,7 +147,10 @@ public class EventService {
         if (!isOrganizer(event, current)) {
             throw ApiException.forbidden("Изменять мероприятие может только его организатор");
         }
-        if (event.getStatus() == EventStatus.UNPUBLISHED || event.getStatus() == EventStatus.DELETED) {
+        if (event.getStatus() == EventStatus.DELETED) {
+            throw ApiException.forbidden("Мероприятие удалено администратором: " + event.getModerationReason());
+        }
+        if (event.getStatus() == EventStatus.UNPUBLISHED && !canOrganizerEditAfterUnpublish(event)) {
             throw ApiException.forbidden("Мероприятие снято администратором: " + event.getModerationReason());
         }
         validateDates(form);
@@ -208,16 +211,37 @@ public class EventService {
     }
 
     /**
-     * Событие пользователя с вердиктом FLAGGED уходит на проверку администратору. Допущенная организация
-     * публикует без премодерации — вердикт ИИ лишь подсвечивается администратору.
+     * Жёсткая блокировка по стоп-словам — {@code UNPUBLISHED} без очереди администратору.
+     * Событие обычного пользователя без блокировки всегда уходит на премодерацию ({@code ON_REVIEW}).
+     * Допущенная организация публикует сразу, вердикт ИИ лишь подсвечивается администратору.
      */
     private static void applyVerdict(SportEvent event, EventVerificationResult verdict) {
         event.setAiStatus(verdict.status());
         event.setAgeRestriction(event.getAudience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : verdict.ageRestriction());
         event.setAiSummary(verdict.summary());
         event.setAiReasons(verdict.reasons() == null ? null : String.join("\n", verdict.reasons()));
-        boolean hold = verdict.hold() && event.getOrganizerType() == OrganizerType.USER;
-        event.setStatus(hold ? EventStatus.ON_REVIEW : EventStatus.PUBLISHED);
+        if (verdict.blocked()) {
+            event.setStatus(EventStatus.UNPUBLISHED);
+            event.setModerationReason(blockReason(verdict));
+            event.setModeratedBy("ИИ-модератор");
+            event.setModeratedAt(Instant.now());
+            return;
+        }
+        if (event.getOrganizerType() == OrganizerType.USER) {
+            event.setStatus(EventStatus.ON_REVIEW);
+            event.setModerationReason(null);
+            event.setModeratedBy(null);
+            event.setModeratedAt(null);
+            return;
+        }
+        event.setStatus(EventStatus.PUBLISHED);
+    }
+
+    private static String blockReason(EventVerificationResult verdict) {
+        if (verdict.reasons() != null && !verdict.reasons().isEmpty()) {
+            return "Публикация запрещена: " + String.join("; ", verdict.reasons());
+        }
+        return "Публикация запрещена: в описании обнаружены запрещённые слова";
     }
 
     // ---------- модерация (вызывается ai-moderation-service) ----------
@@ -229,10 +253,15 @@ public class EventService {
             throw ApiException.badRequest("Не указан новый статус");
         }
         if (request.status() != EventStatus.PUBLISHED && TextUtils.isBlank(request.reason())) {
-            throw ApiException.badRequest("Укажите причину — её увидит организатор");
+            if (request.status() == EventStatus.UNPUBLISHED && event.getStatus() == EventStatus.ON_REVIEW) {
+                event.setModerationReason("Отклонено администратором");
+            } else {
+                throw ApiException.badRequest("Укажите причину — её увидит организатор");
+            }
+        } else {
+            event.setModerationReason(request.status() == EventStatus.PUBLISHED ? null : request.reason().trim());
         }
         event.setStatus(request.status());
-        event.setModerationReason(request.status() == EventStatus.PUBLISHED ? null : request.reason().trim());
         event.setModeratedBy(request.moderatorName());
         event.setModeratedAt(Instant.now());
         if (request.status() == EventStatus.PUBLISHED && event.getAiStatus() == AiStatus.FLAGGED) {
@@ -250,6 +279,11 @@ public class EventService {
 
     public boolean isOrganizer(SportEvent event, CurrentUser current) {
         return current.isAuthenticated() && current.id().equals(event.getOrganizerUserId());
+    }
+
+    /** После автоблокировки ИИ организатор может исправить текст и отправить снова. */
+    private static boolean canOrganizerEditAfterUnpublish(SportEvent event) {
+        return "ИИ-модератор".equals(event.getModeratedBy());
     }
 
     public boolean isChildSafe(SportEvent event) {

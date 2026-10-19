@@ -11,6 +11,7 @@ import ru.sportplatform.common.enums.AiStatus;
  *
  * @param hold true — событие пользователя нужно придержать до решения администратора
  *             (событие допущенной организации публикуется всё равно, вердикт только сигнализирует)
+ * @param blocked true — жёсткая блокировка по стоп-триггерам; не отправляется администратору на проверку
  */
 public record EventVerificationResult(
         Long verdictId,
@@ -21,6 +22,7 @@ public record EventVerificationResult(
         List<String> recommendations,
         String source,
         boolean hold,
+        boolean blocked,
         Instant checkedAt
 ) {
 }
