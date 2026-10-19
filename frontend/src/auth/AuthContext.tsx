@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { setSession } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
+import { organizationLoginBlocked } from '../lib/auth'
 
 const STORAGE_KEY = 'sportvmeste.userId'
 
@@ -40,13 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = Number(localStorage.getItem(STORAGE_KEY))
-    const restore = saved ? usersApi.get(saved).then(apply).catch(() => apply(null)) : Promise.resolve()
+    const restore = saved
+      ? usersApi
+          .get(saved)
+          .then((user) => (organizationLoginBlocked(user) ? apply(null) : apply(user)))
+          .catch(() => apply(null))
+      : Promise.resolve()
     Promise.all([restore, reloadAccounts()]).finally(() => setLoading(false))
   }, [apply, reloadAccounts])
 
   const loginById = useCallback(
     async (id: number) => {
       const next = await usersApi.get(id)
+      const blocked = organizationLoginBlocked(next)
+      if (blocked) {
+        throw new Error(blocked)
+      }
       apply(next)
       return next
     },

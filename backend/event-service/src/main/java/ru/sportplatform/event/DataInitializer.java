@@ -31,6 +31,8 @@ import ru.sportplatform.event.repository.EventCommentRepository;
 import ru.sportplatform.event.repository.RegistrationRepository;
 import ru.sportplatform.event.repository.SportEventRepository;
 import ru.sportplatform.event.repository.SportTypeRepository;
+import ru.sportplatform.event.service.SportRegistrySeeder;
+import ru.sportplatform.event.service.SportTypeService;
 
 /** Стартовые данные: справочник направлений, мероприятия в Красноярске, заявки и обсуждения. */
 @Slf4j
@@ -39,6 +41,7 @@ import ru.sportplatform.event.repository.SportTypeRepository;
 public class DataInitializer implements CommandLineRunner {
 
     private final SportTypeRepository sportTypes;
+    private final SportRegistrySeeder registrySeeder;
     private final SportEventRepository events;
     private final RegistrationRepository registrations;
     private final EventCommentRepository comments;
@@ -51,23 +54,19 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        Map<String, String> catalog = new LinkedHashMap<>();
-        catalog.put("Футбол", "⚽");
-        catalog.put("Шахматы", "♟️");
-        catalog.put("Бег", "🏃");
-        catalog.put("Зарядка во дворе", "🤸");
-        catalog.put("Баскетбол", "🏀");
-        catalog.put("Волейбол", "🏐");
-        catalog.put("Йога", "🧘");
-        catalog.put("Велоспорт", "🚴");
-        catalog.put("Плавание", "🏊");
-        catalog.put("Настольный теннис", "🏓");
-        Map<String, SportType> sports = new LinkedHashMap<>();
-        catalog.forEach((name, emoji) -> sports.put(name, sportTypes.save(SportType.builder()
-                .name(name).nameKey(TextUtils.normalizeKey(name)).emoji(emoji).custom(false).build())));
+        Map<String, SportType> sports = registrySeeder.seedCatalog();
+        SportType yard = sportTypes.findByNameKey(TextUtils.normalizeKey("Зарядка во дворе")).orElseGet(() ->
+                sportTypes.save(SportType.builder().name("Зарядка во дворе").nameKey(TextUtils.normalizeKey("Зарядка во дворе"))
+                        .emoji("🤸").custom(true).createdByUserId(DemoIds.ORG_APPROVED_OWNER).build()));
+        sports.put("Зарядка во дворе", yard);
         SportType nordic = sportTypes.save(SportType.builder()
                 .name("Скандинавская ходьба").nameKey(TextUtils.normalizeKey("Скандинавская ходьба"))
                 .emoji("🏅").custom(true).createdByUserId(DemoIds.ADULT_DMITRY).build());
+        sportTypes.save(SportType.builder().name("футбик").nameKey(TextUtils.normalizeKey("футбик"))
+                .emoji(SportTypeService.CUSTOM_EMOJI).custom(true).createdByUserId(DemoIds.ADULT_DMITRY).build());
+        sportTypes.save(SportType.builder().name("бег трусцой").nameKey(TextUtils.normalizeKey("бег трусцой"))
+                .emoji(SportTypeService.CUSTOM_EMOJI).custom(true).createdByUserId(DemoIds.ADULT_IRINA).build());
+        SportType runSport = sports.get("Легкая атлетика");
 
         LocalDate today = LocalDate.now();
 
@@ -130,7 +129,7 @@ public class DataInitializer implements CommandLineRunner {
                 .title("Утренняя пробежка 5 км по острову Татышев")
                 .description("Лёгкая пробежка в разговорном темпе по кругу острова. Никого не бросаем: "
                         + "в конце — растяжка и кофе. Отличный вариант для тех, кто только начинает бегать.")
-                .sportType(sports.get("Бег"))
+                .sportType(runSport)
                 .startAt(today.plusDays(1).atTime(7, 30))
                 .durationMinutes(60)
                 .address("о. Татышев, главный вход со стороны ул. Авиаторов")
@@ -201,6 +200,29 @@ public class DataInitializer implements CommandLineRunner {
                 .aiStatus(AiStatus.AI_APPROVED)
                 .ageRestriction(AgeRestriction.CHILD_SAFE)
                 .aiSummary("Нарушений не найдено. Новое направление «Скандинавская ходьба» добавлено пользователем.")
+                .build());
+
+        events.save(SportEvent.builder()
+                .title("Утренний бег — шахматный разбор после дистанции")
+                .description("Сначала лёгкая пробежка 3 км, затем за чаем разберём партию из шахматного блица. "
+                        + "Подойдёт тем, кто совмещает бег и шахматы.")
+                .sportType(runSport)
+                .startAt(today.plusDays(6).atTime(8, 0))
+                .durationMinutes(75)
+                .address("о. Татышев, беговая дорожка")
+                .latitude(56.0280).longitude(92.9420)
+                .conditions("Кроссовки и, по желанию, шахматные часы.")
+                .level(SkillLevel.ANY)
+                .audience(Audience.ALL)
+                .registrationMode(RegistrationMode.FREE)
+                .status(EventStatus.PUBLISHED)
+                .organizerType(OrganizerType.USER)
+                .organizerUserId(DemoIds.ADULT)
+                .organizerName(DemoIds.ADULT_NAME)
+                .aiStatus(AiStatus.FLAGGED)
+                .ageRestriction(AgeRestriction.CHILD_SAFE)
+                .aiSummary("ИИ отметил возможное несоответствие вида спорта и описания (SPORT_MISMATCH).")
+                .aiReasons("SPORT_MISMATCH: выбран бег, в тексте — шахматы")
                 .build());
 
         events.save(SportEvent.builder()

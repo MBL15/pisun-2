@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
+import { organizationLoginBlocked } from '../lib/auth'
 import { useToast } from '../components/Toast'
 import { Avatar, Button, ErrorBox, Field, Spinner, Tabs } from '../components/ui'
 
@@ -28,8 +29,14 @@ const roleSticker: Record<User['role'], string> = {
 export function LoginPage() {
   const { demoAccounts, login, loading } = useAuth()
   const navigate = useNavigate()
+  const { notify } = useToast()
 
   const enter = (user: User) => {
+    const blocked = organizationLoginBlocked(user)
+    if (blocked) {
+      notify('error', blocked)
+      return
+    }
     login(user)
     navigate(homeFor(user))
   }
@@ -103,8 +110,11 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
       notify(
         'success',
         kind === 'ORGANIZATION' ? 'Заявка организации отправлена' : 'Аккаунт создан',
-        kind === 'ORGANIZATION' ? 'Администратор рассмотрит её — статус виден в разделе «Моя организация».' : undefined,
+        kind === 'ORGANIZATION'
+          ? 'Вход станет доступен после подтверждения администратором.'
+          : undefined,
       )
+      if (kind === 'ORGANIZATION') return
       onRegistered(user)
     } catch (e) {
       setError(e as ApiError)

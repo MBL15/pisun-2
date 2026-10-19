@@ -15,14 +15,19 @@ import ru.sportplatform.common.dto.CommentVerificationRequest;
 import ru.sportplatform.common.dto.CommentVerificationResult;
 import ru.sportplatform.common.dto.EventVerificationRequest;
 import ru.sportplatform.common.dto.EventVerificationResult;
+import ru.sportplatform.common.dto.SportNormalizeRequest;
+import ru.sportplatform.common.dto.SportNormalizeResult;
 import ru.sportplatform.common.enums.AgeRestriction;
 import ru.sportplatform.common.enums.AiStatus;
 import ru.sportplatform.common.enums.Audience;
+import ru.sportplatform.common.enums.EventVerificationMode;
 import ru.sportplatform.common.util.TextUtils;
+import ru.sportplatform.moderation.ai.EventQualityGuardian;
 import ru.sportplatform.moderation.ai.HeuristicAnalyzer;
 import ru.sportplatform.moderation.ai.HeuristicAnalyzer.HeuristicResult;
 import ru.sportplatform.moderation.ai.LlmClient;
 import ru.sportplatform.moderation.ai.LlmClient.LlmVerdict;
+import ru.sportplatform.moderation.ai.SportTypeNormalizer;
 import ru.sportplatform.moderation.domain.AiVerdict;
 import ru.sportplatform.moderation.domain.ModerationSettings;
 import ru.sportplatform.moderation.repository.AiVerdictRepository;
@@ -32,10 +37,16 @@ import ru.sportplatform.moderation.web.dto.VerdictDto;
 @RequiredArgsConstructor
 public class AiVerificationService {
 
+    private static final String GUARDIAN = "EVENT_QUALITY_GUARDIAN";
+    private static final String CURATOR = "SPORT_TYPE_CURATOR";
+
     private final HeuristicAnalyzer heuristics;
+    private final EventQualityGuardian guardian;
+    private final SportTypeNormalizer sportNormalizer;
     private final LlmClient llm;
     private final SettingsService settingsService;
     private final AiVerdictRepository verdicts;
+    private final AiAuditService audit;
 
     /**
      * Итоговый вердикт = эвристика ∪ LLM: нарушение засчитывается, если его нашёл хотя бы один анализатор,
@@ -43,12 +54,17 @@ public class AiVerificationService {
      */
     @Transactional
     public EventVerificationResult verifyEvent(EventVerificationRequest request) {
+        long started = System.currentTimeMillis();
         ModerationSettings settings = settingsService.current();
+        boolean draft = request.mode() == EventVerificationMode.DRAFT;
+
         if (!settings.isAiEnabled()) {
             AgeRestriction age = request.audience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : AgeRestriction.CHILD_SAFE;
-            return save(request, new EventVerificationResult(null, AiStatus.AI_APPROVED, age,
+            EventVerificationResult result = new EventVerificationResult(null, AiStatus.AI_APPROVED, age,
                     "ИИ-проверка отключена администратором — событие опубликовано без автоматической проверки.",
-                    List.of(), List.of(), "DISABLED", false, Instant.now()));
+                    List.of(), List.of(), "DISABLED", false, Instant.now(), List.of(), List.of());
+            audit.log(GUARDIAN, request.title(), "DISABLED", "DISABLED", System.currentTimeMillis() - started, null);
+            return draft ? result : save(request, result);
         }
 
         HeuristicResult heuristic = heuristics.analyzeEvent(request.title(), request.description(), request.conditions(),
@@ -57,6 +73,7 @@ public class AiVerificationService {
 
         boolean flagged = heuristic.isFlagged() || llmVerdict.map(LlmVerdict::flagged).orElse(false);
         boolean adultOnly = heuristic.isAdultOnly() || flagged || llmVerdict.map(v -> !v.childSafe()).orElse(false);
+        AgeRestriction age = adultOnly ? AgeRestriction.ADULT_ONLY : AgeRestriction.CHILD_SAFE;
 
         LinkedHashSet<String> reasons = new LinkedHashSet<>(heuristic.flagged());
         llmVerdict.ifPresent(v -> v.reasons().stream().filter(r -> !TextUtils.isBlank(r)).map(r -> "LLM: " + r).forEach(reasons::add));
@@ -68,16 +85,37 @@ public class AiVerificationService {
 
         boolean hold = flagged && settings.isAutoHoldFlagged();
         String summary = summary(flagged, adultOnly, hold, request.organizationEvent(), heuristic, llmVerdict);
+        String source = llmVerdict.isPresent() ? "LLM+HEURISTIC" : "HEURISTIC";
+        var suggestions = guardian.suggestions(request, heuristic, age);
+        var variants = guardian.descriptionVariants(request);
 
-        return save(request, new EventVerificationResult(null,
+        EventVerificationResult result = new EventVerificationResult(null,
                 flagged ? AiStatus.FLAGGED : AiStatus.AI_APPROVED,
-                adultOnly ? AgeRestriction.ADULT_ONLY : AgeRestriction.CHILD_SAFE,
+                age,
                 summary,
                 new ArrayList<>(reasons),
                 heuristic.recommendations(),
-                llmVerdict.isPresent() ? "LLM+HEURISTIC" : "HEURISTIC",
+                source,
                 hold,
-                Instant.now()));
+                Instant.now(),
+                suggestions,
+                variants);
+
+        audit.log(GUARDIAN, request.title() + "|" + nz(request.description()),
+                flagged ? "FLAGGED" : "AI_APPROVED", source, System.currentTimeMillis() - started, null);
+        if (hold) {
+            audit.log(GUARDIAN, "hold:" + request.title(), "HOLD", source, 0, null);
+        }
+        return draft ? result : save(request, result);
+    }
+
+    @Transactional
+    public SportNormalizeResult normalizeSport(SportNormalizeRequest request) {
+        long started = System.currentTimeMillis();
+        SportNormalizeResult result = sportNormalizer.normalize(request.query(), request.knownNames());
+        audit.log(CURATOR, request.query(), result.acceptable() ? "PROPOSED" : "REJECTED", result.source(),
+                System.currentTimeMillis() - started, null);
+        return result;
     }
 
     @Transactional
@@ -118,7 +156,8 @@ public class AiVerificationService {
                 .hold(result.hold())
                 .build());
         return new EventVerificationResult(verdict.getId(), result.status(), result.ageRestriction(), result.summary(),
-                result.reasons(), result.recommendations(), result.source(), result.hold(), result.checkedAt());
+                result.reasons(), result.recommendations(), result.source(), result.hold(), result.checkedAt(),
+                result.suggestions(), result.descriptionVariants());
     }
 
     private static String summary(boolean flagged, boolean adultOnly, boolean hold, boolean organizationEvent,
@@ -127,7 +166,7 @@ public class AiVerificationService {
         if (flagged) {
             text.append("Найдены возможные нарушения правил платформы. ");
             if (organizationEvent) {
-                text.append("Допущенная организация публикует без премодерации — администратор получил сигнал. ");
+                text.append("Допущенная организация пublикует без премодерации — администратор получил сигнал. ");
             } else if (hold) {
                 text.append("Событие отправлено администратору на проверку и пока не видно в ленте. ");
             } else {
@@ -142,5 +181,9 @@ public class AiVerificationService {
             text.append("Есть советы, как сделать карточку понятнее.");
         }
         return text.toString().trim();
+    }
+
+    private static String nz(String value) {
+        return value == null ? "" : value;
     }
 }

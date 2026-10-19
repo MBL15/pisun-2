@@ -1,12 +1,13 @@
 import { Bot, Check, Hourglass, MapPin, Plus, Save, Users } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { eventsApi, sportsApi } from '../api/endpoints'
-import type { Audience, EventForm, RegistrationMode, SkillLevel, SportEvent } from '../api/types'
+import { aiApi, eventsApi, sportsApi } from '../api/endpoints'
+import type { Audience, EventForm, EventVerificationPreview, RegistrationMode, SkillLevel, SportEvent, SportNormalizeResult, SportSuggestItem } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { AgentHintsPanel } from '../components/AgentHintsPanel'
 import { PickPointMap } from '../components/maps'
 import { useToast } from '../components/Toast'
-import { Button, EmptyState, ErrorBox, Field, LinkButton, PageHeader, Section, Spinner } from '../components/ui'
+import { Button, EmptyState, ErrorBox, Field, LinkButton, Modal, PageHeader, Section, Spinner } from '../components/ui'
 import { audienceLabels, levelLabels, modeHints, modeLabels, toLocalInput } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
@@ -99,12 +100,61 @@ export function EventFormPage() {
 function EventEditor({ event, defaultContact }: { event: SportEvent | null; defaultContact: string | null }) {
   const navigate = useNavigate()
   const { notify } = useToast()
+  const { user } = useAuth()
   const sports = useAsync(() => sportsApi.list(), [])
   const [form, setForm] = useState<EventForm>(() => (event ? fromEvent(event) : emptyForm(defaultContact)))
   const [sportChoice, setSportChoice] = useState<number | ''>(event?.sportTypeId ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>()
+  const [agentPreview, setAgentPreview] = useState<EventVerificationPreview | null>(null)
+  const [sportHints, setSportHints] = useState<SportSuggestItem[]>([])
+  const [missingSportOpen, setMissingSportOpen] = useState(false)
+  const [missingSportQuery, setMissingSportQuery] = useState('')
+  const [missingSportResult, setMissingSportResult] = useState<SportNormalizeResult | null>(null)
+  const [missingBusy, setMissingBusy] = useState(false)
+  const selectedSportName =
+    sportChoice === CUSTOM
+      ? form.customSportName ?? ''
+      : sports.data?.find((s) => s.id === sportChoice)?.name ?? event?.sportName ?? ''
+
+  useEffect(() => {
+    if (!form.title.trim() && !form.description.trim()) {
+      setAgentPreview(null)
+      return
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const preview = await aiApi.verifyEventDraft({
+          title: form.title,
+          description: form.description,
+          conditions: form.conditions,
+          sportName: selectedSportName || null,
+          audience: form.audience,
+          startAt: new Date(form.startAt).toISOString(),
+          organizerName: user?.displayName,
+          organizationEvent: user?.role === 'ORGANIZATION',
+          equipment: form.conditions,
+        })
+        setAgentPreview(preview)
+      } catch {
+        /* черновая проверка не блокирует форму */
+      }
+    }, 600)
+    return () => window.clearTimeout(timer)
+  }, [form.title, form.description, form.conditions, form.audience, form.startAt, selectedSportName, user?.displayName, user?.role])
+
+  useEffect(() => {
+    const name = form.customSportName?.trim() ?? ''
+    if (sportChoice !== CUSTOM || name.length < 2) {
+      setSportHints([])
+      return
+    }
+    const timer = window.setTimeout(() => {
+      sportsApi.suggest(name).then(setSportHints).catch(() => setSportHints([]))
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [sportChoice, form.customSportName])
 
   const chooseSport = (choice: number | '') => {
     setSportChoice(choice)
@@ -172,7 +222,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
           <Field label="Название" error={errors.title}>
             <input className="input" value={form.title} maxLength={160} placeholder="Например: Футбол 5×5 во дворе" onChange={(e) => set('title', e.target.value)} />
           </Field>
-          <Field label="Направление" error={errors.sport} hint="Нет нужного? Выберите «Своё направление» — оно появится в справочнике для всех.">
+          <Field label="Направление" error={errors.sport} hint="Справочник — виды спорта из реестра Минспорта (основные категории).">
             <select
               className="input"
               value={sportChoice}
@@ -184,8 +234,11 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
                   {sport.emoji} {sport.name}
                 </option>
               ))}
-              <option value={CUSTOM}>➕ Своё направление…</option>
+              <option value={CUSTOM}>➕ Нет вашего вида спорта?</option>
             </select>
+            <button type="button" className="mt-2 text-sm font-semibold text-brand-700 underline" onClick={() => setMissingSportOpen(true)}>
+              Нет вашего вида спорта? Опишите — куратор подберёт или предложит добавить
+            </button>
           </Field>
           {sportChoice === CUSTOM && (
             <Field label="Название направления">
@@ -197,7 +250,34 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
                 onChange={(e) => set('customSportName', e.target.value)}
                 autoFocus
               />
+              {sportHints.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-lg border-2 border-ink bg-pop-yellow/30 p-2 text-sm">
+                  {sportHints.map((hint) => (
+                    <li key={hint.id}>
+                      <button
+                        type="button"
+                        className="font-semibold underline"
+                        onClick={() => {
+                          chooseSport(hint.id)
+                          set('customSportName', null)
+                        }}
+                      >
+                        {hint.emoji} {hint.name}
+                      </button>{' '}
+                      — похоже на ваш запрос
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Field>
+          )}
+          {agentPreview && (
+            <AgentHintsPanel
+              title="Event Quality Guardian"
+              suggestions={agentPreview.suggestions}
+              descriptionVariants={agentPreview.descriptionVariants}
+              onApplyDescription={(text) => set('description', text)}
+            />
           )}
           <Field label="Описание" error={errors.description}>
             <textarea
@@ -329,6 +409,55 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
           {event ? 'Сохранить' : 'Опубликовать'}
         </Button>
       </div>
+
+      <Modal open={missingSportOpen} title="Куратор видов спорта" onClose={() => setMissingSportOpen(false)}>
+          <p className="text-slate-700">Опишите вид спорта своими словами — агент найдёт похожий в реестре или предложит каноническое название.</p>
+          <div className="mt-4">
+          <Field label="Ваш вид спорта">
+            <textarea
+              className="input min-h-24"
+              value={missingSportQuery}
+              onChange={(e) => setMissingSportQuery(e.target.value)}
+              placeholder="Например: играем во фрисби во дворе по вечерам"
+            />
+          </Field>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button
+              loading={missingBusy}
+              onClick={async () => {
+                setMissingBusy(true)
+                try {
+                  setMissingSportResult(await sportsApi.propose(missingSportQuery))
+                } catch (e) {
+                  notify('error', (e as Error).message)
+                } finally {
+                  setMissingBusy(false)
+                }
+              }}
+            >
+              Спросить куратора
+            </Button>
+          </div>
+          {missingSportResult && (
+            <div className="mt-4 space-y-3">
+              <p className="font-medium">{missingSportResult.explanation}</p>
+              <AgentHintsPanel suggestions={missingSportResult.suggestions} />
+              {missingSportResult.acceptable && missingSportResult.proposedName && (
+                <Button
+                  onClick={() => {
+                    chooseSport(CUSTOM)
+                    set('customSportName', missingSportResult.proposedName)
+                    setMissingSportOpen(false)
+                    notify('success', 'Название подставлено в форму')
+                  }}
+                >
+                  Принять «{missingSportResult.proposedName}»
+                </Button>
+              )}
+            </div>
+          )}
+      </Modal>
     </form>
   )
 }

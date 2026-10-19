@@ -21,6 +21,16 @@ public record EventVerificationResult(
         List<String> recommendations,
         String source,
         boolean hold,
-        Instant checkedAt
+        Instant checkedAt,
+        List<AgentSuggestion> suggestions,
+        List<String> descriptionVariants
 ) {
+    public EventVerificationResult {
+        if (suggestions == null) {
+            suggestions = List.of();
+        }
+        if (descriptionVariants == null) {
+            descriptionVariants = List.of();
+        }
+    }
 }

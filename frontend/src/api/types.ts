@@ -64,6 +64,56 @@ export interface SportType {
   eventsCount: number
 }
 
+export interface SportSuggestItem {
+  id: number
+  name: string
+  emoji: string | null
+  score: number
+}
+
+export interface AgentSuggestion {
+  type: 'INFO' | 'WARNING' | 'FLAG' | string
+  field: string
+  message: string
+  confidence: number
+  autoApplicable: boolean
+}
+
+export interface EventVerificationPreview {
+  verdictId: number | null
+  status: AiStatus
+  ageRestriction: AgeRestriction
+  summary: string
+  reasons: string[]
+  recommendations: string[]
+  source: string
+  hold: boolean
+  checkedAt: string
+  suggestions: AgentSuggestion[]
+  descriptionVariants: string[]
+}
+
+export interface SportNormalizeResult {
+  existingSportTypeId: number | null
+  existingSportName: string | null
+  proposedName: string | null
+  category: string | null
+  emoji: string | null
+  tags: string[]
+  defaultAgeRestriction: string
+  acceptable: boolean
+  explanation: string
+  suggestions: AgentSuggestion[]
+  source: string
+}
+
+export interface AgentStats {
+  checks24h: number
+  flagged24h: number
+  autoUnpublish24h: number
+  topFlagReasons: string[]
+}
+
 export interface Registration {
   id: number
   eventId: number

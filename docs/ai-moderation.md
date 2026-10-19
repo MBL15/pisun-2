@@ -10,7 +10,7 @@ sequenceDiagram
   participant AI as AiVerificationService
   participant H as HeuristicAnalyzer
   participant L as LlmClient
-  EV->>AI: POST /api/ai/verify-event
+  EV->>AI: POST /api/ai/verify-event (mode=DRAFT| PUBLISH)
   AI->>AI: SettingsService.current()
   alt ИИ выключен
     AI-->>EV: AI_APPROVED, source=DISABLED
@@ -35,6 +35,8 @@ sequenceDiagram
 - Причины LLM добавляются с префиксом `LLM:`. К причинам добавляются взрослые или детские маркеры, в зависимости от итоговой метки.
 - `source`: `HEURISTIC`, `LLM+HEURISTIC`, `DISABLED`; event-service при недоступности сервиса подставляет `FALLBACK`.
 - Каждый вердикт сохраняется в `ai_verdicts`. Лента в админке показывает последние 100.
+- Режим `DRAFT` (форма создания): подсказки Event Quality Guardian без записи в ленту вердиктов; вызовы пишутся в `ai_audit_log`.
+- Sport Type Curator: `POST /api/ai/normalize-sport` (из event-service через `/api/sports/propose`).
 
 ## Эвристика
 

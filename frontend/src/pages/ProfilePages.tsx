@@ -6,6 +6,7 @@ import type { MyRegistration, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { RegistrationBadge } from '../components/EventBadges'
 import { EventCard } from '../components/EventCard'
+import { EventRoutePlanner } from '../components/maps'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, Modal, Section, Spinner, Tabs } from '../components/ui'
 import { formatRelativeDay, formatTime, plural, roleLabels } from '../lib/format'
@@ -145,6 +146,7 @@ export function CabinetPage() {
 }
 
 function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefined; error: Error | null; loading: boolean; reload: () => Promise<void> } }) {
+  const [routeEventId, setRouteEventId] = useState<number | null>(null)
   if (state.error) return <ErrorBox error={state.error} onRetry={state.reload} />
   if (state.loading && !state.data) return <Spinner />
   const list = state.data ?? []
@@ -162,21 +164,35 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
   const past = list.filter((r) => r.event.past)
 
   const row = ({ registration, event }: MyRegistration) => (
-    <Link key={registration.id} to={`/events/${event.id}`} className="card flex flex-col gap-3 p-4 transition lift sm:flex-row sm:items-center">
-      <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-lg font-bold">{event.title}</p>
-        <p className="text-slate-600">
-          {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
-        </p>
-        {registration.child && <p className="text-sm font-medium text-emerald-700">Участник: {registration.participantName}</p>}
-        {registration.decisionComment && <p className="text-sm text-slate-600">Организатор: {registration.decisionComment}</p>}
-        {event.status !== 'PUBLISHED' && event.moderationReason && (
-          <p className="text-sm font-medium text-red-700">Снято с публикации: {event.moderationReason}</p>
-        )}
+    <div key={registration.id} className="space-y-3">
+      <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <Link to={`/events/${event.id}`} className="flex min-w-0 flex-1 items-start gap-3 transition lift">
+          <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold">{event.title}</p>
+            <p className="text-slate-600">
+              {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
+            </p>
+            {registration.child && <p className="text-sm font-medium text-emerald-700">Участник: {registration.participantName}</p>}
+            {registration.decisionComment && <p className="text-sm text-slate-600">Организатор: {registration.decisionComment}</p>}
+            {event.status !== 'PUBLISHED' && event.moderationReason && (
+              <p className="text-sm font-medium text-red-700">Снято с публикации: {event.moderationReason}</p>
+            )}
+          </div>
+        </Link>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <RegistrationBadge status={registration.status} label={registration.child ? childLabel(registration.status) : undefined} />
+          {registration.status === 'APPROVED' && event.latitude != null && event.longitude != null && !event.past && (
+            <Button type="button" variant="secondary" size="sm" onClick={() => setRouteEventId(routeEventId === event.id ? null : event.id)}>
+              Как добраться
+            </Button>
+          )}
+        </div>
       </div>
-      <RegistrationBadge status={registration.status} label={registration.child ? childLabel(registration.status) : undefined} />
-    </Link>
+      {routeEventId === event.id && event.latitude != null && event.longitude != null && (
+        <EventRoutePlanner latitude={event.latitude} longitude={event.longitude} eventTitle={event.title} />
+      )}
+    </div>
   )
 
   return (

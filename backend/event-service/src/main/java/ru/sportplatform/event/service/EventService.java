@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.EventStatusChangeRequest;
+import ru.sportplatform.common.enums.EventVerificationMode;
 import ru.sportplatform.common.dto.EventVerificationRequest;
 import ru.sportplatform.common.dto.EventVerificationResult;
 import ru.sportplatform.common.dto.UserDto;
@@ -204,7 +205,8 @@ public class EventService {
     private static EventVerificationRequest verificationRequest(SportEvent event) {
         return new EventVerificationRequest(event.getId(), event.getTitle(), event.getDescription(),
                 event.getConditions(), event.getSportType().getName(), event.getAudience(), event.getStartAt(),
-                event.getOrganizerName(), event.getOrganizerType() == OrganizerType.ORGANIZATION);
+                event.getOrganizerName(), event.getOrganizerType() == OrganizerType.ORGANIZATION,
+                EventVerificationMode.PUBLISH, event.getConditions());
     }
 
     /**
