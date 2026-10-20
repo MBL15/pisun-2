@@ -64,6 +64,11 @@ public class EventController {
         return eventService.mine(user);
     }
 
+    @GetMapping("/registrations/parent-approvals")
+    public List<MyRegistrationDto> parentApprovals(CurrentUser user) {
+        return registrationService.parentApprovals(user);
+    }
+
     @GetMapping("/registrations/my")
     public List<MyRegistrationDto> myRegistrations(CurrentUser user) {
         return registrationService.mine(user);
@@ -112,6 +117,12 @@ public class EventController {
     public RegistrationDto decide(CurrentUser user, @PathVariable Long id, @PathVariable Long registrationId,
                                   @Valid @RequestBody DecisionRequest request) {
         return registrationService.decide(user, id, registrationId, request);
+    }
+
+    @PostMapping("/{id}/registrations/{registrationId}/parent-decision")
+    public RegistrationDto parentDecision(CurrentUser user, @PathVariable Long id, @PathVariable Long registrationId,
+                                          @Valid @RequestBody DecisionRequest request) {
+        return registrationService.parentDecision(user, id, registrationId, request);
     }
 
     @PostMapping("/{id}/registrations/{registrationId}/cancel")

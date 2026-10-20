@@ -18,4 +18,6 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
                                                                 Collection<ApplicationStatus> statuses);
 
     List<Registration> findByParticipantIdOrRegisteredByIdOrderByCreatedAtDesc(Long participantId, Long registeredById);
+
+    List<Registration> findByAwaitingParentApprovalTrueAndParticipantIdIn(List<Long> participantIds);
 }

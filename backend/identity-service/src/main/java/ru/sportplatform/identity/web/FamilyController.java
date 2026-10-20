@@ -16,6 +16,7 @@ import ru.sportplatform.common.dto.FamilyDto;
 import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.identity.service.FamilyService;
+import ru.sportplatform.identity.web.dto.AddSpouseRequest;
 import ru.sportplatform.identity.web.dto.CreateFamilyRequest;
 
 @RestController
@@ -39,5 +40,10 @@ public class FamilyController {
     @ResponseStatus(HttpStatus.CREATED)
     public FamilyDto create(CurrentUser user, @Valid @RequestBody CreateFamilyRequest request) {
         return familyService.create(user, request.spouseUserId());
+    }
+
+    @PostMapping("/spouse")
+    public FamilyDto addSpouse(CurrentUser user, @Valid @RequestBody AddSpouseRequest request) {
+        return familyService.addSpouse(user, request.spouseUserId());
     }
 }

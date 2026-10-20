@@ -1,5 +1,6 @@
 package ru.sportplatform.event.service;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -28,6 +29,8 @@ public class SportTypeService {
         return sportTypes.findAllByOrderByCustomAscNameAsc().stream()
                 .map(s -> new SportTypeDto(s.getId(), s.getName(), s.getEmoji(), s.isCustom(),
                         events.countBySportTypeIdAndStatus(s.getId(), EventStatus.PUBLISHED)))
+                .sorted(Comparator.comparingLong(SportTypeDto::eventsCount).reversed()
+                        .thenComparing(SportTypeDto::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 

@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, Shield, UserPlus, Users } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { eventsApi, familiesApi, friendsApi, usersApi } from '../api/endpoints'
 import type { Family, MyRegistration, User } from '../api/types'
@@ -374,6 +374,119 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
 const childLabel = (status: MyRegistration['registration']['status']) =>
   ({ PENDING: 'Заявка ждёт решения', APPROVED: 'Ребёнок записан', REJECTED: 'Заявка отклонена', CANCELLED: 'Запись отменена' })[status]
 
+function splitName(displayName: string) {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return { first: parts[0] ?? '', last: '' }
+  return { first: parts[0], last: parts.slice(1).join(' ') }
+}
+
+function ChildProfileModal({
+  child,
+  open,
+  onClose,
+  onUpdated,
+}: {
+  child: User
+  open: boolean
+  onClose: () => void
+  onUpdated: () => Promise<void>
+}) {
+  const { notify } = useToast()
+  const { first, last } = splitName(child.displayName)
+  const [freeEntry, setFreeEntry] = useState(child.freeEventEntry)
+  const [busy, setBusy] = useState(false)
+  const approvals = useAsync(() => (open ? eventsApi.parentApprovals() : Promise.resolve([])), [child.id, open])
+
+  useEffect(() => {
+    setFreeEntry(child.freeEventEntry)
+  }, [child.freeEventEntry, child.id])
+
+  const childPending = (approvals.data ?? []).filter((row) => row.registration.participantId === child.id)
+
+  const saveSettings = async () => {
+    setBusy(true)
+    try {
+      await usersApi.updateChildSettings(child.id, { freeEventEntry: freeEntry })
+      notify('success', 'Настройки сохранены')
+      await onUpdated()
+    } catch (err) {
+      notify('error', 'Не удалось сохранить', (err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const decide = async (eventId: number, registrationId: number, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await eventsApi.parentDecision(eventId, registrationId, status)
+      notify('success', status === 'APPROVED' ? 'Заявка одобрена' : 'Заявка отклонена')
+      await Promise.all([approvals.reload(), onUpdated()])
+    } catch (err) {
+      notify('error', 'Не удалось принять решение', (err as Error).message)
+    }
+  }
+
+  const lastSeen = child.lastActiveAt ? `${formatRelativeDay(child.lastActiveAt)}, ${formatTime(child.lastActiveAt)}` : 'Ещё не заходил(а) в аккаунт'
+
+  return (
+    <Modal open={open} title={child.displayName} onClose={onClose}>
+      <div className="space-y-5">
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-sm font-semibold text-muted">Имя</dt>
+            <dd className="text-lg font-bold">{first || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-sm font-semibold text-muted">Фамилия</dt>
+            <dd className="text-lg font-bold">{last || '—'}</dd>
+          </div>
+        </dl>
+        <p className="text-sm text-muted">
+          <span className="font-semibold text-ink">Последняя активность:</span> {lastSeen}
+        </p>
+        <Field
+          label="Свободный вход на мероприятия"
+          hint="Если «Нет», заявки ребёнка сначала уходят вам на согласование — только после этого он попадёт в число участников."
+        >
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-ink bg-white p-3 font-semibold">
+            <input type="checkbox" className="size-5 accent-brand-600" checked={freeEntry} onChange={(e) => setFreeEntry(e.target.checked)} />
+            {freeEntry ? 'Да — записывается без вашего подтверждения' : 'Нет — нужно ваше одобрение'}
+          </label>
+        </Field>
+        <Button type="button" loading={busy} onClick={saveSettings}>
+          Сохранить настройки
+        </Button>
+        {childPending.length > 0 && (
+          <div className="space-y-3 rounded-xl border-2 border-ink bg-pop-yellow/40 p-4">
+            <p className="font-bold">Ждут вашего решения</p>
+            <ul className="space-y-3">
+              {childPending.map(({ registration, event }) => (
+                <li key={registration.id} className="rounded-lg border-2 border-ink bg-white p-3">
+                  <p className="font-semibold">{event.title}</p>
+                  <p className="text-sm text-muted">
+                    {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="success" onClick={() => decide(event.id, registration.id, 'APPROVED')}>
+                      Одобрить
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => decide(event.id, registration.id, 'REJECTED')}>
+                      Отклонить
+                    </Button>
+                    <LinkButton to={`/events/${event.id}`} size="sm">
+                      Открыть
+                    </LinkButton>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 function FamilyPanel({
   user,
   family,
@@ -388,11 +501,15 @@ function FamilyPanel({
   const { notify } = useToast()
   const { reloadAccounts } = useAuth()
   const spouses = useAsync(async () => {
-    if (user.familyId || user.role !== 'USER' || !user.gender) return []
-    return familiesApi.eligibleSpouses()
-  }, [user.id, user.familyId, user.gender, user.role])
+    if (user.role !== 'USER' || !user.gender) return []
+    if (!user.familyId) return familiesApi.eligibleSpouses()
+    if (family?.canAddSpouse) return familiesApi.eligibleSpouses()
+    return []
+  }, [user.id, user.familyId, user.gender, user.role, family?.canAddSpouse])
   const [spouseId, setSpouseId] = useState<number | ''>('')
   const [creating, setCreating] = useState(false)
+  const [addingSpouse, setAddingSpouse] = useState(false)
+  const [selectedChild, setSelectedChild] = useState<User | null>(null)
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [interests, setInterests] = useState('')
@@ -402,12 +519,11 @@ function FamilyPanel({
   if (familyState.loading && !family) return <Spinner />
 
   const createFamily = async () => {
-    if (spouseId === '') return
     setCreating(true)
     try {
-      await familiesApi.create(spouseId)
+      await familiesApi.create(spouseId === '' ? undefined : spouseId)
       await onChanged()
-      notify('success', 'Семья создана', 'Теперь оба родителя могут добавлять детей и записывать их на занятия.')
+      notify('success', 'Семья создана', spouseId === '' ? 'Можно сразу добавить детей. Партнёра можно пригласить позже.' : 'Теперь оба родителя могут добавлять детей и записывать их на занятия.')
     } catch (err) {
       notify('error', 'Не удалось создать семью', (err as Error).message)
     } finally {
@@ -442,16 +558,16 @@ function FamilyPanel({
             </p>
           )}
           <p className="text-muted">
-            Выберите партнёра из пользователей без семьи противоположного пола. После создания семьи можно добавить детские аккаунты.
+            Можно создать семью сразу и добавить детей — второй родитель необязателен. Партнёра можно выбрать сейчас или позже в настройках семьи.
           </p>
           {spouses.error && <ErrorBox error={spouses.error} onRetry={spouses.reload} />}
           {spouses.loading && !spouses.data ? (
             <Spinner label="Ищем партнёров…" />
           ) : (
             <>
-              <Field label="Партнёр">
+              <Field label="Партнёр (необязательно)">
                 <select className="input" value={spouseId} onChange={(e) => setSpouseId(e.target.value === '' ? '' : Number(e.target.value))} disabled={!user.gender}>
-                  <option value="">— выберите —</option>
+                  <option value="">— без партнёра —</option>
                   {spouses.data?.map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.displayName}
@@ -463,7 +579,7 @@ function FamilyPanel({
               {user.gender && spouses.data?.length === 0 && (
                 <p className="text-muted">Сейчас нет подходящих партнёров — зарегистрируйте второго родителя или переключитесь на другой демо-аккаунт.</p>
               )}
-              <Button type="button" loading={creating} disabled={spouseId === '' || !user.gender} onClick={createFamily} icon={<HeartHandshake className="size-5" />}>
+              <Button type="button" loading={creating} disabled={!user.gender} onClick={createFamily} icon={<HeartHandshake className="size-5" />}>
                 Создать семью
               </Button>
             </>
@@ -473,21 +589,66 @@ function FamilyPanel({
     )
   }
 
+  const addSpouse = async () => {
+    if (spouseId === '') return
+    setAddingSpouse(true)
+    try {
+      await familiesApi.addSpouse(spouseId)
+      setSpouseId('')
+      await onChanged()
+      notify('success', 'Партнёр добавлен в семью')
+    } catch (err) {
+      notify('error', 'Не удалось добавить партнёра', (err as Error).message)
+    } finally {
+      setAddingSpouse(false)
+    }
+  }
+
   const kids = family.children
 
   return (
     <div className="space-y-6">
+      {selectedChild && (
+        <ChildProfileModal
+          child={selectedChild}
+          open
+          onClose={() => setSelectedChild(null)}
+          onUpdated={onChanged}
+        />
+      )}
       <Section title="Ваша семья" icon={<HeartHandshake className="size-6 text-brand-600" />}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border-2 border-ink bg-pop-blue/30 p-4">
-            <p className="text-sm font-semibold text-muted">Мужчина</p>
-            <p className="text-lg font-bold">{family.maleName}</p>
-          </div>
-          <div className="rounded-xl border-2 border-ink bg-pop-pink/30 p-4">
-            <p className="text-sm font-semibold text-muted">Женщина</p>
-            <p className="text-lg font-bold">{family.femaleName}</p>
-          </div>
+          {family.maleName && (
+            <div className="rounded-xl border-2 border-ink bg-pop-blue/30 p-4">
+              <p className="text-sm font-semibold text-muted">Мужчина</p>
+              <p className="text-lg font-bold">{family.maleName}</p>
+            </div>
+          )}
+          {family.femaleName && (
+            <div className="rounded-xl border-2 border-ink bg-pop-pink/30 p-4">
+              <p className="text-sm font-semibold text-muted">Женщина</p>
+              <p className="text-lg font-bold">{family.femaleName}</p>
+            </div>
+          )}
         </div>
+        {family.canAddSpouse && (
+          <div className="mt-4 space-y-3 rounded-xl border-2 border-dashed border-ink bg-white p-4">
+            <p className="font-semibold">Добавить второго родителя (необязательно)</p>
+            <Field label="Партнёр">
+              <select className="input" value={spouseId} onChange={(e) => setSpouseId(e.target.value === '' ? '' : Number(e.target.value))}>
+                <option value="">— выберите —</option>
+                {spouses.data?.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.displayName}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Button type="button" loading={addingSpouse} disabled={spouseId === ''} onClick={addSpouse} icon={<UserPlus className="size-5" />}>
+              Пригласить в семью
+            </Button>
+          </div>
+        )}
       </Section>
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Дети" icon={<Users className="size-6 text-brand-600" />}>
@@ -496,15 +657,22 @@ function FamilyPanel({
           ) : (
             <ul className="space-y-3">
               {kids.map((child) => (
-                <li key={child.id} className="flex items-center gap-3 rounded-xl border-2 border-ink bg-pop-green/30 p-3">
-                  <Avatar name={child.displayName} color={child.avatarColor} />
-                  <div>
-                    <p className="font-bold">{child.displayName}</p>
-                    <p className="text-sm text-muted">
-                      {child.age} {plural(child.age ?? 0, 'год', 'года', 'лет')}
-                      {child.interests ? ` · ${child.interests}` : ''}
-                    </p>
-                  </div>
+                <li key={child.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChild(child)}
+                    className="flex w-full items-center gap-3 rounded-xl border-2 border-ink bg-pop-green/30 p-3 text-left transition hover:bg-pop-green/50"
+                  >
+                    <Avatar name={child.displayName} color={child.avatarColor} />
+                    <div>
+                      <p className="font-bold">{child.displayName}</p>
+                      <p className="text-sm text-muted">
+                        {child.age} {plural(child.age ?? 0, 'год', 'года', 'лет')}
+                        {child.interests ? ` · ${child.interests}` : ''}
+                        {!child.freeEventEntry && ' · нужно ваше одобрение записей'}
+                      </p>
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>

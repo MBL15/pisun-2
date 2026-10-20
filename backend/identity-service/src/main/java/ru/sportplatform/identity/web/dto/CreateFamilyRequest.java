@@ -1,8 +1,7 @@
 package ru.sportplatform.identity.web.dto;
 
-import jakarta.validation.constraints.NotNull;
-
 public record CreateFamilyRequest(
-        @NotNull(message = "Выберите партнёра для семьи") Long spouseUserId
+        /** Необязательно: можно создать семью одному и добавить детей, партнёра — позже. */
+        Long spouseUserId
 ) {
 }

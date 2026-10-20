@@ -121,17 +121,7 @@ export const organizationStatusLabels: Record<ApplicationStatus, string> = {
   CANCELLED: 'Отозвана',
 }
 
-export function yandexRouteUrl(lat: number, lon: number, from?: string): string {
-  const dest = `${lat},${lon}`
-  if (from?.trim()) {
-    return `https://yandex.ru/maps/?rtext=${encodeURIComponent(from.trim())}~${dest}&rtt=auto`
-  }
-  return `https://yandex.ru/maps/?rtext=~${dest}&rtt=auto`
-}
-
-export function yandexPointUrl(lat: number, lon: number): string {
-  return `https://yandex.ru/maps/?pt=${lon},${lat}&z=16&l=map`
-}
+export { osmPointUrl as yandexPointUrl, osmRouteUrl as yandexRouteUrl } from './osmGeocode'
 
 const sportTones = ['bg-pop-yellow', 'bg-pop-blue', 'bg-pop-green', 'bg-pop-pink', 'bg-pop-lilac', 'bg-pop-orange', 'bg-pop-cyan']
 

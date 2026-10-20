@@ -330,10 +330,15 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
       setMessage('')
       await onChanged()
       const approved = registration.status === 'APPROVED'
+      const parentPending = registration.awaitingParentApproval
       notify(
         'success',
-        approved ? `${childId ? registration.participantName + ' записан(а)' : 'Вы записаны'}!` : 'Заявка отправлена',
-        approved ? 'Организационная информация открылась ниже.' : 'Организатор рассмотрит её — статус обновится здесь и в кабинете.',
+        approved ? `${childId ? registration.participantName + ' записан(а)' : 'Вы записаны'}!` : parentPending ? 'Ждём согласия родителя' : 'Заявка отправлена',
+        approved
+          ? 'Организационная информация открылась ниже.'
+          : parentPending
+            ? 'Родитель должен одобрить заявку — после этого вы попадёте в число участников (и организатор увидит заявку, если нужно).'
+            : 'Организатор рассмотрит её — статус обновится здесь и в кабинете.',
       )
       if (childId || user?.role === 'CHILD') {
         setDocument({

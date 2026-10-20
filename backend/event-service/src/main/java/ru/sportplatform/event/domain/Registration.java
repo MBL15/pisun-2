@@ -71,6 +71,9 @@ public class Registration {
 
     private Instant decidedAt;
 
+    /** Ребёнок подал заявку сам — ждёт согласия родителя (не считается участником). */
+    private boolean awaitingParentApproval;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) {

@@ -2,13 +2,14 @@ package ru.sportplatform.common.dto;
 
 import java.util.List;
 
-/** Семья из двух взрослых и их детских аккаунтов. */
+/** Семья взрослых (один или двое) и детских аккаунтов. */
 public record FamilyDto(
         Long id,
         Long maleUserId,
         String maleName,
         Long femaleUserId,
         String femaleName,
-        List<UserDto> children
+        List<UserDto> children,
+        boolean canAddSpouse
 ) {
 }

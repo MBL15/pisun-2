@@ -17,6 +17,7 @@ public record RegistrationDto(
         String message,
         String decisionComment,
         Instant createdAt,
-        Instant decidedAt
+        Instant decidedAt,
+        boolean awaitingParentApproval
 ) {
 }

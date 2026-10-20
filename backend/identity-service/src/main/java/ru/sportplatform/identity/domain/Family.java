@@ -28,10 +28,8 @@ public class Family {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private Long maleUserId;
 
-    @Column(nullable = false)
     private Long femaleUserId;
 
     private Instant createdAt;

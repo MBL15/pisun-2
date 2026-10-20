@@ -57,7 +57,9 @@ public class IdentityMapper {
                 reputation,
                 canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus()),
                 isVerified(user),
-                friendship
+                friendship,
+                user.isFreeEventEntry(),
+                user.getLastActiveAt()
         );
     }
 
@@ -88,6 +90,9 @@ public class IdentityMapper {
 
     private String partnerName(Family family, Long userId) {
         Long partnerId = userId.equals(family.getMaleUserId()) ? family.getFemaleUserId() : family.getMaleUserId();
+        if (partnerId == null) {
+            return null;
+        }
         return users.findById(partnerId).map(UserAccount::getDisplayName).orElse(null);
     }
 

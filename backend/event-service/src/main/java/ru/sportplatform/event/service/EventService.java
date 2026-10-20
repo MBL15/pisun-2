@@ -245,10 +245,40 @@ public class EventService {
         event.setAgeRestriction(event.getAudience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : verdict.ageRestriction());
         event.setAiSummary(verdict.summary());
         event.setAiReasons(verdict.reasons() == null ? null : String.join("\n", verdict.reasons()));
+        if (event.getVisibility() == EventVisibility.FRIENDS_ONLY) {
+            if (isInstantBlock(verdict)) {
+                event.setStatus(EventStatus.UNPUBLISHED);
+                event.setModerationReason("Мероприятие заблокировано автоматически из‑за запрещённого содержания. "
+                        + "Исправьте описание или создайте новое событие.");
+                event.setModeratedBy("ИИ-модератор");
+                event.setModeratedAt(Instant.now());
+            } else {
+                event.setStatus(EventStatus.PUBLISHED);
+            }
+            return;
+        }
         boolean hold = verdict.hold()
                 && event.getOrganizerType() == OrganizerType.USER
                 && !author.verified();
         event.setStatus(hold ? EventStatus.ON_REVIEW : EventStatus.PUBLISHED);
+    }
+
+    /** Наркотики, секс, насилие (в т.ч. над детьми) — немедленная блокировка без очереди администратора. */
+    private static boolean isInstantBlock(EventVerificationResult verdict) {
+        if (verdict.status() != AiStatus.FLAGGED || verdict.reasons() == null) {
+            return false;
+        }
+        return verdict.reasons().stream().anyMatch(EventService::isSevereReason);
+    }
+
+    private static boolean isSevereReason(String reason) {
+        if (reason == null) {
+            return false;
+        }
+        return reason.startsWith("Наркотические вещества")
+                || reason.startsWith("Оружие и насилие")
+                || reason.startsWith("Сексуальный контент")
+                || reason.startsWith("Насилие над детьми");
     }
 
     private void saveFriendInvites(SportEvent event, Long organizerId, List<Long> inviteFriendIds) {
@@ -410,7 +440,7 @@ public class EventService {
     public static RegistrationDto toDto(Registration r) {
         return new RegistrationDto(r.getId(), r.getEventId(), r.getParticipantId(), r.getParticipantName(),
                 r.isChild(), r.getParticipantAge(), r.getRegisteredById(), r.getRegisteredByName(), r.getStatus(),
-                r.getMessage(), r.getDecisionComment(), r.getCreatedAt(), r.getDecidedAt());
+                r.getMessage(), r.getDecisionComment(), r.getCreatedAt(), r.getDecidedAt(), r.isAwaitingParentApproval());
     }
 
     private static EventSnapshotDto snapshot(SportEvent e) {

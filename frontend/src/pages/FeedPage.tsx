@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Baby,
   CalendarDays,
   LayoutGrid,
@@ -71,7 +70,11 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
   const isChild = user?.role === 'CHILD'
   const canCreate = user?.role === 'USER' || (user?.role === 'ORGANIZATION' && user.organizationStatus === 'APPROVED')
   const hasFilters = Boolean(appliedQuery || sportTypeId || mode || kidsOnly || range !== 'any')
-  const popularSports = (sports.data ?? []).filter((sport) => sport.eventsCount > 0 || !sport.custom)
+  const popularSports = useMemo(() => {
+    return [...(sports.data ?? [])]
+      .filter((sport) => sport.eventsCount > 0 || !sport.custom)
+      .sort((a, b) => b.eventsCount - a.eventsCount || a.name.localeCompare(b.name, 'ru'))
+  }, [sports.data])
 
   const reset = () => {
     setQuery('')
@@ -108,28 +111,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
               ? 'Здесь только проверенные занятия, на которые можно детям.'
               : 'Найдите компанию рядом: футбол во дворе, шахматы в парке, утренние пробежки — или соберите свою.'}
           </p>
-          <form
-            className="mt-6 flex flex-col gap-3 sm:flex-row"
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setAppliedQuery(query.trim())
-            }}
-          >
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ink" aria-hidden />
-              <input
-                className="input min-h-14 pl-12 text-lg"
-                placeholder="Вид спорта, место или название"
-                aria-label="Поиск мероприятий"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-            <Button type="submit" variant="primary" size="lg" icon={<ArrowRight className="size-5" aria-hidden />}>
-              Найти
-            </Button>
-          </form>
+          <p className="mt-6 text-base font-semibold">Используйте поиск в полоске направлений ниже — по виду спорта, месту или названию.</p>
         </div>
       </section>
 
@@ -141,13 +123,34 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
       )}
 
       <section className="space-y-4">
-        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 pt-1">
+        <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-2 pt-1">
+          <form
+            id="feed-search"
+            className="relative min-w-[min(100%,14rem)] shrink-0 sm:min-w-[16rem]"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault()
+              setAppliedQuery(query.trim())
+            }}
+          >
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink" aria-hidden />
+            <input
+              className="input min-h-11 w-full py-2 pl-9 pr-3 text-sm"
+              placeholder="Поиск…"
+              aria-label="Поиск мероприятий"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </form>
+          <button type="submit" form="feed-search" className={`${chip} ${chipOff}`}>
+            Найти
+          </button>
           <button
             onClick={() => setSportTypeId(undefined)}
             aria-pressed={!sportTypeId}
-            className={`${chip} ${!sportTypeId ? chipOn : chipOff}`}
+            className={`${chip} ${!sportTypeId ? chipOff + ' ring-2 ring-ink ring-offset-2' : chipOff}`}
           >
-            Все направления
+            Все
           </button>
           {popularSports.map((sport) => (
             <button

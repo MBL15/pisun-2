@@ -314,10 +314,20 @@
     }
   }
 
-  .ymaps-host {
+  .ymaps-host,
+  .leaflet-host {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+  }
+
+  .leaflet-host .leaflet-control-attribution {
+    font-size: 10px;
+  }
+
+  .map-pin-host {
+    background: transparent !important;
+    border: none !important;
   }
 
   .ymaps-host [class*="copyrights-pane"] {

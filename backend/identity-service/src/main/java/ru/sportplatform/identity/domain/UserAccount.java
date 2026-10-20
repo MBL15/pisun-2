@@ -66,6 +66,13 @@ public class UserAccount {
     /** Для детского аккаунта — id родителя. */
     private Long parentId;
 
+    /** Ребёнок может записываться на мероприятия без одобрения родителя. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean freeEventEntry = true;
+
+    private Instant lastActiveAt;
+
     /** Для аккаунта организации — id её профиля. */
     private Long organizationId;
 

@@ -1,5 +1,6 @@
 package ru.sportplatform.identity.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import ru.sportplatform.identity.domain.UserAccount;
 import ru.sportplatform.identity.repository.OrganizationRepository;
 import ru.sportplatform.identity.repository.UserAccountRepository;
 import ru.sportplatform.identity.web.dto.ChildRequest;
+import ru.sportplatform.identity.web.dto.ChildSettingsRequest;
 import ru.sportplatform.identity.web.dto.OrganizationForm;
 import ru.sportplatform.identity.web.dto.ProfileUpdateRequest;
 import ru.sportplatform.identity.web.dto.RegisterRequest;
@@ -35,6 +37,7 @@ public class UserService {
     private final OrganizationRepository organizations;
     private final IdentityMapper mapper;
     private final FriendshipService friendship;
+    private final FamilyService familyService;
 
     @Transactional(readOnly = true)
     public List<UserDto> list(boolean demoOnly) {
@@ -45,6 +48,9 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto get(CurrentUser viewer, Long id) {
         UserAccount user = find(id);
+        if (viewer.isAuthenticated() && viewer.id().equals(id)) {
+            user.setLastActiveAt(Instant.now());
+        }
         FriendshipRelation rel = viewer.isAuthenticated() ? friendship.relation(viewer.id(), id) : FriendshipRelation.NONE;
         UserDto dto = mapper.toDto(user, rel);
         if (!canSeePrivateProfile(viewer, user)) {
@@ -117,9 +123,7 @@ public class UserService {
         if (parent.getRole() != RoleType.USER) {
             throw ApiException.forbidden("Детский профиль можно привязать только к аккаунту взрослого пользователя");
         }
-        if (parent.getFamilyId() == null) {
-            throw ApiException.badRequest("Сначала создайте семью с партнёром — после этого можно добавлять детей");
-        }
+        familyService.ensureFamilyForParent(parent);
         UserAccount child = users.save(UserAccount.builder()
                 .displayName(request.displayName().trim())
                 .role(RoleType.CHILD)
@@ -129,9 +133,32 @@ public class UserService {
                 .parentId(parent.getId())
                 .familyId(parent.getFamilyId())
                 .avatarColor(pickColor(request.displayName()))
+                .freeEventEntry(true)
                 .demo(false)
                 .build());
         return mapper.toDto(child);
+    }
+
+    @Transactional
+    public UserDto updateChildSettings(CurrentUser current, Long childId, ChildSettingsRequest request) {
+        current.requireAuthenticated();
+        UserAccount child = find(childId);
+        if (child.getRole() != RoleType.CHILD) {
+            throw ApiException.badRequest("Настройки доступны только для детского аккаунта");
+        }
+        UserAccount me = find(current.id());
+        if (!canManageChild(me, child)) {
+            throw ApiException.forbidden("Можно настраивать только своих детей");
+        }
+        child.setFreeEventEntry(request.freeEventEntry());
+        return mapper.toDto(child);
+    }
+
+    private boolean canManageChild(UserAccount adult, UserAccount child) {
+        if (child.getParentId() != null && child.getParentId().equals(adult.getId())) {
+            return true;
+        }
+        return FamilyService.sharesFamily(adult, child);
     }
 
     @Transactional

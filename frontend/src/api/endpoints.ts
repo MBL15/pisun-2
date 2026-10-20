@@ -36,6 +36,8 @@ export const usersApi = {
   children: (id: number) => api.get<User[]>(`/api/users/${id}/children`),
   addChild: (id: number, body: { displayName: string; age: number; interests?: string }) =>
     api.post<User>(`/api/users/${id}/children`, body),
+  updateChildSettings: (childId: number, body: { freeEventEntry: boolean }) =>
+    api.put<User>(`/api/users/${childId}/child-settings`, body),
   submitVerification: (body: { message: string; attachments?: { fileName: string; contentBase64: string }[] }) =>
     api.post<VerificationRequest>('/api/users/me/verification-request', body),
   myVerification: () => api.get<VerificationRequest | null>('/api/users/me/verification-request'),
@@ -61,7 +63,8 @@ export const verificationAdminApi = {
 export const familiesApi = {
   my: () => api.get<Family>('/api/families/my'),
   eligibleSpouses: () => api.get<User[]>('/api/families/eligible-spouses'),
-  create: (spouseUserId: number) => api.post<Family>('/api/families', { spouseUserId }),
+  create: (spouseUserId?: number) => api.post<Family>('/api/families', spouseUserId != null ? { spouseUserId } : {}),
+  addSpouse: (spouseUserId: number) => api.post<Family>('/api/families/spouse', { spouseUserId }),
 }
 
 export const organizationsApi = {
@@ -90,6 +93,9 @@ export const eventsApi = {
     api.post<Registration>(`/api/events/${id}/registrations`, body),
   decide: (id: number, registrationId: number, status: 'APPROVED' | 'REJECTED', comment?: string) =>
     api.post<Registration>(`/api/events/${id}/registrations/${registrationId}/decision`, { status, comment }),
+  parentDecision: (id: number, registrationId: number, status: 'APPROVED' | 'REJECTED', comment?: string) =>
+    api.post<Registration>(`/api/events/${id}/registrations/${registrationId}/parent-decision`, { status, comment }),
+  parentApprovals: () => api.get<MyRegistration[]>('/api/events/registrations/parent-approvals'),
   cancel: (id: number, registrationId: number) =>
     api.post<Registration>(`/api/events/${id}/registrations/${registrationId}/cancel`),
   myRegistrations: () => api.get<MyRegistration[]>('/api/events/registrations/my'),

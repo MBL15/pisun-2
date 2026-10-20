@@ -70,7 +70,10 @@ public class RegistrationService {
                     : participant.displayName() + " уже записан(а) на это мероприятие");
         }
 
-        boolean free = EventService.isFree(event);
+        boolean childSelf = participant.role() == RoleType.CHILD && participant.id().equals(me.id());
+        boolean awaitingParent = childSelf && !participant.freeEventEntry();
+        boolean free = EventService.isFree(event) && !awaitingParent;
+        ApplicationStatus status = free ? ApplicationStatus.APPROVED : ApplicationStatus.PENDING;
         Registration registration = registrations.save(Registration.builder()
                 .eventId(eventId)
                 .participantId(participantId)
@@ -79,7 +82,8 @@ public class RegistrationService {
                 .child(participant.role() == RoleType.CHILD)
                 .registeredById(me.id())
                 .registeredByName(me.displayName())
-                .status(free ? ApplicationStatus.APPROVED : ApplicationStatus.PENDING)
+                .status(status)
+                .awaitingParentApproval(awaitingParent)
                 .message(request == null ? null : request.message())
                 .decidedAt(free ? Instant.now() : null)
                 .build());
@@ -101,6 +105,9 @@ public class RegistrationService {
         if (registration.getStatus() == ApplicationStatus.CANCELLED) {
             throw ApiException.conflict("Участник сам отменил заявку");
         }
+        if (registration.isAwaitingParentApproval()) {
+            throw ApiException.conflict("Сначала родитель должен одобрить заявку ребёнка");
+        }
         if (request.status() == ApplicationStatus.APPROVED) {
             if (event.getStatus() != EventStatus.PUBLISHED) {
                 throw ApiException.conflict("Мероприятие не опубликовано — принимать заявки нельзя");
@@ -115,6 +122,59 @@ public class RegistrationService {
         registration.setDecisionComment(request.comment());
         registration.setDecidedAt(Instant.now());
         return EventService.toDto(registration);
+    }
+
+    @Transactional
+    public RegistrationDto parentDecision(CurrentUser current, Long eventId, Long registrationId, DecisionRequest request) {
+        current.requireAuthenticated();
+        SportEvent event = eventService.find(eventId);
+        Registration registration = findForEvent(eventId, registrationId);
+        if (!registration.isAwaitingParentApproval()) {
+            throw ApiException.conflict("Эта заявка не ждёт решения родителя");
+        }
+        UserDto child = identity.getUser(registration.getParticipantId());
+        UserDto me = identity.getUser(current.id());
+        if (!canManageChild(me, child)) {
+            throw ApiException.forbidden("Решение может принять только родитель");
+        }
+        if (request.status() != ApplicationStatus.APPROVED && request.status() != ApplicationStatus.REJECTED) {
+            throw ApiException.badRequest("Решение может быть только «Принять» или «Отклонить»");
+        }
+        registration.setAwaitingParentApproval(false);
+        registration.setDecisionComment(request.comment());
+        registration.setDecidedAt(Instant.now());
+        if (request.status() == ApplicationStatus.REJECTED) {
+            registration.setStatus(ApplicationStatus.REJECTED);
+            return EventService.toDto(registration);
+        }
+        if (EventService.isFree(event)) {
+            registration.setStatus(ApplicationStatus.APPROVED);
+        } else {
+            registration.setStatus(ApplicationStatus.PENDING);
+        }
+        return EventService.toDto(registration);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyRegistrationDto> parentApprovals(CurrentUser current) {
+        current.requireAuthenticated();
+        UserDto me = identity.getUser(current.id());
+        if (me.role() != RoleType.USER) {
+            return List.of();
+        }
+        List<Long> childIds = identity.getChildren(current.id()).stream().map(UserDto::id).toList();
+        if (childIds.isEmpty()) {
+            return List.of();
+        }
+        List<Registration> pending = registrations.findByAwaitingParentApprovalTrueAndParticipantIdIn(childIds);
+        Map<Long, SportEvent> byId = events.findAllById(pending.stream().map(Registration::getEventId).distinct().toList())
+                .stream().collect(Collectors.toMap(SportEvent::getId, Function.identity()));
+        return pending.stream()
+                .map(r -> Optional.ofNullable(byId.get(r.getEventId()))
+                        .map(e -> new MyRegistrationDto(EventService.toDto(r), eventService.toDto(e, current)))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     @Transactional
@@ -143,7 +203,8 @@ public class RegistrationService {
                 .map(EventService::toDto)
                 .map(r -> privileged ? r : new RegistrationDto(r.id(), r.eventId(), r.participantId(),
                         r.participantName(), r.child(), null, null, null, r.status(), null, null,
-                        r.createdAt(), r.decidedAt()))
+                        r.createdAt(), r.decidedAt(), false))
+                .filter(r -> privileged || !r.awaitingParentApproval())
                 .toList();
     }
 

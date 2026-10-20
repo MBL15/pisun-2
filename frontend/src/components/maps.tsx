@@ -1,131 +1,53 @@
-import { MapPinOff, Navigation } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import { Navigation } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { SportEvent } from '../api/types'
-import { formatShortDate, formatTime, yandexPointUrl, yandexRouteUrl } from '../lib/format'
-import { KRASNOYARSK, loadYandexMaps, type YMaps } from '../lib/yandexMaps'
+import { formatShortDate, formatTime } from '../lib/format'
+import { KRASNOYARSK, geocodeAddress, osmRouteUrl, reverseGeocode } from '../lib/osmGeocode'
 
-type MapInstance = YMaps
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+})
 
-/** Создаёт карту в контейнере и отдаёт её в onReady; при размонтировании уничтожает. */
-function useYandexMap(
-  /** touchPreview: на сенсорном экране не перехватывать свайп одним пальцем, иначе страницу не прокрутить. */
-  options: { center: [number, number]; zoom: number; controls?: string[]; scrollZoom?: boolean; touchPreview?: boolean },
-  onReady: (map: MapInstance, ymaps: YMaps) => void,
-) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<MapInstance>(null)
-  const ymapsRef = useRef<YMaps>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-  const onReadyRef = useRef(onReady)
-  onReadyRef.current = onReady
+const DEFAULT_GLYPH = '🏅'
+const TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-  useEffect(() => {
-    let cancelled = false
-    loadYandexMaps()
-      .then((ymaps) => {
-        if (cancelled || !containerRef.current) return
-        const map = new ymaps.Map(
-          containerRef.current,
-          { center: options.center, zoom: options.zoom, controls: options.controls ?? ['zoomControl', 'geolocationControl'] },
-          { suppressMapOpenBlock: true },
-        )
-        if (window.matchMedia('(max-width: 639px)').matches) map.controls.get('zoomControl')?.options.set('size', 'small')
-        if (!options.scrollZoom) map.behaviors.disable('scrollZoom')
-        if (options.touchPreview && window.matchMedia('(pointer: coarse)').matches) map.behaviors.disable('drag')
-        mapRef.current = map
-        ymapsRef.current = ymaps
-        onReadyRef.current(map, ymaps)
-        setReady(true)
-      })
-      .catch((e: Error) => !cancelled && setError(e.message))
-    const container = containerRef.current
-    const observer = new ResizeObserver(() => {
-      const map = mapRef.current
-      const element = containerRef.current
-      if (!map || !element) return
-      const { width, height } = element.getBoundingClientRect()
-      const parentWidth = element.parentElement?.clientWidth ?? window.innerWidth
-      // карта не должна подгоняться под собственный раздутый размер: иначе контейнер растёт вместе с ней
-      if (width < 40 || width > parentWidth + 1 || height < 40 || height > window.innerHeight * 1.2) return
-      map.container.fitToViewport()
-    })
-    if (container) observer.observe(container)
-    return () => {
-      cancelled = true
-      observer.disconnect()
-      mapRef.current?.destroy()
-      mapRef.current = null
-    }
-    // карта создаётся один раз; обновления делаются через mapRef
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return { containerRef, mapRef, ymapsRef, error, ready }
-}
-
-function MapFallback({ message, lat, lon }: { message: string; lat?: number | null; lon?: number | null }) {
-  return (
-    <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 rounded-xl border-[3px] border-dashed border-ink bg-white p-6 text-center font-medium text-ink">
-      <MapPinOff className="size-8 text-muted" />
-      <p>{message}</p>
-      {lat != null && lon != null && (
-        <a href={yandexPointUrl(lat, lon)} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">
-          Открыть точку в Яндекс Картах
-        </a>
-      )}
-    </div>
-  )
-}
-
-const PIN_TEMPLATE =
-  '<div class="{{ properties.pinClass }}">' +
-  '<span class="map-pin__badge"><span class="map-pin__glyph">{{ properties.glyph }}</span></span>' +
-  '<span class="map-pin__tail"></span>' +
-  '{% if properties.label %}<span class="map-pin__label">{{ properties.label }}</span>{% endif %}' +
-  '</div>'
-
-const PICKER_TEMPLATE =
-  '<div class="map-pin map-pin--picker">' +
-  '<span class="map-pin__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>' +
-  '<span class="map-pin__tail"></span>' +
-  '</div>'
-
-const CLUSTER_TEMPLATE = '<div class="map-cluster">{{ properties.geoObjects.length }}</div>'
-
-let layouts: { pin: YMaps; picker: YMaps; cluster: YMaps } | null = null
-
-function mapLayouts(ymaps: YMaps) {
-  layouts ??= {
-    pin: ymaps.templateLayoutFactory.createClass(PIN_TEMPLATE),
-    picker: ymaps.templateLayoutFactory.createClass(PICKER_TEMPLATE),
-    cluster: ymaps.templateLayoutFactory.createClass(CLUSTER_TEMPLATE),
-  }
-  return layouts
-}
-
-/** Область клика с запасом: метка рисуется HTML, и Яндекс Карты ловят события только по этой фигуре. */
-const pinShape = (large: boolean) =>
-  large
-    ? { type: 'Rectangle', coordinates: [[-32, -72], [32, 0]] }
-    : { type: 'Rectangle', coordinates: [[-26, -60], [26, 0]] }
-
-function pinClass(options: { club?: boolean; past?: boolean; selected?: boolean; hover?: boolean }) {
+function pinClass(options: { club?: boolean; past?: boolean; selected?: boolean }) {
   return [
     'map-pin',
     options.club && 'map-pin--club',
     options.past && !options.selected && 'map-pin--past',
     options.selected && 'map-pin--selected',
-    options.hover && 'map-pin--hover',
   ]
     .filter(Boolean)
     .join(' ')
 }
 
-const DEFAULT_GLYPH = '🏅'
+function PinMarker({
+  emoji,
+  label,
+  club,
+  past,
+  selected,
+}: {
+  emoji: string
+  label?: string
+  club?: boolean
+  past?: boolean
+  selected?: boolean
+}) {
+  const html = `<div class="${pinClass({ club, past, selected })}"><span class="map-pin__badge"><span class="map-pin__glyph">${emoji}</span></span><span class="map-pin__tail"></span>${label ? `<span class="map-pin__label">${label}</span>` : ''}</div>`
+  const icon = L.divIcon({ html, className: 'map-pin-host', iconSize: [64, 72], iconAnchor: [32, 72] })
+  return icon
+}
 
-/** Подпись к условным обозначениям: цвет дублируется формой метки. */
 export function MapLegend({ showPast = false, className = '' }: { showPast?: boolean; className?: string }) {
   const swatch = 'inline-block size-4 shrink-0 border-2 border-ink'
   return (
@@ -148,32 +70,28 @@ export function MapLegend({ showPast = false, className = '' }: { showPast?: boo
   )
 }
 
-/**
- * Двигает карту, только если точку не видно: она спрятана в кластере или лежит вне свободной зоны.
- * Карточка выбранного события закрывает карту справа на широком экране и снизу на мобильном.
- */
-function revealPoint(map: MapInstance, coords: [number, number], clustered: boolean) {
-  const projection = map.options.get('projection')
-  const [width, height] = map.container.getSize()
-  const wide = width >= 640
-  const zoom = clustered ? Math.max(map.getZoom() + 2, 15) : map.getZoom()
-  const [px, py] = projection.toGlobalPixels(coords, zoom)
-
-  if (!clustered) {
-    const [cx, cy] = projection.toGlobalPixels(map.getCenter(), zoom)
-    const x = px - cx + width / 2
-    const y = py - cy + height / 2
-    const free = wide
-      ? { left: 48, right: width - 430, top: 80, bottom: height - 16 }
-      : { left: 32, right: width - 32, top: 80, bottom: height * 0.55 }
-    if (x >= free.left && x <= free.right && y >= free.top && y <= free.bottom) return
-  }
-
-  const center = wide ? [px + 200, py] : [px, py + height * 0.2]
-  map.setCenter(projection.fromGlobalPixels(center, zoom), zoom, { duration: 300 })
+function FitBounds({ points }: { points: [number, number][] }) {
+  const map = useMap()
+  const key = points.map((p) => p.join(',')).join('|')
+  useEffect(() => {
+    if (points.length === 0) return
+    if (points.length === 1) {
+      map.setView(points[0], 14)
+      return
+    }
+    map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14 })
+  }, [key, map, points])
+  return null
 }
 
-/** Все опубликованные мероприятия с кликабельными пинами. */
+function PanToSelected({ lat, lon }: { lat: number; lon: number }) {
+  const map = useMap()
+  useEffect(() => {
+    map.panTo([lat, lon], { animate: true })
+  }, [lat, lon, map])
+  return null
+}
+
 export function EventsMap({
   events,
   selectedId,
@@ -185,80 +103,139 @@ export function EventsMap({
   onSelect: (event: SportEvent) => void
   className?: string
 }) {
-  const collectionRef = useRef<MapInstance>(null)
-  const { containerRef, mapRef, ymapsRef, error, ready } = useYandexMap(
-    { center: KRASNOYARSK, zoom: 12, scrollZoom: true, controls: ['zoomControl', 'geolocationControl', 'fullscreenControl'] },
-    (map, ymaps) => {
-      collectionRef.current = new ymaps.Clusterer({
-        clusterIconLayout: mapLayouts(ymaps).cluster,
-        clusterIconShape: { type: 'Circle', coordinates: [0, 0], radius: 28 },
-        groupByCoordinates: false,
-        clusterDisableClickZoom: false,
-        gridSize: 72,
-      })
-      map.geoObjects.add(collectionRef.current)
-    },
+  const withCoords = useMemo(
+    () => events.filter((e) => e.latitude != null && e.longitude != null),
+    [events],
   )
-  const onSelectRef = useRef(onSelect)
-  onSelectRef.current = onSelect
-  const fittedKeyRef = useRef('')
+  const points = useMemo(
+    () => withCoords.map((e) => [e.latitude as number, e.longitude as number] as [number, number]),
+    [withCoords],
+  )
+  const selected = selectedId ? withCoords.find((e) => e.id === selectedId) : undefined
 
-  useEffect(() => {
-    const ymaps = ymapsRef.current
-    const collection = collectionRef.current
-    const map = mapRef.current
-    if (!ready || !ymaps || !collection || !map) return
-    collection.removeAll()
-    const withCoords = events.filter((event) => event.latitude != null && event.longitude != null)
-    const { pin } = mapLayouts(ymaps)
-    const placemarks = new Map<number, MapInstance>()
-    withCoords.forEach((event) => {
-      const selected = event.id === selectedId
-      const look = { club: event.organizerType === 'ORGANIZATION', past: event.past, selected }
-      const when = `${formatShortDate(event.startAt)}, ${formatTime(event.startAt)}`
-      const placemark = new ymaps.Placemark(
-        [event.latitude, event.longitude],
-        {
-          pinClass: pinClass(look),
-          glyph: event.sportEmoji ?? DEFAULT_GLYPH,
-          label: selected ? when : '',
-          hintContent: selected ? undefined : `${event.title} · ${when}`,
-        },
-        {
-          iconLayout: pin,
-          iconShape: pinShape(selected),
-          zIndex: selected ? 1000 : event.past ? 100 : 500,
-          zIndexHover: 1100,
-        },
-      )
-      placemark.events.add('mouseenter', () => placemark.properties.set('pinClass', pinClass({ ...look, hover: true })))
-      placemark.events.add('mouseleave', () => placemark.properties.set('pinClass', pinClass(look)))
-      placemark.events.add('click', () => onSelectRef.current(event))
-      collection.add(placemark)
-      placemarks.set(event.id, placemark)
-    })
-    const selected = selectedId ? withCoords.find((event) => event.id === selectedId) : undefined
-    const placementKey = withCoords.map((event) => event.id).join(',')
-    if (selected) {
-      const placemark = placemarks.get(selected.id)
-      const clustered = Boolean(placemark && collection.getObjectState(placemark)?.isClustered)
-      revealPoint(map, [selected.latitude as number, selected.longitude as number], clustered)
-    } else if (placementKey !== fittedKeyRef.current) {
-      if (withCoords.length > 1) {
-        const bounds = collection.getBounds()
-        if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 48, duration: 250 }).catch(() => undefined)
-      } else if (withCoords.length === 1) {
-        map.setCenter([withCoords[0].latitude, withCoords[0].longitude], 14)
-      }
-    }
-    fittedKeyRef.current = placementKey
-  }, [events, selectedId, ready, mapRef, ymapsRef])
-
-  if (error) return <div className={className}><MapFallback message={error} /></div>
-  return <div ref={containerRef} className={`ymaps-host overflow-hidden rounded-xl border-[3px] border-ink bg-white shadow-md ${className}`} />
+  return (
+    <MapContainer center={[KRASNOYARSK.lat, KRASNOYARSK.lon]} zoom={12} scrollWheelZoom className={`leaflet-host overflow-hidden rounded-xl border-[3px] border-ink bg-white shadow-md ${className}`}>
+      <TileLayer url={TILE} attribution={ATTRIBUTION} />
+      {!selected && points.length > 0 && <FitBounds points={points} />}
+      {selected && selected.latitude != null && selected.longitude != null && (
+        <PanToSelected lat={selected.latitude} lon={selected.longitude} />
+      )}
+      {withCoords.map((event) => {
+        const selectedMark = event.id === selectedId
+        const when = `${formatShortDate(event.startAt)}, ${formatTime(event.startAt)}`
+        const icon = PinMarker({
+          emoji: event.sportEmoji ?? DEFAULT_GLYPH,
+          label: selectedMark ? when : undefined,
+          club: event.organizerType === 'ORGANIZATION',
+          past: event.past,
+          selected: selectedMark,
+        })
+        return (
+          <Marker
+            key={event.id}
+            position={[event.latitude as number, event.longitude as number]}
+            icon={icon}
+            eventHandlers={{ click: () => onSelect(event) }}
+          >
+            {!selectedMark && (
+              <Popup>
+                <strong>{event.title}</strong>
+                <br />
+                {when}
+              </Popup>
+            )}
+          </Marker>
+        )
+      })}
+    </MapContainer>
+  )
 }
 
-/** Выбор точки проведения кликом по карте; при наличии ключа API адрес подставляется автоматически. */
+function PickPointInner({
+  latitude,
+  longitude,
+  onPick,
+  searchQuery,
+}: {
+  latitude: number | null
+  longitude: number | null
+  onPick: (lat: number, lon: number, address?: string) => void
+  searchQuery?: string
+}) {
+  const [position, setPosition] = useState<[number, number] | null>(
+    latitude != null && longitude != null ? [latitude, longitude] : null,
+  )
+  const onPickRef = useRef(onPick)
+  onPickRef.current = onPick
+  const lastSearch = useRef<string | undefined>(undefined)
+
+  const updatePoint = useCallback(async (lat: number, lon: number, syncAddress: boolean) => {
+    setPosition([lat, lon])
+    if (syncAddress) {
+      const address = await reverseGeocode(lat, lon).catch(() => undefined)
+      onPickRef.current(lat, lon, address)
+    } else {
+      onPickRef.current(lat, lon)
+    }
+  }, [])
+
+  useMapEvents({
+    click(e) {
+      void updatePoint(e.latlng.lat, e.latlng.lng, true)
+    },
+  })
+
+  useEffect(() => {
+    if (latitude != null && longitude != null) {
+      setPosition([latitude, longitude])
+    }
+  }, [latitude, longitude])
+
+  useEffect(() => {
+    const q = searchQuery?.trim()
+    if (!q || q === lastSearch.current) return
+    lastSearch.current = q
+    let cancelled = false
+    void (async () => {
+      const hit = await geocodeAddress(q).catch(() => null)
+      if (cancelled || !hit) return
+      setPosition([hit.lat, hit.lon])
+      onPickRef.current(hit.lat, hit.lon, hit.address)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchQuery])
+
+  const map = useMap()
+  useEffect(() => {
+    if (position) map.panTo(position)
+  }, [position, map])
+
+  if (!position) return null
+
+  const pickerIcon = L.divIcon({
+    html: `<div class="map-pin map-pin--picker"><span class="map-pin__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span><span class="map-pin__tail"></span></div>`,
+    className: 'map-pin-host',
+    iconSize: [64, 72],
+    iconAnchor: [32, 72],
+  })
+
+  return (
+    <Marker
+      position={position}
+      icon={pickerIcon}
+      draggable
+      eventHandlers={{
+        dragend: (e) => {
+          const { lat, lng } = e.target.getLatLng()
+          void updatePoint(lat, lng, true)
+        },
+      }}
+    />
+  )
+}
+
 export function PickPointMap({
   latitude,
   longitude,
@@ -270,92 +247,20 @@ export function PickPointMap({
   onPick: (lat: number, lon: number, address?: string) => void
   searchQuery?: string
 }) {
-  const placemarkRef = useRef<MapInstance>(null)
-  const onPickRef = useRef(onPick)
-  onPickRef.current = onPick
-  const [searching, setSearching] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const center: [number, number] = latitude != null && longitude != null ? [latitude, longitude] : [KRASNOYARSK.lat, KRASNOYARSK.lon]
+  const zoom = latitude != null ? 15 : 12
 
-  const initial: [number, number] = latitude != null && longitude != null ? [latitude, longitude] : KRASNOYARSK
-
-  const place = (map: MapInstance, ymaps: YMaps, coords: [number, number]) => {
-    if (placemarkRef.current) {
-      placemarkRef.current.geometry.setCoordinates(coords)
-      return
-    }
-    placemarkRef.current = new ymaps.Placemark(
-      coords,
-      { hintContent: 'Перетащите, чтобы уточнить место' },
-      { iconLayout: mapLayouts(ymaps).picker, iconShape: pinShape(true), draggable: true },
-    )
-    placemarkRef.current.events.add('dragend', () => {
-      const [lat, lon] = placemarkRef.current.geometry.getCoordinates()
-      reverseGeocode(ymaps, lat, lon).then((address) => onPickRef.current(lat, lon, address))
-    })
-    map.geoObjects.add(placemarkRef.current)
-  }
-
-  const { containerRef, mapRef, ymapsRef, error } = useYandexMap(
-    { center: initial, zoom: latitude != null ? 15 : 12, controls: ['zoomControl', 'geolocationControl', 'searchControl'] },
-    (map, ymaps) => {
-      if (latitude != null && longitude != null) place(map, ymaps, [latitude, longitude])
-      map.events.add('click', (event: YMaps) => {
-        const [lat, lon] = event.get('coords') as [number, number]
-        place(map, ymaps, [lat, lon])
-        reverseGeocode(ymaps, lat, lon).then((address) => onPickRef.current(lat, lon, address))
-      })
-    },
-  )
-
-  const findAddress = async () => {
-    const ymaps = ymapsRef.current
-    const map = mapRef.current
-    if (!ymaps || !map || !searchQuery?.trim()) return
-    setSearching(true)
-    setSearchError(null)
-    try {
-      const result = await ymaps.geocode(`Красноярск, ${searchQuery}`, { results: 1 })
-      const first = result.geoObjects.get(0)
-      if (!first) throw new Error('not found')
-      const [lat, lon] = first.geometry.getCoordinates()
-      map.setCenter([lat, lon], 16)
-      place(map, ymaps, [lat, lon])
-      onPickRef.current(lat, lon)
-    } catch {
-      setSearchError('Не удалось найти адрес автоматически — просто кликните по карте в нужном месте')
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  if (error) return <MapFallback message={`${error}. Адрес можно указать текстом — карта необязательна.`} />
   return (
     <div className="space-y-2">
-      <div ref={containerRef} className="ymaps-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white sm:h-80" />
-      <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-        <span>Кликните по карте или перетащите метку, чтобы указать точное место встречи.</span>
-        {searchQuery && (
-          <button type="button" onClick={findAddress} disabled={searching} className="font-semibold text-brand-700 underline">
-            {searching ? 'Ищем…' : 'Найти введённый адрес на карте'}
-          </button>
-        )}
-      </div>
-      {searchError && <p className="inline-block rounded-md border-2 border-ink bg-pop-yellow px-2 py-0.5 text-sm font-semibold text-ink">{searchError}</p>}
+      <MapContainer center={center} zoom={zoom} scrollWheelZoom className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white sm:h-80">
+        <TileLayer url={TILE} attribution={ATTRIBUTION} />
+        <PickPointInner latitude={latitude} longitude={longitude} onPick={onPick} searchQuery={searchQuery} />
+      </MapContainer>
+      <p className="text-sm text-muted">Кликните по карте или перетащите метку — адрес подставится в поле выше. Введите адрес и нажмите «Найти», чтобы поставить точку.</p>
     </div>
   )
 }
 
-async function reverseGeocode(ymaps: YMaps, lat: number, lon: number): Promise<string | undefined> {
-  try {
-    const result = await ymaps.geocode([lat, lon], { results: 1 })
-    const first = result.geoObjects.get(0)
-    return first?.getAddressLine?.() ?? undefined
-  } catch {
-    return undefined
-  }
-}
-
-/** Мини-карта в карточке события с кнопкой маршрута. */
 export function MiniMap({
   latitude,
   longitude,
@@ -369,53 +274,48 @@ export function MiniMap({
   emoji?: string | null
   club?: boolean
 }) {
-  const { containerRef, error } = useYandexMap({ center: [latitude, longitude], zoom: 15, controls: ['zoomControl'], touchPreview: true }, (map, ymaps) => {
-    map.geoObjects.add(
-      new ymaps.Placemark(
-        [latitude, longitude],
-        { hintContent: title, pinClass: pinClass({ club, selected: true }), glyph: emoji ?? DEFAULT_GLYPH, label: '' },
-        { iconLayout: mapLayouts(ymaps).pin, iconShape: pinShape(true) },
-      ),
-    )
-  })
-
+  const icon = PinMarker({ emoji: emoji ?? DEFAULT_GLYPH, club, selected: true })
   return (
     <div className="space-y-3">
-      {error ? (
-        <MapFallback message={error} lat={latitude} lon={longitude} />
-      ) : (
-        <div ref={containerRef} className="ymaps-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
-      )}
+      <MapContainer center={[latitude, longitude]} zoom={15} scrollWheelZoom={false} dragging={false} className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white">
+        <TileLayer url={TILE} attribution={ATTRIBUTION} />
+        <Marker position={[latitude, longitude]} icon={icon}>
+          <Popup>{title}</Popup>
+        </Marker>
+      </MapContainer>
       <a
-        href={yandexRouteUrl(latitude, longitude)}
+        href={osmRouteUrl(latitude, longitude)}
         target="_blank"
         rel="noreferrer"
-        className="lift flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-[3px] border-ink bg-[#ffcc00] px-4 py-3 text-center font-bold leading-tight text-[#111111] shadow-md hover:bg-[#ffd633] sm:px-5 sm:text-lg"
+        className="lift flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-[3px] border-ink bg-pop-green px-4 py-3 text-center font-bold leading-tight text-[#111111] shadow-md hover:bg-pop-green/80 sm:px-5 sm:text-lg"
       >
         <Navigation className="size-5 shrink-0" />
-        Построить маршрут в Яндекс Картах
+        Открыть маршрут в OpenStreetMap
       </a>
     </div>
   )
 }
 
-/** Маршрут от произвольного адреса до точки мероприятия (для записавшихся участников). */
-export function EventRoutePlanner({
-  latitude,
-  longitude,
-  eventTitle,
-}: {
-  latitude: number
-  longitude: number
-  eventTitle: string
-}) {
+function RouteLayer({ from, to }: { from: [number, number]; to: [number, number] }) {
+  const map = useMap()
+  useEffect(() => {
+    const group = L.layerGroup().addTo(map)
+    const line = L.polyline([from, to], { color: '#2563eb', weight: 5, opacity: 0.85 })
+    line.addTo(group)
+    map.fitBounds(L.latLngBounds([from, to]), { padding: [40, 40] })
+    return () => {
+      group.remove()
+    }
+  }, [from, to, map])
+  return null
+}
+
+export function EventRoutePlanner({ latitude, longitude, eventTitle }: { latitude: number; longitude: number; eventTitle: string }) {
   const [from, setFrom] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { containerRef, mapRef, ymapsRef, error: mapError, ready } = useYandexMap(
-    { center: [latitude, longitude], zoom: 11, controls: ['zoomControl', 'routeButtonControl'], touchPreview: true },
-    () => {},
-  )
+  const [start, setStart] = useState<[number, number] | null>(null)
+  const dest: [number, number] = [latitude, longitude]
 
   const build = async () => {
     if (!from.trim()) {
@@ -425,21 +325,12 @@ export function EventRoutePlanner({
     setBusy(true)
     setError(null)
     try {
-      const ymaps = ymapsRef.current ?? (await loadYandexMaps())
-      const map = mapRef.current
-      if (!map) throw new Error('Карта ещё не готова')
-      const start = await ymaps.geocode(`Красноярск, ${from.trim()}`, { results: 1 })
-      const startGeo = start.geoObjects.get(0)
-      if (!startGeo) throw new Error('Не нашли адрес отправления — уточните формулировку')
-      const startCoords = startGeo.geometry.getCoordinates()
-      map.geoObjects.removeAll()
-      const route = new ymaps.multiRouter.MultiRoute(
-        { referencePoints: [startCoords, [latitude, longitude]], params: { routingMode: 'auto' } },
-        { boundsAutoApply: true, wayPointVisible: false },
-      )
-      map.geoObjects.add(route)
+      const hit = await geocodeAddress(from.trim())
+      if (!hit) throw new Error('Не нашли адрес отправления — уточните формулировку')
+      setStart([hit.lat, hit.lon])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось построить маршрут')
+      setStart(null)
     } finally {
       setBusy(false)
     }
@@ -449,29 +340,20 @@ export function EventRoutePlanner({
     <div className="space-y-3 rounded-xl border-[3px] border-ink bg-pop-blue/25 p-4">
       <p className="font-bold">Как добраться до «{eventTitle}»</p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          className="input flex-1"
-          placeholder="Откуда ехать: дом, метро, адрес"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-        />
-        <button
-          type="button"
-          onClick={build}
-          disabled={busy || !ready}
-          className="lift min-h-11 rounded-xl border-[3px] border-ink bg-[#ffcc00] px-4 font-bold shadow-md hover:bg-[#ffd633] disabled:opacity-60"
-        >
-          {busy ? 'Строим…' : 'Показать маршрут'}
+        <input className="input flex-1" placeholder="Откуда ехать: дом, метро, адрес" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <button type="button" onClick={build} disabled={busy} className="lift min-h-11 rounded-xl border-[3px] border-ink bg-pop-green px-4 font-bold shadow-md hover:bg-pop-green/80 disabled:opacity-60">
+          {busy ? 'Ищем…' : 'Показать на карте'}
         </button>
       </div>
       {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
-      {mapError ? (
-        <MapFallback message={mapError} lat={latitude} lon={longitude} />
-      ) : (
-        <div ref={containerRef} className="ymaps-host h-72 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
-      )}
-      <a href={yandexRouteUrl(latitude, longitude, from)} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-700 underline">
-        Открыть тот же маршрут в приложении Яндекс Карт
+      <MapContainer center={dest} zoom={11} scrollWheelZoom className="leaflet-host h-72 overflow-hidden rounded-xl border-[3px] border-ink bg-white">
+        <TileLayer url={TILE} attribution={ATTRIBUTION} />
+        <Marker position={dest} icon={PinMarker({ emoji: DEFAULT_GLYPH, selected: true })} />
+        {start && <RouteLayer from={start} to={dest} />}
+        {start && <Marker position={start} />}
+      </MapContainer>
+      <a href={osmRouteUrl(latitude, longitude, from)} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-700 underline">
+        Построить маршрут в OpenStreetMap
       </a>
     </div>
   )

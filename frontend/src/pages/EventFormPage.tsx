@@ -1,5 +1,5 @@
 import { Bot, Check, Hourglass, MapPin, Plus, Save, Users } from 'lucide-react'
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { aiApi, eventsApi, sportsApi } from '../api/endpoints'
 import type { Audience, EventForm, EventVerificationPreview, EventVisibility, RegistrationMode, SkillLevel, SportEvent, SportNormalizeResult, SportSuggestItem } from '../api/types'
@@ -110,6 +110,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [mapSearchQuery, setMapSearchQuery] = useState<string>()
+  const geocodeTimer = useRef<number | undefined>(undefined)
   const [agentPreview, setAgentPreview] = useState<EventVerificationPreview | null>(null)
   const [sportHints, setSportHints] = useState<SportSuggestItem[]>([])
   const [missingSportOpen, setMissingSportOpen] = useState(false)
@@ -119,6 +120,14 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [inviteEventId, setInviteEventId] = useState<number | null>(null)
   const selectedSportName =
     sports.data?.find((s) => s.id === form.sportTypeId)?.name ?? (form.sportTypeId ? event?.sportName : sportSearch) ?? ''
+
+  useEffect(() => {
+    window.clearTimeout(geocodeTimer.current)
+    const addr = form.address.trim()
+    if (addr.length < 4) return
+    geocodeTimer.current = window.setTimeout(() => setMapSearchQuery(addr), 700)
+    return () => window.clearTimeout(geocodeTimer.current)
+  }, [form.address])
 
   useEffect(() => {
     if (!form.title.trim() && !form.description.trim()) {
@@ -319,7 +328,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
                 onChange={(e) => set('address', e.target.value)}
               />
               <Button type="button" variant="secondary" onClick={() => setMapSearchQuery(form.address.trim() || undefined)} disabled={!form.address.trim()}>
-                Найти
+                На карте
               </Button>
             </div>
           </Field>
@@ -328,7 +337,12 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             longitude={form.longitude}
             searchQuery={mapSearchQuery}
             onPick={(lat, lon, address) =>
-              setForm((f) => ({ ...f, latitude: lat, longitude: lon, address: address && !f.address.trim() ? address : f.address }))
+              setForm((f) => ({
+                ...f,
+                latitude: lat,
+                longitude: lon,
+                address: address?.trim() ? address : f.address,
+              }))
             }
           />
           {form.latitude != null && form.longitude != null && (

@@ -19,6 +19,7 @@ import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.identity.service.UserService;
 import ru.sportplatform.identity.web.dto.ChildRequest;
+import ru.sportplatform.identity.web.dto.ChildSettingsRequest;
 import ru.sportplatform.identity.web.dto.ProfileUpdateRequest;
 import ru.sportplatform.identity.web.dto.RegisterRequest;
 
@@ -60,5 +61,10 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserDto addChild(CurrentUser user, @PathVariable Long id, @Valid @RequestBody ChildRequest request) {
         return userService.addChild(user, id, request);
+    }
+
+    @PutMapping("/{id}/child-settings")
+    public UserDto updateChildSettings(CurrentUser user, @PathVariable Long id, @Valid @RequestBody ChildSettingsRequest request) {
+        return userService.updateChildSettings(user, id, request);
     }
 }

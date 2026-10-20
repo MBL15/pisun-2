@@ -32,7 +32,7 @@ public class FamilyService {
         if (me.getFamilyId() == null) {
             throw ApiException.notFound("Вы ещё не создали семью");
         }
-        return toDto(findFamily(me.getFamilyId()));
+        return toDto(findFamily(me.getFamilyId()), me);
     }
 
     @Transactional(readOnly = true)
@@ -44,7 +44,10 @@ public class FamilyService {
             throw ApiException.badRequest("Укажите пол в профиле — без этого нельзя создать семью");
         }
         if (me.getFamilyId() != null) {
-            return List.of();
+            Family family = findFamily(me.getFamilyId());
+            if (partnerSlotFilled(family, me)) {
+                return List.of();
+            }
         }
         Gender opposite = opposite(me.getGender());
         return users.findAllByOrderByIdAsc().stream()
@@ -67,6 +70,13 @@ public class FamilyService {
         if (me.getFamilyId() != null) {
             throw ApiException.conflict("Вы уже состоите в семье");
         }
+        Family family;
+        if (spouseUserId == null) {
+            family = families.save(singleParentFamily(me));
+            me.setFamilyId(family.getId());
+            attachLooseChildren(me, family.getId());
+            return toDto(family, me);
+        }
         UserAccount spouse = find(spouseUserId);
         requireAdultUser(spouse);
         if (spouse.getFamilyId() != null) {
@@ -84,15 +94,57 @@ public class FamilyService {
 
         UserAccount male = me.getGender() == Gender.MALE ? me : spouse;
         UserAccount female = me.getGender() == Gender.FEMALE ? me : spouse;
-        Family family = families.save(Family.builder().maleUserId(male.getId()).femaleUserId(female.getId()).build());
+        family = families.save(Family.builder().maleUserId(male.getId()).femaleUserId(female.getId()).build());
         male.setFamilyId(family.getId());
         female.setFamilyId(family.getId());
         for (Long parentId : List.of(male.getId(), female.getId())) {
-            users.findByParentIdOrderByIdAsc(parentId).stream()
-                    .filter(c -> c.getRole() == RoleType.CHILD && c.getFamilyId() == null)
-                    .forEach(c -> c.setFamilyId(family.getId()));
+            attachLooseChildren(find(parentId), family.getId());
         }
-        return toDto(family);
+        return toDto(family, me);
+    }
+
+    @Transactional
+    public FamilyDto addSpouse(CurrentUser current, Long spouseUserId) {
+        current.requireAuthenticated();
+        UserAccount me = find(current.id());
+        requireAdultUser(me);
+        if (me.getFamilyId() == null) {
+            throw ApiException.badRequest("Сначала создайте семью");
+        }
+        Family family = findFamily(me.getFamilyId());
+        if (partnerSlotFilled(family, me)) {
+            throw ApiException.conflict("В семье уже есть второй родитель");
+        }
+        UserAccount spouse = find(spouseUserId);
+        requireAdultUser(spouse);
+        if (spouse.getFamilyId() != null) {
+            throw ApiException.conflict(spouse.getDisplayName() + " уже состоит в другой семье");
+        }
+        if (spouse.getGender() == null || me.getGender() == null) {
+            throw ApiException.badRequest("У обоих родителей должен быть указан пол");
+        }
+        if (spouse.getGender() == me.getGender()) {
+            throw ApiException.badRequest("Второй родитель должен быть противоположного пола");
+        }
+        if (me.getGender() == Gender.MALE) {
+            family.setFemaleUserId(spouse.getId());
+        } else {
+            family.setMaleUserId(spouse.getId());
+        }
+        spouse.setFamilyId(family.getId());
+        attachLooseChildren(spouse, family.getId());
+        return toDto(family, me);
+    }
+
+    @Transactional
+    public Family ensureFamilyForParent(UserAccount parent) {
+        if (parent.getFamilyId() != null) {
+            return findFamily(parent.getFamilyId());
+        }
+        Family family = families.save(singleParentFamily(parent));
+        parent.setFamilyId(family.getId());
+        attachLooseChildren(parent, family.getId());
+        return family;
     }
 
     static boolean sharesFamily(UserAccount adult, UserAccount child) {
@@ -105,14 +157,45 @@ public class FamilyService {
         return gender == Gender.MALE ? Gender.FEMALE : Gender.MALE;
     }
 
-    private FamilyDto toDto(Family family) {
-        UserAccount male = find(family.getMaleUserId());
-        UserAccount female = find(family.getFemaleUserId());
+    private Family singleParentFamily(UserAccount parent) {
+        if (parent.getGender() == Gender.MALE) {
+            return Family.builder().maleUserId(parent.getId()).build();
+        }
+        if (parent.getGender() == Gender.FEMALE) {
+            return Family.builder().femaleUserId(parent.getId()).build();
+        }
+        throw ApiException.badRequest("Укажите пол в профиле — без этого нельзя создать семью");
+    }
+
+    private void attachLooseChildren(UserAccount parent, Long familyId) {
+        users.findByParentIdOrderByIdAsc(parent.getId()).stream()
+                .filter(c -> c.getRole() == RoleType.CHILD && c.getFamilyId() == null)
+                .forEach(c -> c.setFamilyId(familyId));
+    }
+
+    private boolean partnerSlotFilled(Family family, UserAccount me) {
+        if (me.getGender() == Gender.MALE) {
+            return family.getFemaleUserId() != null;
+        }
+        if (me.getGender() == Gender.FEMALE) {
+            return family.getMaleUserId() != null;
+        }
+        return family.getMaleUserId() != null && family.getFemaleUserId() != null;
+    }
+
+    private FamilyDto toDto(Family family, UserAccount viewer) {
+        String maleName = family.getMaleUserId() == null ? null : find(family.getMaleUserId()).getDisplayName();
+        String femaleName = family.getFemaleUserId() == null ? null : find(family.getFemaleUserId()).getDisplayName();
         List<UserDto> children = users.findByFamilyIdOrderByIdAsc(family.getId()).stream()
                 .filter(u -> u.getRole() == RoleType.CHILD)
                 .map(mapper::toDto)
                 .toList();
-        return new FamilyDto(family.getId(), male.getId(), male.getDisplayName(), female.getId(), female.getDisplayName(), children);
+        boolean canAddSpouse = viewer.getRole() == RoleType.USER
+                && viewer.getFamilyId() != null
+                && viewer.getFamilyId().equals(family.getId())
+                && !partnerSlotFilled(family, viewer);
+        return new FamilyDto(family.getId(), family.getMaleUserId(), maleName, family.getFemaleUserId(), femaleName,
+                children, canAddSpouse);
     }
 
     private Family findFamily(Long id) {

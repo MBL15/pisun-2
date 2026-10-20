@@ -36,6 +36,8 @@ export interface User {
   canCreateEvents: boolean
   verified: boolean
   friendship: FriendshipRelation
+  freeEventEntry: boolean
+  lastActiveAt: string | null
 }
 
 export interface VerificationAttachment {
@@ -157,6 +159,7 @@ export interface Registration {
   decisionComment: string | null
   createdAt: string
   decidedAt: string | null
+  awaitingParentApproval: boolean
 }
 
 export interface ViewerState {
@@ -348,11 +351,12 @@ export interface GeneratedDocument {
 
 export interface Family {
   id: number
-  maleUserId: number
-  maleName: string
-  femaleUserId: number
-  femaleName: string
+  maleUserId: number | null
+  maleName: string | null
+  femaleUserId: number | null
+  femaleName: string | null
   children: User[]
+  canAddSpouse: boolean
 }
 
 export interface RegisterRequest {
