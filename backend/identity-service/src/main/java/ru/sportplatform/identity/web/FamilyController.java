@@ -46,4 +46,20 @@ public class FamilyController {
     public FamilyDto addSpouse(CurrentUser user, @Valid @RequestBody AddSpouseRequest request) {
         return familyService.addSpouse(user, request.spouseUserId());
     }
+
+    /** Приглашения в семью, адресованные текущему пользователю. */
+    @GetMapping("/invitations")
+    public List<FamilyDto> invitations(CurrentUser user) {
+        return familyService.invitations(user);
+    }
+
+    @PostMapping("/{id}/spouse/accept")
+    public FamilyDto acceptInvitation(CurrentUser user, @PathVariable Long id) {
+        return familyService.acceptInvitation(user, id);
+    }
+
+    @PostMapping("/{id}/spouse/decline")
+    public FamilyDto declineInvitation(CurrentUser user, @PathVariable Long id) {
+        return familyService.declineInvitation(user, id);
+    }
 }

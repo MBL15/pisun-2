@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { setSession } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
-import { organizationLoginBlocked } from '../lib/auth'
 
 const STORAGE_KEY = 'sportvmeste.userId'
 
@@ -33,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const reloadAccounts = useCallback(async () => {
     try {
-      setDemoAccounts(await usersApi.list(true))
+      setDemoAccounts(await usersApi.list())
     } catch {
       setDemoAccounts([])
     }
@@ -44,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const restore = saved
       ? usersApi
           .get(saved)
-          .then((user) => (organizationLoginBlocked(user) ? apply(null) : apply(user)))
+          .then((user) => apply(user))
           .catch(() => apply(null))
       : Promise.resolve()
     Promise.all([restore, reloadAccounts()]).finally(() => setLoading(false))
@@ -53,10 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginById = useCallback(
     async (id: number) => {
       const next = await usersApi.get(id)
-      const blocked = organizationLoginBlocked(next)
-      if (blocked) {
-        throw new Error(blocked)
-      }
       apply(next)
       return next
     },

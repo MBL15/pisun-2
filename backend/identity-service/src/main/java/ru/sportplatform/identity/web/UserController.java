@@ -53,8 +53,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}/children")
-    public List<UserDto> children(@PathVariable Long id) {
-        return userService.children(id);
+    public List<UserDto> children(CurrentUser viewer, @PathVariable Long id) {
+        return userService.children(viewer, id);
     }
 
     @PostMapping("/{id}/children")

@@ -1,4 +1,4 @@
-import { api, buildQuery, API_URL } from './client'
+import { api, buildQuery } from './client'
 import type {
   AiSettings,
   AiVerdict,
@@ -64,8 +64,11 @@ export const verificationAdminApi = {
 export const familiesApi = {
   my: () => api.get<Family>('/api/families/my'),
   eligibleSpouses: () => api.get<User[]>('/api/families/eligible-spouses'),
+  invitations: () => api.get<Family[]>('/api/families/invitations'),
   create: (spouseUserId?: number) => api.post<Family>('/api/families', spouseUserId != null ? { spouseUserId } : {}),
   addSpouse: (spouseUserId: number) => api.post<Family>('/api/families/spouse', { spouseUserId }),
+  acceptInvitation: (familyId: number) => api.post<Family>(`/api/families/${familyId}/spouse/accept`),
+  declineInvitation: (familyId: number) => api.post<Family>(`/api/families/${familyId}/spouse/decline`),
 }
 
 export const organizationsApi = {
@@ -166,6 +169,4 @@ export const documentsApi = {
   resetTemplate: (code: string) => api.post<DocumentTemplate>(`/api/documents/templates/${code}/reset`),
   preview: (eventId: number, userId: number, childId?: number) =>
     api.get<GeneratedDocument>(`/api/documents/preview/${eventId}${buildQuery({ userId, childId })}`),
-  generateUrl: (eventId: number, userId: number, childId?: number, download = false) =>
-    `${API_URL}/api/documents/generate/${eventId}${buildQuery({ userId, childId, download: download || undefined })}`,
 }

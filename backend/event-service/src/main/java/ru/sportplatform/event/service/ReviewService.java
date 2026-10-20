@@ -76,7 +76,11 @@ public class ReviewService {
                     .build();
         } else {
             review.setStars(newStars);
-            review.setComment(normalizeComment(form.comment()));
+            // null означает «текст не меняли» — сохраняем прежний комментарий;
+            // явно очищенное поле приходит пустой строкой и стирает текст.
+            if (form.comment() != null) {
+                review.setComment(normalizeComment(form.comment()));
+            }
         }
         review = reviews.save(review);
         applyReputationDelta(event.getOrganizerUserId(), oldStars, newStars, event.getTitle());

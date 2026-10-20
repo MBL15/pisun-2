@@ -1,5 +1,5 @@
 import { Star } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { eventsApi } from '../api/endpoints'
 import type { EventReview, SportEvent } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -33,16 +33,29 @@ export function EventReviews({ event, onChanged }: { event: SportEvent; onChange
   const list = useAsync(() => eventsApi.reviews(event.id), [event.id])
   const [stars, setStars] = useState(event.viewer.myReviewStars ?? 5)
   const [comment, setComment] = useState('')
+  const [commentLoaded, setCommentLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const summary = event.reviews
   const canForm = event.viewer.canLeaveReview || event.viewer.myReviewStars != null
+  const myReview = list.data?.find((r) => r.mine)
+
+  // Подставляем текст уже оставленного отзыва, чтобы обновление оценки не стирало его.
+  useEffect(() => {
+    if (myReview && !commentLoaded) {
+      setComment(myReview.comment ?? '')
+      setCommentLoaded(true)
+    }
+  }, [myReview, commentLoaded])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     try {
-      await eventsApi.upsertReview(event.id, { stars, comment: comment.trim() || undefined })
+      // Если свой отзыв ещё не подгрузился и текст не трогали, поле не отправляем —
+      // бэкенд тогда сохранит прежний комментарий вместо затирания.
+      const sendComment = comment.trim() !== '' || commentLoaded || event.viewer.myReviewStars == null
+      await eventsApi.upsertReview(event.id, { stars, comment: sendComment ? comment : undefined })
       notify('success', event.viewer.myReviewStars != null ? 'Отзыв обновлён' : 'Спасибо за отзыв!')
       await list.reload()
       await onChanged()

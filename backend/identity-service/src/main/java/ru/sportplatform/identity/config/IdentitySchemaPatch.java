@@ -20,7 +20,21 @@ public class IdentitySchemaPatch implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         addColumnIfMissing("user_accounts", "free_event_entry", "boolean default true not null");
         addColumnIfMissing("user_accounts", "last_active_at", "timestamp");
+        addColumnIfMissing("families", "pending_spouse_user_id", "bigint");
+        backfillReputation();
         relaxFamilyColumns();
+    }
+
+    /** У старых демо-аккаунтов reputation мог остаться NULL — тогда дельты репутации падали. */
+    private void backfillReputation() {
+        try {
+            int updated = jdbc.update("UPDATE user_accounts SET reputation = 100 WHERE reputation IS NULL");
+            if (updated > 0) {
+                log.info("Identity schema: backfilled reputation for {} accounts", updated);
+            }
+        } catch (Exception e) {
+            log.warn("Identity schema: reputation backfill failed — {}", e.getMessage());
+        }
     }
 
     private void addColumnIfMissing(String table, String column, String ddlType) {

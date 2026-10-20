@@ -39,10 +39,11 @@ public class UserService {
     private final FriendshipService friendship;
     private final FamilyService familyService;
 
+    /** Список аккаунтов для экрана входа — публичное представление без почты и семейных связей. */
     @Transactional(readOnly = true)
     public List<UserDto> list(boolean demoOnly) {
         List<UserAccount> source = demoOnly ? users.findByDemoTrueOrderByDemoOrderAscIdAsc() : users.findAllByOrderByIdAsc();
-        return source.stream().map(mapper::toDto).toList();
+        return source.stream().map(u -> mapper.toDto(u).asPublicView()).toList();
     }
 
     @Transactional(readOnly = true)
@@ -65,16 +66,43 @@ public class UserService {
         return mapper.toDto(find(id));
     }
 
+    /**
+     * Дети аккаунта — личные данные: видны самому родителю, второму родителю семьи
+     * и администратору. Межсервисный доступ идёт через /internal.
+     */
     @Transactional(readOnly = true)
-    public List<UserDto> children(Long parentId) {
+    public List<UserDto> children(CurrentUser viewer, Long parentId) {
+        viewer.requireAuthenticated();
         UserAccount parent = find(parentId);
+        if (!viewer.id().equals(parentId) && !viewer.isAdmin() && !isFamilyAdult(viewer, parent)) {
+            throw ApiException.forbidden("Список детей доступен только родителям семьи");
+        }
+        return childrenInternal(parent);
+    }
+
+    /** Без проверки прав — для внутренних вызовов других сервисов. */
+    @Transactional(readOnly = true)
+    public List<UserDto> childrenInternal(UserAccount parent) {
         if (parent.getFamilyId() != null) {
             return users.findByFamilyIdOrderByIdAsc(parent.getFamilyId()).stream()
                     .filter(u -> u.getRole() == RoleType.CHILD)
                     .map(mapper::toDto)
                     .toList();
         }
-        return users.findByParentIdOrderByIdAsc(parentId).stream().map(mapper::toDto).toList();
+        return users.findByParentIdOrderByIdAsc(parent.getId()).stream().map(mapper::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDto> childrenInternal(Long parentId) {
+        return childrenInternal(find(parentId));
+    }
+
+    private boolean isFamilyAdult(CurrentUser viewer, UserAccount parent) {
+        if (!viewer.is(RoleType.USER) || parent.getFamilyId() == null) {
+            return false;
+        }
+        UserAccount me = find(viewer.id());
+        return parent.getFamilyId().equals(me.getFamilyId());
     }
 
     @Transactional
@@ -154,7 +182,11 @@ public class UserService {
         return mapper.toDto(child);
     }
 
+    /** Опекун — только взрослый USER и не сам ребёнок: свой familyId у ребёнка совпадает с семьёй. */
     private boolean canManageChild(UserAccount adult, UserAccount child) {
+        if (adult.getRole() != RoleType.USER || adult.getId().equals(child.getId())) {
+            return false;
+        }
         if (child.getParentId() != null && child.getParentId().equals(adult.getId())) {
             return true;
         }
@@ -202,7 +234,10 @@ public class UserService {
         if (user.getParentId() != null && user.getParentId().equals(viewer.id())) {
             return true;
         }
-        return me.getFamilyId() != null && me.getFamilyId().equals(user.getFamilyId());
+        // Личные данные семьи видят взрослые члены семьи, а не детские аккаунты.
+        return me.getRole() == RoleType.USER
+                && me.getFamilyId() != null
+                && me.getFamilyId().equals(user.getFamilyId());
     }
 
     static Organization newOrganization(OrganizationForm form, Long ownerId) {

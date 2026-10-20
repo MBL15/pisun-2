@@ -24,9 +24,14 @@ public class IdentityClient {
     }
 
     public List<UserDto> getChildren(Long parentId) {
-        return client.get().uri("/api/users/{id}/children", parentId).retrieve()
+        return client.get().uri("/internal/users/{id}/children", parentId).retrieve()
                 .body(new ParameterizedTypeReference<>() {
                 });
+    }
+
+    public ru.sportplatform.common.dto.OrganizationDto getOrganization(Long id) {
+        return client.get().uri("/internal/organizations/{id}", id).retrieve()
+                .body(ru.sportplatform.common.dto.OrganizationDto.class);
     }
 
     public List<Long> getFriendIds(Long userId) {

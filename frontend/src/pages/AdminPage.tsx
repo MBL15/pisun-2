@@ -118,7 +118,12 @@ function StatusFilter<T extends string>({ value, onChange, options }: { value: T
 function OrganizationsTab() {
   const { notify } = useToast()
   const [status, setStatus] = useState<ApplicationStatus | ''>('PENDING')
-  const { data, error, loading, reload } = useAsync(() => organizationsApi.list({ status: status || undefined }), [status])
+  const [query, setQuery] = useState('')
+  const [applied, setApplied] = useState('')
+  const { data, error, loading, reload } = useAsync(
+    () => organizationsApi.list({ status: status || undefined, q: applied || undefined }),
+    [status, applied],
+  )
   const [busy, setBusy] = useState<number | null>(null)
   const { ask, dialog } = useReasonDialog()
 
@@ -137,16 +142,30 @@ function OrganizationsTab() {
 
   return (
     <div className="space-y-4">
-      <StatusFilter
-        value={status}
-        onChange={setStatus}
-        options={[
-          ['PENDING', 'На рассмотрении'],
-          ['APPROVED', 'Допущены'],
-          ['REJECTED', 'Отклонены'],
-          ['', 'Все'],
-        ]}
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <StatusFilter
+          value={status}
+          onChange={setStatus}
+          options={[
+            ['PENDING', 'На рассмотрении'],
+            ['APPROVED', 'Допущены'],
+            ['REJECTED', 'Отклонены'],
+            ['', 'Все'],
+          ]}
+        />
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setApplied(query.trim())
+          }}
+        >
+          <input className="input min-w-0 py-2" placeholder="Поиск по названию" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Button type="submit" variant="secondary" icon={<Search className="size-4" />}>
+            Найти
+          </Button>
+        </form>
+      </div>
       {error && <ErrorBox error={error} onRetry={reload} />}
       {loading && !data && <Spinner />}
       {data?.length === 0 && <EmptyState icon={<Building2 className="size-8" />} title="Заявок нет" />}

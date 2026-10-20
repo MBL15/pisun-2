@@ -1,11 +1,16 @@
 import type { User } from '../api/types'
 
-/** Сообщение при попытке входа в аккаунт организации без допуска администратора. */
-export function organizationLoginBlocked(user: User): string | null {
+/**
+ * Подсказка о статусе допуска организации — показывается после входа, но вход не блокирует:
+ * представитель должен видеть заявку и решение администратора при любом статусе.
+ */
+export function organizationStatusHint(user: User): string | null {
   if (user.role !== 'ORGANIZATION') return null
-  if (user.organizationStatus === 'APPROVED') return null
   if (user.organizationStatus === 'REJECTED') {
-    return 'Заявка организации отклонена. Исправьте анкету в разделе «Моя организация» после входа — пока вход недоступен.'
+    return 'Заявка организации отклонена — исправьте анкету в разделе «Моя организация» и отправьте повторно.'
   }
-  return 'Организация пока не подтверждена'
+  if (user.organizationStatus !== 'APPROVED') {
+    return 'Заявка организации на рассмотрении — публикация событий откроется после допуска.'
+  }
+  return null
 }

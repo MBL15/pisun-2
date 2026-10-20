@@ -65,13 +65,13 @@ public class FriendshipService {
             return FriendshipRelation.NONE;
         }
         FriendRequest direct = requests.findByFromUserIdAndToUserId(viewerId, profileId).orElse(null);
-        if (direct != null) {
-            return switch (direct.getStatus()) {
-                case APPROVED -> FriendshipRelation.FRIENDS;
-                case PENDING -> FriendshipRelation.OUTGOING;
-                case REJECTED, CANCELLED -> FriendshipRelation.NONE;
-            };
+        if (direct != null && direct.getStatus() == ApplicationStatus.APPROVED) {
+            return FriendshipRelation.FRIENDS;
         }
+        if (direct != null && direct.getStatus() == ApplicationStatus.PENDING) {
+            return FriendshipRelation.OUTGOING;
+        }
+        // Отклонённая/отменённая прямая заявка не скрывает состояние обратной.
         FriendRequest reverse = requests.findByFromUserIdAndToUserId(profileId, viewerId).orElse(null);
         if (reverse != null && reverse.getStatus() == ApplicationStatus.PENDING) {
             return FriendshipRelation.INCOMING;
@@ -104,7 +104,7 @@ public class FriendshipService {
         return requests.findByToUserIdAndStatusOrderByCreatedAtDesc(current.id(), ApplicationStatus.PENDING).stream()
                 .map(fr -> users.findById(fr.getFromUserId()))
                 .flatMap(java.util.Optional::stream)
-                .map(u -> mapper.toDto(u, FriendshipRelation.INCOMING))
+                .map(u -> mapper.toDto(u, FriendshipRelation.INCOMING).asPublicView())
                 .toList();
     }
 
@@ -130,11 +130,14 @@ public class FriendshipService {
             acceptByUsers(current.id(), toUserId);
             return mapper.toDto(target, FriendshipRelation.FRIENDS).asPublicView();
         }
-        FriendRequest fr = FriendRequest.builder()
-                .fromUserId(current.id())
-                .toUserId(toUserId)
-                .status(ApplicationStatus.PENDING)
-                .build();
+        // Уникальность пары (from,to) в БД: отклонённую/отменённую заявку переоткрываем, а не создаём новую.
+        FriendRequest fr = requests.findByFromUserIdAndToUserId(current.id(), toUserId)
+                .orElseGet(() -> FriendRequest.builder()
+                        .fromUserId(current.id())
+                        .toUserId(toUserId)
+                        .build());
+        fr.setStatus(ApplicationStatus.PENDING);
+        fr.setDecidedAt(null);
         requests.save(fr);
         return mapper.toDto(target, FriendshipRelation.OUTGOING).asPublicView();
     }

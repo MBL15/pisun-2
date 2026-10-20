@@ -116,11 +116,17 @@ public class DocumentService {
      * у соседних сервисов и подставляет их в плейсхолдеры.
      */
     @Transactional(readOnly = true)
-    public GeneratedDocument generate(Long eventId, Long userId, Long childId, String templateCode) {
+    public GeneratedDocument generate(CurrentUser viewer, Long eventId, Long userId, Long childId, String templateCode) {
+        viewer.requireAuthenticated();
         if (userId == null) {
             throw ApiException.badRequest("Укажите userId — для кого формируется документ");
         }
+        clients.checkEventVisible(viewer, eventId);
         EventSnapshotDto event = clients.event(eventId);
+        boolean privileged = viewer.isAdmin() || viewer.id().equals(event.organizerUserId());
+        if (!viewer.id().equals(userId) && !privileged) {
+            throw ApiException.forbidden("Можно сформировать документ только для себя или для своего ребёнка");
+        }
         UserDto user = clients.user(userId);
 
         UserDto child = null;

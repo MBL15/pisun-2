@@ -392,9 +392,14 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
                   label={registration.participantId === user?.id ? undefined : registrationStatusLabels[registration.status].replace('Вы', 'Ребёнок')}
                 />
               </div>
-              {registration.status === 'PENDING' && (
-                <p className="mt-2 text-sm text-muted">Ожидает решения организатора. До принятия вы ещё не подтверждённый участник.</p>
-              )}
+              {registration.status === 'PENDING' &&
+                (registration.awaitingParentApproval ? (
+                  <p className="mt-2 text-sm font-medium text-ink">
+                    Ждёт согласия родителя — попросите его подтвердить заявку в своём кабинете. Организатор увидит её после этого.
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">Ожидает решения организатора. До принятия вы ещё не подтверждённый участник.</p>
+                ))}
               {registration.decisionComment && (
                 <p className="mt-2 text-sm text-muted">
                   <span className="font-semibold">Организатор:</span> {registration.decisionComment}

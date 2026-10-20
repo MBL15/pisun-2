@@ -2,7 +2,7 @@ export type RoleType = 'USER' | 'CHILD' | 'ADMIN' | 'ORGANIZATION'
 export type EventStatus = 'PUBLISHED' | 'ON_REVIEW' | 'UNPUBLISHED' | 'DELETED'
 export type RegistrationMode = 'FREE' | 'BY_APPLICATION'
 export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
-export type AiStatus = 'AI_APPROVED' | 'FLAGGED'
+export type AiStatus = 'AI_APPROVED' | 'FLAGGED' | 'UNCHECKED'
 export type AgeRestriction = 'CHILD_SAFE' | 'ADULT_ONLY'
 export type Audience = 'ALL' | 'KIDS' | 'ADULTS'
 export type OrganizerType = 'USER' | 'ORGANIZATION'
@@ -379,6 +379,8 @@ export interface Family {
   femaleName: string | null
   children: User[]
   canAddSpouse: boolean
+  pendingSpouseUserId: number | null
+  pendingSpouseName: string | null
 }
 
 export interface RegisterRequest {

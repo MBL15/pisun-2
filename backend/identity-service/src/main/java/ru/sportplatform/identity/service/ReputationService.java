@@ -23,7 +23,8 @@ public class ReputationService {
         if (user == null || !isOrganizerAccount(user.getRole())) {
             return null;
         }
-        int next = ReputationPolicy.applyDelta(user.getReputation(), -ReputationPolicy.MODERATION_PENALTY);
+        int next = ReputationPolicy.applyDelta(ReputationPolicy.normalize(user.getReputation()),
+                -ReputationPolicy.MODERATION_PENALTY);
         user.setReputation(next);
         return mapper.toDto(user);
     }
@@ -34,7 +35,7 @@ public class ReputationService {
         if (user == null || !isOrganizerAccount(user.getRole()) || delta == 0) {
             return null;
         }
-        user.setReputation(ReputationPolicy.applyDelta(user.getReputation(), delta));
+        user.setReputation(ReputationPolicy.applyDelta(ReputationPolicy.normalize(user.getReputation()), delta));
         return mapper.toDto(user);
     }
 

@@ -1,10 +1,14 @@
 import type { RoleType } from './types'
 
 const configuredApi = import.meta.env.VITE_API_URL as string | undefined
-/** Пустая строка в Docker — запросы на тот же origin, nginx проксирует /api на шлюз. */
+/**
+ * По умолчанию запросы идут на тот же origin: в dev-режиме /api проксирует Vite
+ * (vite.config.ts), в Docker — nginx. Так сборка работает и с телефона по адресу
+ * компьютера; прямой адрес шлюза можно задать через VITE_API_URL.
+ */
 export const API_URL =
-  configuredApi === undefined || configuredApi === null
-    ? 'http://localhost:8080'
+  configuredApi === undefined || configuredApi === null || configuredApi === ''
+    ? ''
     : configuredApi.replace(/\/$/, '')
 
 export class ApiError extends Error {

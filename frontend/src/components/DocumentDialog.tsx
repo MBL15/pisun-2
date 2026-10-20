@@ -39,6 +39,15 @@ export function DocumentDialog({
     URL.revokeObjectURL(url)
   }
 
+  // Документ отдаётся только авторизованному участнику, поэтому в новой вкладке открываем
+  // уже загруженный HTML через blob-ссылку, а не прямой URL без заголовков сессии.
+  const openInNewTab = () => {
+    if (!data) return
+    const blob = new Blob([data.html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+  }
+
   return (
     <Modal open={open} onClose={onClose} title={data?.templateName ?? 'Документ'} wide>
       {intro && <p className="mb-4 rounded-xl bg-pop-green/35 p-4 text-ink">{intro}</p>}
@@ -53,15 +62,14 @@ export function DocumentDialog({
             <Button variant="secondary" icon={<Download className="size-5" />} onClick={download}>
               Скачать
             </Button>
-            <a
-              href={documentsApi.generateUrl(eventId, userId, childId)}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={openInNewTab}
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-muted hover:bg-pop-yellow/50"
             >
               <ExternalLink className="size-5" />
               Открыть в новой вкладке
-            </a>
+            </button>
           </div>
           <iframe
             ref={frameRef}

@@ -96,5 +96,8 @@ public class UserAccount {
         if (createdAt == null) {
             createdAt = Instant.now();
         }
+        if (reputation == null && (role == RoleType.USER || role == RoleType.ORGANIZATION)) {
+            reputation = ru.sportplatform.common.policy.ReputationPolicy.DEFAULT_SCORE;
+        }
     }
 }

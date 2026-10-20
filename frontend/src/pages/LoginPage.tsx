@@ -6,6 +6,7 @@ import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
 import { useToast } from '../components/Toast'
+import { organizationStatusHint } from '../lib/auth'
 import { Avatar, Button, ErrorBox, Field, Spinner, Tabs } from '../components/ui'
 
 const hints: Record<number, string> = {
@@ -34,6 +35,8 @@ export function LoginPage() {
   const enter = async (user: User) => {
     try {
       const fresh = await loginById(user.id)
+      const hint = organizationStatusHint(fresh)
+      if (hint) notify('info', hint)
       navigate(homeFor(fresh))
     } catch (e) {
       notify('error', (e as Error).message)
@@ -111,10 +114,9 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         'success',
         kind === 'ORGANIZATION' ? 'Заявка организации отправлена' : 'Аккаунт создан',
         kind === 'ORGANIZATION'
-          ? 'Вход станет доступен после подтверждения администратором.'
+          ? 'Статус заявки виден в кабинете; публикация событий откроется после допуска.'
           : undefined,
       )
-      if (kind === 'ORGANIZATION') return
       onRegistered(user)
     } catch (e) {
       setError(e as ApiError)

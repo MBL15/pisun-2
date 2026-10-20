@@ -39,12 +39,13 @@ public class DocumentController {
      * download=true — отдать файлом.
      */
     @GetMapping("/generate/{eventId}")
-    public ResponseEntity<String> generate(@PathVariable Long eventId,
+    public ResponseEntity<String> generate(CurrentUser user,
+                                           @PathVariable Long eventId,
                                            @RequestParam Long userId,
                                            @RequestParam(required = false) Long childId,
                                            @RequestParam(required = false) String template,
                                            @RequestParam(defaultValue = "false") boolean download) {
-        GeneratedDocument document = documentService.generate(eventId, userId, childId, template);
+        GeneratedDocument document = documentService.generate(user, eventId, userId, childId, template);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok()
                 .contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8));
         if (download) {
@@ -55,11 +56,12 @@ public class DocumentController {
     }
 
     @GetMapping("/preview/{eventId}")
-    public GeneratedDocument preview(@PathVariable Long eventId,
+    public GeneratedDocument preview(CurrentUser user,
+                                     @PathVariable Long eventId,
                                      @RequestParam Long userId,
                                      @RequestParam(required = false) Long childId,
                                      @RequestParam(required = false) String template) {
-        return documentService.generate(eventId, userId, childId, template);
+        return documentService.generate(user, eventId, userId, childId, template);
     }
 
     @GetMapping("/placeholders")

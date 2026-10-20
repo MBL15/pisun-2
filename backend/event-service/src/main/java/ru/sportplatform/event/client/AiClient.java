@@ -16,7 +16,6 @@ import ru.sportplatform.common.dto.SportNormalizeRequest;
 import ru.sportplatform.common.dto.SportNormalizeResult;
 import ru.sportplatform.common.enums.AgeRestriction;
 import ru.sportplatform.common.enums.AiStatus;
-import ru.sportplatform.common.enums.Audience;
 
 /** Если ai-moderation-service недоступен, публикация не блокируется — событие получает пометку об отложенной проверке. */
 @Slf4j
@@ -39,9 +38,9 @@ public class AiClient {
         } catch (Exception e) {
             log.warn("AI moderation unavailable, using fallback verdict: {}", e.getMessage());
         }
-        AgeRestriction age = request.audience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : AgeRestriction.CHILD_SAFE;
-        return new EventVerificationResult(null, AiStatus.AI_APPROVED, age,
-                "ИИ-модератор временно недоступен: событие опубликовано, администратор может проверить его вручную.",
+        // Проверка не выполнялась — нельзя считать событие безопасным для детей.
+        return new EventVerificationResult(null, AiStatus.UNCHECKED, AgeRestriction.ADULT_ONLY,
+                "ИИ-модератор временно недоступен: событие опубликовано только для взрослых, администратор может проверить его вручную.",
                 List.of(), List.of(), "FALLBACK", false, Instant.now(), List.of(), List.of());
     }
 

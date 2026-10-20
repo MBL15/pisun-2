@@ -29,7 +29,17 @@ public final class ReputationPolicy {
         return REVIEW_STAR_DELTA[stars];
     }
 
+    /**
+     * В БД хранится «сырой» суммарный балл без ограничения сверху: иначе обрезанный у порога вклад
+     * делал бы итог зависимым от истории изменений. В интерфейс и проверки балл попадает
+     * ограниченным через {@link #display(Integer)}.
+     */
     public static int applyDelta(int current, int delta) {
-        return Math.min(MAX_SCORE, Math.max(0, normalize(current) + delta));
+        return normalize(current) + delta;
+    }
+
+    /** Балл для показа и пороговых проверок: null → DEFAULT_SCORE, результат зажат в 0…MAX_SCORE. */
+    public static int display(Integer stored) {
+        return Math.min(MAX_SCORE, Math.max(0, normalize(stored)));
     }
 }

@@ -20,8 +20,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
+import { organizationStatusHint } from '../lib/auth'
 import { roleLabels } from '../lib/format'
 import { useTheme } from '../lib/theme'
+import { useToast } from './Toast'
 import { Avatar } from './ui'
 
 interface NavItem {
@@ -70,6 +72,7 @@ function RoleSwitcher() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { notify } = useToast()
 
   useEffect(() => {
     const close = (event: MouseEvent) => ref.current && !ref.current.contains(event.target as Node) && setOpen(false)
@@ -79,8 +82,14 @@ function RoleSwitcher() {
 
   const switchTo = async (id: number) => {
     setOpen(false)
-    const next = await loginById(id)
-    navigate(homeFor(next))
+    try {
+      const next = await loginById(id)
+      const hint = organizationStatusHint(next)
+      if (hint) notify('info', hint)
+      navigate(homeFor(next))
+    } catch (e) {
+      notify('error', (e as Error).message)
+    }
   }
 
   return (
@@ -105,7 +114,7 @@ function RoleSwitcher() {
             <span className="flex size-8 items-center justify-center rounded-full border-2 border-ink bg-pop-yellow">
               <UserRound className="size-5 text-ink" aria-hidden />
             </span>
-            <span className="hidden whitespace-nowrap text-sm font-bold min-[375px]:inline">Выбрать роль</span>
+            <span className="hidden whitespace-nowrap text-sm font-bold min-[480px]:inline">Выбрать роль</span>
           </>
         )}
         <ChevronDown className={`size-4 text-ink transition ${open ? 'rotate-180' : ''}`} aria-hidden />

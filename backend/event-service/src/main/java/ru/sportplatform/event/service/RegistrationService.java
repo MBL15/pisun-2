@@ -39,7 +39,7 @@ public class RegistrationService {
     @Transactional
     public RegistrationDto register(CurrentUser current, Long eventId, RegistrationRequest request) {
         current.requireAuthenticated();
-        SportEvent event = eventService.find(eventId);
+        SportEvent event = findForUpdate(eventId);
         long approved = registrations.countByEventIdAndStatus(eventId, ApplicationStatus.APPROVED);
         String blocked = eventService.registrationBlockedReason(event, current, approved);
         if (blocked != null) {
@@ -96,7 +96,7 @@ public class RegistrationService {
     @Transactional
     public RegistrationDto decide(CurrentUser current, Long eventId, Long registrationId, DecisionRequest request) {
         current.requireAuthenticated();
-        SportEvent event = eventService.find(eventId);
+        SportEvent event = findForUpdate(eventId);
         if (!eventService.isOrganizer(event, current)) {
             throw ApiException.forbidden("Заявки рассматривает только организатор мероприятия");
         }
@@ -114,10 +114,15 @@ public class RegistrationService {
             if (event.getStatus() != EventStatus.PUBLISHED) {
                 throw ApiException.conflict("Мероприятие не опубликовано — принимать заявки нельзя");
             }
-            long approved = registrations.countByEventIdAndStatus(eventId, ApplicationStatus.APPROVED);
-            if (registration.getStatus() != ApplicationStatus.APPROVED
-                    && event.getCapacity() != null && approved >= event.getCapacity()) {
-                throw ApiException.conflict("Все места заняты — увеличьте лимит или откажите другим участникам");
+            if (registration.getStatus() != ApplicationStatus.APPROVED) {
+                if (hasOtherActiveRegistration(eventId, registration)) {
+                    throw ApiException.conflict(
+                            "У участника уже есть другая активная заявка — сначала разберитесь с ней");
+                }
+                long approved = registrations.countByEventIdAndStatus(eventId, ApplicationStatus.APPROVED);
+                if (event.getCapacity() != null && approved >= event.getCapacity()) {
+                    throw ApiException.conflict("Все места заняты — увеличьте лимит или откажите другим участникам");
+                }
             }
         }
         registration.setStatus(request.status());
@@ -129,18 +134,25 @@ public class RegistrationService {
     @Transactional
     public RegistrationDto parentDecision(CurrentUser current, Long eventId, Long registrationId, DecisionRequest request) {
         current.requireAuthenticated();
-        SportEvent event = eventService.find(eventId);
+        SportEvent event = findForUpdate(eventId);
         Registration registration = findForEvent(eventId, registrationId);
-        if (!registration.isAwaitingParentApproval()) {
-            throw ApiException.conflict("Эта заявка не ждёт решения родителя");
-        }
         UserDto child = identity.getUser(registration.getParticipantId());
         UserDto me = identity.getUser(current.id());
         if (!canManageChild(me, child)) {
-            throw ApiException.forbidden("Решение может принять только родитель");
+            throw ApiException.forbidden("Решение может принять только родитель ребёнка");
+        }
+        if (!registration.isAwaitingParentApproval() || registration.getStatus() != ApplicationStatus.PENDING) {
+            throw ApiException.conflict("Эта заявка не ждёт решения родителя");
         }
         if (request.status() != ApplicationStatus.APPROVED && request.status() != ApplicationStatus.REJECTED) {
             throw ApiException.badRequest("Решение может быть только «Принять» или «Отклонить»");
+        }
+        if (request.status() == ApplicationStatus.APPROVED) {
+            // Пока заявка ждала родителя, условия могли измениться — проверяем их повторно.
+            String blocked = parentApprovalBlockedReason(event, eventId, registration);
+            if (blocked != null) {
+                throw ApiException.conflict(blocked);
+            }
         }
         registration.setAwaitingParentApproval(false);
         registration.setDecisionComment(request.comment());
@@ -149,11 +161,7 @@ public class RegistrationService {
             registration.setStatus(ApplicationStatus.REJECTED);
             return EventService.toDto(registration);
         }
-        if (EventService.isFree(event)) {
-            registration.setStatus(ApplicationStatus.APPROVED);
-        } else {
-            registration.setStatus(ApplicationStatus.PENDING);
-        }
+        registration.setStatus(EventService.isFree(event) ? ApplicationStatus.APPROVED : ApplicationStatus.PENDING);
         return EventService.toDto(registration);
     }
 
@@ -194,6 +202,7 @@ public class RegistrationService {
             throw ApiException.conflict("Запись уже не активна");
         }
         registration.setStatus(ApplicationStatus.CANCELLED);
+        registration.setAwaitingParentApproval(false);
         registration.setDecidedAt(Instant.now());
         return EventService.toDto(registration);
     }
@@ -227,14 +236,51 @@ public class RegistrationService {
                 .toList();
     }
 
+    /** Опекун — только взрослый аккаунт, и не сам ребёнок: иначе ребёнок мог бы подтверждать свои заявки. */
     private static boolean canManageChild(UserDto adult, UserDto child) {
-        if (child.role() != RoleType.CHILD) {
+        if (child.role() != RoleType.CHILD || adult.role() != RoleType.USER || adult.id().equals(child.id())) {
             return false;
         }
         if (adult.id().equals(child.parentId())) {
             return true;
         }
         return adult.familyId() != null && adult.familyId().equals(child.familyId());
+    }
+
+    private boolean hasOtherActiveRegistration(Long eventId, Registration registration) {
+        Long participant = registration.getParticipantId();
+        return registrations.findByEventIdOrderByCreatedAtAsc(eventId).stream()
+                .anyMatch(r -> !r.getId().equals(registration.getId())
+                        && participant.equals(r.getParticipantId())
+                        && r.isActive());
+    }
+
+    /** null — подтверждение допустимо; иначе причина, почему заявку ребёнка нельзя принять. */
+    private String parentApprovalBlockedReason(SportEvent event, Long eventId, Registration registration) {
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            return "Мероприятие снято с публикации — подтверждать заявку нельзя";
+        }
+        if (event.getEndAt().isBefore(java.time.LocalDateTime.now())) {
+            return "Мероприятие уже прошло";
+        }
+        if (!eventService.isChildSafe(event)) {
+            return "Мероприятие больше не отмечено как безопасное для детей";
+        }
+        if (hasOtherActiveRegistration(eventId, registration)) {
+            return "У ребёнка уже есть другая активная заявка на это мероприятие";
+        }
+        if (EventService.isFree(event) && event.getCapacity() != null) {
+            long approved = registrations.countByEventIdAndStatus(eventId, ApplicationStatus.APPROVED);
+            if (approved >= event.getCapacity()) {
+                return "Все места уже заняты";
+            }
+        }
+        return null;
+    }
+
+    private SportEvent findForUpdate(Long eventId) {
+        return events.findByIdForUpdate(eventId)
+                .orElseThrow(() -> ApiException.notFound("Мероприятие #" + eventId + " не найдено"));
     }
 
     private Registration findForEvent(Long eventId, Long registrationId) {

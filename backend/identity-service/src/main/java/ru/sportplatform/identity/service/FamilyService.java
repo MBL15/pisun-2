@@ -45,9 +45,13 @@ public class FamilyService {
         }
         if (me.getFamilyId() != null) {
             Family family = findFamily(me.getFamilyId());
-            if (partnerSlotFilled(family, me)) {
+            if (partnerSlotFilled(family, me) || family.getPendingSpouseUserId() != null) {
                 return List.of();
             }
+        }
+        java.util.Set<Long> invitedElsewhere = new java.util.HashSet<>();
+        for (Family f : families.findAllByPendingSpouseUserIdIsNotNull()) {
+            invitedElsewhere.add(f.getPendingSpouseUserId());
         }
         Gender opposite = opposite(me.getGender());
         return users.findAllByOrderByIdAsc().stream()
@@ -55,6 +59,7 @@ public class FamilyService {
                 .filter(u -> u.getFamilyId() == null)
                 .filter(u -> u.getGender() == opposite)
                 .filter(u -> !u.getId().equals(me.getId()))
+                .filter(u -> !invitedElsewhere.contains(u.getId()))
                 .map(mapper::toDto)
                 .toList();
     }
@@ -70,39 +75,16 @@ public class FamilyService {
         if (me.getFamilyId() != null) {
             throw ApiException.conflict("Вы уже состоите в семье");
         }
-        Family family;
-        if (spouseUserId == null) {
-            family = families.save(singleParentFamily(me));
-            me.setFamilyId(family.getId());
-            attachLooseChildren(me, family.getId());
-            return toDto(family, me);
-        }
-        UserAccount spouse = find(spouseUserId);
-        requireAdultUser(spouse);
-        if (spouse.getFamilyId() != null) {
-            throw ApiException.conflict(spouse.getDisplayName() + " уже состоит в другой семье");
-        }
-        if (spouse.getGender() == null) {
-            throw ApiException.badRequest("У партнёра не указан пол — попросите заполнить профиль");
-        }
-        if (spouse.getGender() == me.getGender()) {
-            throw ApiException.badRequest("Семью могут создать мужчина и женщина с разным полом");
-        }
-        if (spouse.getId().equals(me.getId())) {
-            throw ApiException.badRequest("Нельзя создать семью с самим собой");
-        }
-
-        UserAccount male = me.getGender() == Gender.MALE ? me : spouse;
-        UserAccount female = me.getGender() == Gender.FEMALE ? me : spouse;
-        family = families.save(Family.builder().maleUserId(male.getId()).femaleUserId(female.getId()).build());
-        male.setFamilyId(family.getId());
-        female.setFamilyId(family.getId());
-        for (Long parentId : List.of(male.getId(), female.getId())) {
-            attachLooseChildren(find(parentId), family.getId());
+        Family family = families.save(singleParentFamily(me));
+        me.setFamilyId(family.getId());
+        attachLooseChildren(me, family.getId());
+        if (spouseUserId != null) {
+            family.setPendingSpouseUserId(checkSpouseCandidate(me, spouseUserId).getId());
         }
         return toDto(family, me);
     }
 
+    /** Приглашение второго родителя: семейный статус партнёра меняется только после его согласия. */
     @Transactional
     public FamilyDto addSpouse(CurrentUser current, Long spouseUserId) {
         current.requireAuthenticated();
@@ -115,25 +97,90 @@ public class FamilyService {
         if (partnerSlotFilled(family, me)) {
             throw ApiException.conflict("В семье уже есть второй родитель");
         }
+        if (family.getPendingSpouseUserId() != null) {
+            throw ApiException.conflict("Приглашение уже отправлено — дождитесь ответа или отмените его");
+        }
+        family.setPendingSpouseUserId(checkSpouseCandidate(me, spouseUserId).getId());
+        return toDto(family, me);
+    }
+
+    /** Семьи, куда текущий пользователь приглашён вторым родителем. */
+    @Transactional(readOnly = true)
+    public List<FamilyDto> invitations(CurrentUser current) {
+        current.requireAuthenticated();
+        return families.findAllByPendingSpouseUserId(current.id()).stream()
+                .map(f -> toDto(f, find(current.id())))
+                .toList();
+    }
+
+    @Transactional
+    public FamilyDto acceptInvitation(CurrentUser current, Long familyId) {
+        current.requireAuthenticated();
+        UserAccount me = find(current.id());
+        requireAdultUser(me);
+        Family family = findFamily(familyId);
+        if (!me.getId().equals(family.getPendingSpouseUserId())) {
+            throw ApiException.notFound("Приглашение в эту семью не найдено");
+        }
+        if (me.getFamilyId() != null && !me.getFamilyId().equals(familyId)) {
+            throw ApiException.conflict("Вы уже состоите в другой семье");
+        }
+        if (me.getGender() == null) {
+            throw ApiException.badRequest("Укажите пол в профиле — без этого нельзя вступить в семью");
+        }
+        boolean maleSlotFree = family.getMaleUserId() == null;
+        boolean femaleSlotFree = family.getFemaleUserId() == null;
+        if (me.getGender() == Gender.MALE && !maleSlotFree) {
+            throw ApiException.conflict("Место второго родителя в этой семье уже занято");
+        }
+        if (me.getGender() == Gender.FEMALE && !femaleSlotFree) {
+            throw ApiException.conflict("Место второго родителя в этой семье уже занято");
+        }
+        if (me.getGender() == Gender.MALE) {
+            family.setMaleUserId(me.getId());
+        } else {
+            family.setFemaleUserId(me.getId());
+        }
+        family.setPendingSpouseUserId(null);
+        me.setFamilyId(family.getId());
+        attachLooseChildren(me, family.getId());
+        return toDto(family, me);
+    }
+
+    /** Отклонить приглашение может приглашённый; отозвать — член семьи, отправивший его. */
+    @Transactional
+    public FamilyDto declineInvitation(CurrentUser current, Long familyId) {
+        current.requireAuthenticated();
+        Family family = findFamily(familyId);
+        boolean invited = current.id().equals(family.getPendingSpouseUserId());
+        boolean member = current.id().equals(family.getMaleUserId()) || current.id().equals(family.getFemaleUserId());
+        if (!invited && !member) {
+            throw ApiException.notFound("Приглашение в эту семью не найдено");
+        }
+        family.setPendingSpouseUserId(null);
+        UserAccount me = find(current.id());
+        return toDto(family, me);
+    }
+
+    private UserAccount checkSpouseCandidate(UserAccount me, Long spouseUserId) {
         UserAccount spouse = find(spouseUserId);
         requireAdultUser(spouse);
+        if (spouse.getId().equals(me.getId())) {
+            throw ApiException.badRequest("Нельзя пригласить в семью самого себя");
+        }
         if (spouse.getFamilyId() != null) {
             throw ApiException.conflict(spouse.getDisplayName() + " уже состоит в другой семье");
         }
-        if (spouse.getGender() == null || me.getGender() == null) {
-            throw ApiException.badRequest("У обоих родителей должен быть указан пол");
+        if (!families.findAllByPendingSpouseUserId(spouse.getId()).isEmpty()) {
+            throw ApiException.conflict(spouse.getDisplayName() + " уже приглашён(а) в другую семью");
+        }
+        if (spouse.getGender() == null) {
+            throw ApiException.badRequest("У партнёра не указан пол — попросите заполнить профиль");
         }
         if (spouse.getGender() == me.getGender()) {
-            throw ApiException.badRequest("Второй родитель должен быть противоположного пола");
+            throw ApiException.badRequest("Семью могут создать мужчина и женщина с разным полом");
         }
-        if (me.getGender() == Gender.MALE) {
-            family.setFemaleUserId(spouse.getId());
-        } else {
-            family.setMaleUserId(spouse.getId());
-        }
-        spouse.setFamilyId(family.getId());
-        attachLooseChildren(spouse, family.getId());
-        return toDto(family, me);
+        return spouse;
     }
 
     @Transactional
@@ -149,6 +196,8 @@ public class FamilyService {
 
     static boolean sharesFamily(UserAccount adult, UserAccount child) {
         return child.getRole() == RoleType.CHILD
+                && adult.getRole() == RoleType.USER
+                && !adult.getId().equals(child.getId())
                 && adult.getFamilyId() != null
                 && adult.getFamilyId().equals(child.getFamilyId());
     }
@@ -186,6 +235,8 @@ public class FamilyService {
     private FamilyDto toDto(Family family, UserAccount viewer) {
         String maleName = family.getMaleUserId() == null ? null : find(family.getMaleUserId()).getDisplayName();
         String femaleName = family.getFemaleUserId() == null ? null : find(family.getFemaleUserId()).getDisplayName();
+        String pendingName = family.getPendingSpouseUserId() == null ? null
+                : users.findById(family.getPendingSpouseUserId()).map(UserAccount::getDisplayName).orElse(null);
         List<UserDto> children = users.findByFamilyIdOrderByIdAsc(family.getId()).stream()
                 .filter(u -> u.getRole() == RoleType.CHILD)
                 .map(mapper::toDto)
@@ -193,9 +244,10 @@ public class FamilyService {
         boolean canAddSpouse = viewer.getRole() == RoleType.USER
                 && viewer.getFamilyId() != null
                 && viewer.getFamilyId().equals(family.getId())
-                && !partnerSlotFilled(family, viewer);
+                && !partnerSlotFilled(family, viewer)
+                && family.getPendingSpouseUserId() == null;
         return new FamilyDto(family.getId(), family.getMaleUserId(), maleName, family.getFemaleUserId(), femaleName,
-                children, canAddSpouse);
+                children, canAddSpouse, family.getPendingSpouseUserId(), pendingName);
     }
 
     private Family findFamily(Long id) {

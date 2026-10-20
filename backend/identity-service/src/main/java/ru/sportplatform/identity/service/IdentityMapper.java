@@ -33,7 +33,7 @@ public class IdentityMapper {
         String spouseName = spouseName(user);
         Organization org = user.getOrganizationId() == null ? null
                 : organizations.findById(user.getOrganizationId()).orElse(null);
-        int reputation = ReputationPolicy.normalize(user.getReputation());
+        int reputation = ReputationPolicy.display(user.getReputation());
         return new UserDto(
                 user.getId(),
                 user.getDisplayName(),

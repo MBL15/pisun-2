@@ -1,5 +1,7 @@
 package ru.sportplatform.identity.web;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +28,11 @@ public class InternalUserController {
     @GetMapping("/{id}")
     public UserDto get(@PathVariable Long id) {
         return userService.getInternal(id);
+    }
+
+    @GetMapping("/{id}/children")
+    public List<UserDto> children(@PathVariable Long id) {
+        return userService.childrenInternal(id);
     }
 
     @PostMapping("/{id}/reputation/moderation-penalty")

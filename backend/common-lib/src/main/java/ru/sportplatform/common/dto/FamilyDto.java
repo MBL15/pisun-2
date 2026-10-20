@@ -10,6 +10,9 @@ public record FamilyDto(
         Long femaleUserId,
         String femaleName,
         List<UserDto> children,
-        boolean canAddSpouse
+        boolean canAddSpouse,
+        /** Пользователь, которому отправлено приглашение в семью (ещё не подтвердил). */
+        Long pendingSpouseUserId,
+        String pendingSpouseName
 ) {
 }

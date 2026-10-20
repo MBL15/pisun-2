@@ -32,6 +32,9 @@ public class Family {
 
     private Long femaleUserId;
 
+    /** Пользователь, приглашённый вторым родителем: вступает в семью только после своего подтверждения. */
+    private Long pendingSpouseUserId;
+
     private Instant createdAt;
 
     @PrePersist

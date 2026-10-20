@@ -16,6 +16,7 @@ import ru.sportplatform.common.dto.EventStatusChangeRequest;
 import ru.sportplatform.common.enums.EventVerificationMode;
 import ru.sportplatform.common.dto.EventVerificationRequest;
 import ru.sportplatform.common.dto.EventVerificationResult;
+import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.enums.AgeRestriction;
 import ru.sportplatform.common.enums.AiStatus;
@@ -73,6 +74,7 @@ public class EventService {
         Set<Long> friendIds = current.isAuthenticated() ? new HashSet<>(identity.getFriendIds(current.id())) : Set.of();
 
         return source.stream()
+                .filter(e -> adminScope || !organizationSuspended(e))
                 .filter(e -> canSeeInCatalog(e, current, friendIds))
                 .filter(e -> !adminScope || filter.status() == null || e.getStatus() == filter.status())
                 .filter(e -> adminScope || filter.includePast() || e.getEndAt().isAfter(now))
@@ -119,6 +121,9 @@ public class EventService {
         }
         if (event.getStatus() == EventStatus.ON_REVIEW && !privileged) {
             throw ApiException.notFound("Мероприятие проверяется модератором и пока не опубликовано");
+        }
+        if (organizationSuspended(event) && !privileged && !registered) {
+            throw ApiException.notFound("Мероприятие недоступно: организация не допущена администратором");
         }
         if (current.is(RoleType.CHILD) && !isChildSafe(event) && !registered) {
             throw ApiException.forbidden("Это мероприятие для взрослых. Попроси родителя подобрать занятие вместе");
@@ -169,6 +174,9 @@ public class EventService {
         if (event.getStatus() == EventStatus.UNPUBLISHED || event.getStatus() == EventStatus.DELETED) {
             throw ApiException.forbidden("Мероприятие снято администратором: " + event.getModerationReason());
         }
+        UserDto author = identity.getUser(current.id());
+        // Отозванный допуск запрещает и редактирование уже опубликованных событий.
+        ensureCanOrganize(author);
         validateDates(form);
         long approved = registrations.countByEventIdAndStatus(id, ApplicationStatus.APPROVED);
         if (form.capacity() != null && form.capacity() < approved) {
@@ -176,7 +184,6 @@ public class EventService {
         }
         SportType sport = sportTypes.resolve(form.sportTypeId(), form.customSportName(), current.id());
         applyForm(event, form, sport);
-        UserDto author = identity.getUser(current.id());
         event.setOrganizerVerified(author.verified());
         applyVerdict(event, ai.verifyEvent(verificationRequest(event)), author);
         return toDto(event, current);
@@ -368,6 +375,23 @@ public class EventService {
         return event.getAgeRestriction() == AgeRestriction.CHILD_SAFE && event.getAiStatus() == AiStatus.AI_APPROVED;
     }
 
+    /**
+     * Допуск организации отозван или ещё не выдан: её события скрываются из публичного
+     * каталога и закрыты для записи до решения администратора. Ошибка identity-service
+     * трактуется как «не допущена» — безопаснее скрыть, чем показать отозванное.
+     */
+    private boolean organizationSuspended(SportEvent event) {
+        if (event.getOrganizationId() == null) {
+            return false;
+        }
+        try {
+            OrganizationDto org = identity.getOrganization(event.getOrganizationId());
+            return org == null || org.status() != ApplicationStatus.APPROVED;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     /** null — записаться можно; иначе понятная пользователю причина, почему нельзя. */
     public String registrationBlockedReason(SportEvent event, CurrentUser current, long approvedCount) {
         if (!current.isAuthenticated()) {
@@ -400,6 +424,9 @@ public class EventService {
         }
         if (current.is(RoleType.CHILD) && !isChildSafe(event)) {
             return "Мероприятие только для взрослых";
+        }
+        if (organizationSuspended(event)) {
+            return "Организация не допущена администратором — запись закрыта";
         }
         if (event.getVisibility() == EventVisibility.FRIENDS_ONLY
                 && !isOrganizer(event, current)
