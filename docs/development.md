@@ -63,7 +63,11 @@ Id и роли демо-аккаунтов есть в корневом [README]
 
 ## Тесты
 
-Автотестов в репозитории нет, сборка идёт с `-DskipTests`. Проверка — ручное прохождение шести сценариев из корневого README и `npm run build` и `npm run lint` для фронтенда.
+```bash
+cd backend && ./mvnw test
+```
+
+Unit-тесты: `common-lib` (`ProhibitedContentScanner`, `ReputationPolicy`, `SevereContentPolicy`), `ai-moderation-service` (`HeuristicAnalyzer`). Полная сборка: `./mvnw -q -B test package`. Дополнительно — шесть сценариев из корневого README вручную, `npm run build` и `npm run lint` для фронтенда.
 
 ## Рецепты
 

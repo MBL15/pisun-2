@@ -226,11 +226,11 @@ flowchart LR
 ## Сборка и проверка
 
 ```bash
-cd backend && ./mvnw -q -B -DskipTests package
+cd backend && ./mvnw -q -B test package
 cd frontend && npm run build && npm run lint
 ```
 
-Автотестов в репозитории нет.
+**Автотесты (JUnit 5):** `common-lib` — репутация и запрещённый контент; `ai-moderation-service` — эвристика модератора. Интеграционных e2e-тестов пока нет.
 
 ---
 

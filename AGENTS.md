@@ -21,6 +21,6 @@
 
 ## Проверка
 
-- Бэкенд: `cd backend && .\mvnw.cmd -q -B -DskipTests package`. Автотестов нет.
+- Бэкенд: `cd backend && ./mvnw -q -B test package` (JUnit в `common-lib`, `ai-moderation-service`).
 - Фронтенд: `cd frontend && npm run build && npm run lint`.
 - Запуск: `.\start.ps1 -Rebuild`, затем http://localhost:5173.
