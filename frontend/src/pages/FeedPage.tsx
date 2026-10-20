@@ -11,15 +11,16 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eventsApi, sportsApi } from '../api/endpoints'
-import type { EventFilters, RegistrationMode } from '../api/types'
+import type { EventFilters, RegistrationMode, SportEvent } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { EventCard } from '../components/EventCard'
 import { EventsMap, MapLegend } from '../components/maps'
 import { Button, EmptyState, ErrorBox, LinkButton, Spinner } from '../components/ui'
 import { toIsoDate } from '../lib/format'
+import { useMobileLayout } from '../lib/useMobileLayout'
 import { useAsync } from '../lib/useAsync'
 
 type DateRange = 'any' | 'today' | 'weekend' | 'week'
@@ -49,7 +50,10 @@ function rangeToDates(range: DateRange): Pick<EventFilters, 'from' | 'to'> {
 export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map' }) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useMobileLayout()
+  const feedMapRef = useRef<HTMLDivElement>(null)
   const [view, setView] = useState(initialView)
+  const [mapSelectedId, setMapSelectedId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
   const [sportTypeId, setSportTypeId] = useState<number | undefined>()
@@ -80,6 +84,14 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
     setMode(undefined)
     setRange('any')
     setKidsOnly(false)
+  }
+
+  const focusEventOnMap = (event: SportEvent) => {
+    setMapSelectedId(event.id)
+    setView('map')
+    requestAnimationFrame(() => {
+      feedMapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   return (
@@ -230,8 +242,18 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
       {events.loading && !events.data && <Spinner />}
 
       {events.data && view === 'map' && (
-        <div className="relative">
-          <EventsMap events={events.data} onSelect={(event) => navigate(`/events/${event.id}`)} />
+        <div ref={feedMapRef} className="relative scroll-mt-20">
+          <EventsMap
+            events={events.data}
+            selectedId={mapSelectedId}
+            onSelect={(event) => {
+              if (isMobile) {
+                setMapSelectedId(event.id)
+              } else {
+                navigate(`/events/${event.id}`)
+              }
+            }}
+          />
           <MapLegend className="mt-4" />
         </div>
       )}
@@ -266,9 +288,13 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
               )}
             </div>
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {events.data.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+              {events.data.map((event) =>
+                isMobile ? (
+                  <EventCard key={event.id} event={event} onSelect={() => focusEventOnMap(event)} />
+                ) : (
+                  <EventCard key={event.id} event={event} />
+                ),
+              )}
             </div>
           </>
         )

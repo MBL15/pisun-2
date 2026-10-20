@@ -1,5 +1,5 @@
 import { CalendarDays, MapPinOff, Navigation } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { eventsApi } from '../api/endpoints'
 import type { SportEvent } from '../api/types'
@@ -11,7 +11,17 @@ import { useAsync } from '../lib/useAsync'
 export function MapPage() {
   const navigate = useNavigate()
   const events = useAsync(() => eventsApi.list({ includePast: true }), [])
+  const mapSectionRef = useRef<HTMLElement>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  const selectEvent = (id: number) => {
+    setSelectedId(id)
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      requestAnimationFrame(() => {
+        mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }
 
   const all = events.data ?? []
   const located = all.filter((event) => event.latitude != null && event.longitude != null)
@@ -20,7 +30,10 @@ export function MapPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:-mb-6 lg:h-[calc(100svh_-_9.5rem)] lg:flex-row">
-      <section className="relative h-[calc(100svh_-_var(--mobile-nav-h)_-_10rem)] min-h-80 shrink-0 lg:h-auto lg:min-h-0 lg:flex-1">
+      <section
+        ref={mapSectionRef}
+        className="relative h-[calc(100svh_-_var(--mobile-nav-h)_-_10rem)] min-h-80 shrink-0 scroll-mt-20 lg:h-auto lg:min-h-0 lg:flex-1"
+      >
         {events.loading && !events.data && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-[3px] border-ink bg-white">
             <Spinner label="Загружаем карту…" />
@@ -31,7 +44,7 @@ export function MapPage() {
           <EventsMap
             events={located}
             selectedId={selectedId}
-            onSelect={(event) => setSelectedId(event.id)}
+            onSelect={(event) => selectEvent(event.id)}
             className="h-full"
           />
         )}
@@ -69,7 +82,7 @@ export function MapPage() {
           {located.length > 0 && <MapLegend showPast={located.some((event) => event.past)} className="mt-3" />}
         </div>
         {located.map((event) => (
-          <EventRow key={event.id} event={event} active={event.id === selectedId} onSelect={() => setSelectedId(event.id)} />
+          <EventRow key={event.id} event={event} active={event.id === selectedId} onSelect={() => selectEvent(event.id)} />
         ))}
         {withoutPoint.length > 0 && (
           <p className="flex items-start gap-2 rounded-xl border-[3px] border-dashed border-ink bg-white p-3 text-sm font-medium">
