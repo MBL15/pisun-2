@@ -89,6 +89,10 @@ public class UserAccount {
     /** Галочка доверия (для USER — после заявки и одобрения админом). */
     private boolean verified;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean banned = false;
+
     private Instant createdAt;
 
     @PrePersist

@@ -20,6 +20,7 @@ public class IdentitySchemaPatch implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         addColumnIfMissing("user_accounts", "free_event_entry", "boolean default true not null");
         addColumnIfMissing("user_accounts", "last_active_at", "timestamp");
+        addColumnIfMissing("user_accounts", "banned", "boolean default false not null");
         relaxFamilyColumns();
     }
 

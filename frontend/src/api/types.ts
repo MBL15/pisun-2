@@ -38,6 +38,7 @@ export interface User {
   friendship: FriendshipRelation
   freeEventEntry: boolean
   lastActiveAt: string | null
+  banned?: boolean
 }
 
 export interface VerificationAttachment {

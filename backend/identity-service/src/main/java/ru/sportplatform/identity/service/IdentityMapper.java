@@ -55,11 +55,12 @@ public class IdentityMapper {
                 user.isDemo(),
                 user.getDemoLabel(),
                 reputation,
-                canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus()),
+                canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus(), user.isBanned()),
                 isVerified(user),
                 friendship,
                 user.isFreeEventEntry(),
-                user.getLastActiveAt()
+                user.getLastActiveAt(),
+                user.isBanned()
         );
     }
 
@@ -71,7 +72,10 @@ public class IdentityMapper {
     }
 
     private static boolean canCreateEvents(RoleType role, int reputation,
-                                           ru.sportplatform.common.enums.ApplicationStatus orgStatus) {
+                                           ru.sportplatform.common.enums.ApplicationStatus orgStatus, boolean banned) {
+        if (banned) {
+            return false;
+        }
         if (!ReputationPolicy.canUserOrganize(reputation)) {
             return false;
         }

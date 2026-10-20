@@ -40,6 +40,12 @@ public final class ProhibitedContentScanner {
         return !instantBanHits(parts).isEmpty();
     }
 
+    /** Фраза «коч братан» (в т.ч. через пробел/перенос между полями) — блокировка аккаунта. */
+    public static boolean requiresInstantAccountBan(String... parts) {
+        String text = normalize(parts);
+        return text.contains("коч") && text.contains("братан");
+    }
+
     public static boolean mentionsDroch(String... parts) {
         return normalize(parts).contains("дроч");
     }

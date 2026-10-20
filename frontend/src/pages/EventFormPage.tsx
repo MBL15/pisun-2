@@ -103,7 +103,7 @@ export function EventFormPage() {
 function EventEditor({ event, defaultContact }: { event: SportEvent | null; defaultContact: string | null }) {
   const navigate = useNavigate()
   const { notify } = useToast()
-  const { user, refreshUser } = useAuth()
+  const { user, refreshUser, logout } = useAuth()
   const [autoBan, setAutoBan] = useState<{ penalty: number; after: number; reason: string } | null>(null)
   const sports = useAsync(() => sportsApi.list(), [])
   const [form, setForm] = useState<EventForm>(() => (event ? fromEvent(event) : emptyForm(defaultContact)))
@@ -245,7 +245,14 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
       }
       navigate(`/events/${saved.id}`, { replace: true })
     } catch (err) {
-      notify('error', 'Не удалось сохранить', (err as Error).message)
+      const message = (err as Error).message
+      if (message.includes('заблокирован')) {
+        logout()
+        notify('error', 'Аккаунт заблокирован', message)
+        navigate('/login', { replace: true })
+        return
+      }
+      notify('error', 'Не удалось сохранить', message)
     } finally {
       setBusy(false)
     }

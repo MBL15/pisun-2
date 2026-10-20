@@ -28,6 +28,7 @@ import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
 import ru.sportplatform.common.policy.ReputationPolicy;
+import ru.sportplatform.common.policy.AccountBanPolicy;
 import ru.sportplatform.common.policy.ProhibitedContentScanner;
 import ru.sportplatform.common.policy.SevereContentPolicy;
 import ru.sportplatform.common.util.TextUtils;
@@ -142,6 +143,7 @@ public class EventService {
         current.requireAuthenticated();
         UserDto author = identity.getUser(current.id());
         ensureCanOrganize(author);
+        enforceNoAccountBanPhrase(current.id(), form.title(), form.description(), form.conditions());
         validateDates(form);
 
         SportType sport = sportTypes.resolve(form.sportTypeId(), form.customSportName(), author.id());
@@ -178,6 +180,7 @@ public class EventService {
         if (form.capacity() != null && form.capacity() < approved) {
             throw ApiException.badRequest("Уже подтверждено участников: " + approved + ". Нельзя сделать мест меньше");
         }
+        enforceNoAccountBanPhrase(current.id(), form.title(), form.description(), form.conditions());
         SportType sport = sportTypes.resolve(form.sportTypeId(), form.customSportName(), current.id());
         applyForm(event, form, sport);
         UserDto author = identity.getUser(current.id());
@@ -188,7 +191,18 @@ public class EventService {
         return toDto(event, current, reputation);
     }
 
+    private void enforceNoAccountBanPhrase(Long userId, String... parts) {
+        if (!ProhibitedContentScanner.requiresInstantAccountBan(parts)) {
+            return;
+        }
+        identity.banForProhibitedPhrase(userId);
+        throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
+    }
+
     private void ensureCanOrganize(UserDto author) {
+        if (author.banned()) {
+            throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
+        }
         switch (author.role()) {
             case CHILD -> throw ApiException.forbidden("Детский аккаунт не может создавать мероприятия — попроси родителя");
             case ADMIN -> throw ApiException.forbidden(

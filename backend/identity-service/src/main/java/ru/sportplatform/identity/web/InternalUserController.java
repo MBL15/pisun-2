@@ -37,4 +37,9 @@ public class InternalUserController {
     public UserDto reputationDelta(@PathVariable Long id, @RequestBody ReputationDeltaRequest request) {
         return reputationService.applyDelta(id, request.delta(), request.reason());
     }
+
+    @PostMapping("/{id}/ban/prohibited-phrase")
+    public UserDto banProhibitedPhrase(@PathVariable Long id) {
+        return userService.banForProhibitedPhrase(id);
+    }
 }

@@ -35,7 +35,9 @@ public record UserDto(
         FriendshipRelation friendship,
         /** Только для детских аккаунтов: запись без согласия родителя. */
         boolean freeEventEntry,
-        Instant lastActiveAt
+        Instant lastActiveAt,
+        /** Платформа заблокировала аккаунт (жёсткие нарушения). */
+        boolean banned
 ) {
     public boolean isApprovedOrganization() {
         return role == RoleType.ORGANIZATION && organizationStatus == ApplicationStatus.APPROVED;
@@ -68,7 +70,8 @@ public record UserDto(
                 verified,
                 friendship,
                 freeEventEntry,
-                lastActiveAt
+                lastActiveAt,
+                banned
         );
     }
 }

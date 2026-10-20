@@ -12,6 +12,8 @@ import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.FriendshipRelation;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
+import ru.sportplatform.common.policy.AccountBanPolicy;
+import ru.sportplatform.common.policy.ProhibitedContentScanner;
 import ru.sportplatform.common.policy.ReputationPolicy;
 import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.common.web.CurrentUser;
@@ -63,6 +65,31 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto getInternal(Long id) {
         return mapper.toDto(find(id));
+    }
+
+    @Transactional
+    public UserDto banForProhibitedPhrase(Long userId) {
+        UserAccount user = find(userId);
+        if (user.isBanned()) {
+            return mapper.toDto(user);
+        }
+        user.setBanned(true);
+        user.setReputation(0);
+        return mapper.toDto(user);
+    }
+
+    public void enforceNotBanned(UserAccount user) {
+        if (user.isBanned()) {
+            throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
+        }
+    }
+
+    public void enforceNoAccountBanPhrase(Long userId, String... textParts) {
+        if (!ProhibitedContentScanner.requiresInstantAccountBan(textParts)) {
+            return;
+        }
+        banForProhibitedPhrase(userId);
+        throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
     }
 
     @Transactional(readOnly = true)
@@ -171,10 +198,17 @@ public class UserService {
         if (!id.equals(current.id()) && !isParent && !familyGuardian) {
             throw ApiException.forbidden("Можно редактировать только свой профиль или профиль своего ребёнка");
         }
+        enforceNotBanned(user);
         user.setDisplayName(request.displayName().trim());
         user.setCity(request.city());
         user.setInterests(request.interests());
         user.setBio(request.bio());
+        enforceNoAccountBanPhrase(
+                user.getId(),
+                user.getDisplayName(),
+                user.getBio(),
+                user.getInterests(),
+                user.getCity());
         if (id.equals(current.id()) && request.gender() != null && user.getRole() == RoleType.USER) {
             if (user.getFamilyId() != null && request.gender() != user.getGender()) {
                 throw ApiException.conflict("Нельзя сменить пол, пока вы состоите в семье");

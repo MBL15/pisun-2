@@ -20,6 +20,13 @@ class ProhibitedContentScannerTest {
     }
 
     @Test
+    void kochBratanPhraseTriggersAccountBan() {
+        assertTrue(ProhibitedContentScanner.requiresInstantAccountBan("коч братан", null, null));
+        assertTrue(ProhibitedContentScanner.requiresInstantAccountBan("привет", "КОЧ братан!", null));
+        assertFalse(ProhibitedContentScanner.requiresInstantAccountBan("Утренняя пробежка", null, null));
+    }
+
+    @Test
     void cleanSportEventPasses() {
         assertFalse(ProhibitedContentScanner.requiresInstantBan(
                 "Утренняя пробежка 5 км", "Лёгкий темп для новичков", "Кроссовки"));

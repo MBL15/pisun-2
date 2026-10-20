@@ -44,6 +44,13 @@ public class IdentityClient {
                 .body(UserDto.class);
     }
 
+    public UserDto banForProhibitedPhrase(Long userId) {
+        return client.post()
+                .uri("/internal/users/{id}/ban/prohibited-phrase", userId)
+                .retrieve()
+                .body(UserDto.class);
+    }
+
     public boolean areFriends(Long userA, Long userB) {
         if (userA == null || userB == null || userA.equals(userB)) {
             return false;

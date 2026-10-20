@@ -13,6 +13,8 @@ import ru.sportplatform.common.dto.CommentVerificationRequest;
 import ru.sportplatform.common.dto.CommentVerificationResult;
 import ru.sportplatform.common.dto.CommentVisibilityRequest;
 import ru.sportplatform.common.dto.UserDto;
+import ru.sportplatform.common.policy.AccountBanPolicy;
+import ru.sportplatform.common.policy.ProhibitedContentScanner;
 import ru.sportplatform.common.enums.EventStatus;
 import ru.sportplatform.common.error.ApiException;
 import ru.sportplatform.common.util.TextUtils;
@@ -62,6 +64,13 @@ public class CommentService {
             }
         }
         UserDto author = identity.getUser(current.id());
+        if (author.banned()) {
+            throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
+        }
+        if (ProhibitedContentScanner.requiresInstantAccountBan(form.text())) {
+            identity.banForProhibitedPhrase(author.id());
+            throw ApiException.forbidden(AccountBanPolicy.USER_MESSAGE);
+        }
         EventComment comment = EventComment.builder()
                 .eventId(eventId)
                 .parentId(form.parentId())
