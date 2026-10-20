@@ -20,7 +20,7 @@ export function MapPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:-mb-6 lg:h-[calc(100svh_-_9.5rem)] lg:flex-row">
-      <section className="relative h-[calc(100svh_-_var(--mobile-nav-h)_-_10rem)] min-h-80 shrink-0 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
+      <section className="relative h-[calc(100svh_-_var(--mobile-nav-h)_-_10rem)] min-h-80 shrink-0 lg:h-auto lg:min-h-0 lg:flex-1">
         {events.loading && !events.data && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-[3px] border-ink bg-white">
             <Spinner label="Загружаем карту…" />
@@ -36,7 +36,7 @@ export function MapPage() {
           />
         )}
         {selected && (
-          <article className="card absolute inset-x-2 bottom-2 z-10 flex max-h-[calc(100%-1rem)] flex-col gap-1.5 overflow-y-auto p-3 sm:inset-x-3 sm:bottom-3 sm:left-auto sm:w-96 sm:gap-2 sm:p-4">
+          <article className="card pointer-events-auto absolute inset-x-2 bottom-2 z-[1000] flex max-h-[calc(100%-1rem)] flex-col gap-1.5 overflow-y-auto p-3 shadow-xl sm:inset-x-3 sm:bottom-3 sm:left-auto sm:w-96 sm:gap-2 sm:p-4">
             <div className="flex items-start justify-between gap-2">
               <span className={`rounded-md border-2 border-ink px-2 py-0.5 text-sm font-bold ${sportTone(selected.sportTypeId)}`}>
                 <span aria-hidden>{selected.sportEmoji} </span>

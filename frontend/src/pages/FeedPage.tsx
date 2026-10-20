@@ -236,7 +236,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
         <div className="relative">
           <EventsMap events={events.data} selectedId={selected?.id} onSelect={setSelected} />
           {selected && (
-            <div className="card absolute inset-x-3 bottom-3 z-10 flex flex-col gap-3 p-4 shadow-xl sm:left-auto sm:right-3 sm:w-96">
+            <div className="card pointer-events-auto absolute inset-x-3 bottom-3 z-[1000] flex flex-col gap-3 p-4 shadow-xl sm:left-auto sm:right-3 sm:w-96">
               <div className="flex items-start justify-between gap-2">
                 <span className={`rounded-md border-2 border-ink px-2 py-0.5 font-bold ${sportTone(selected.sportTypeId)}`}>
                   {selected.sportEmoji} {selected.sportName}

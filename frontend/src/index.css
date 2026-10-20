@@ -331,6 +331,12 @@
     font-size: 10px;
   }
 
+  /* Leaflet-панели до z-index ~700; UI поверх карты — выше. */
+  .leaflet-host {
+    position: relative;
+    z-index: 0;
+  }
+
   .map-pin-host {
     background: transparent !important;
     border: none !important;
