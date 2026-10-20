@@ -210,8 +210,8 @@ export function Layout() {
         К содержимому
       </a>
       <header className="sticky top-0 z-40 border-b-[3px] border-ink bg-surface">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
-          <Link to={user ? homeFor(user) : '/'} className="group flex items-center gap-3" aria-label="СпортВместе — на главную">
+        <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 px-4 py-2.5 sm:gap-x-4 sm:px-6 sm:py-3">
+          <Link to={user ? homeFor(user) : '/'} className="group flex min-w-0 items-center gap-3" aria-label="СпортВместе — на главную">
             <span className="flex size-11 rotate-[-6deg] items-center justify-center rounded-xl border-[3px] border-ink bg-pop-yellow text-ink shadow-sm transition group-hover:rotate-0">
               <Zap className="size-6 fill-ink" aria-hidden />
             </span>
@@ -221,7 +221,7 @@ export function Layout() {
             </span>
           </Link>
 
-          <nav className="ml-4 hidden min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar lg:flex">
+          <nav className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible no-scrollbar px-1 lg:flex">
             {items.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/feed'} className={linkClass}>
                 {item.icon}
@@ -230,7 +230,7 @@ export function Layout() {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="relative z-10 flex shrink-0 items-center gap-2 bg-surface pl-1 sm:pl-2">
             <button
               onClick={toggleTheme}
               className="flex size-11 items-center justify-center rounded-lg border-[3px] border-ink bg-surface text-ink shadow-sm lift"
