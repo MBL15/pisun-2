@@ -26,6 +26,7 @@ import { eventsApi, moderationApi, usersApi } from '../api/endpoints'
 import type { Registration, SportEvent, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { Discussion } from '../components/Discussion'
+import { EventReviews } from '../components/EventReviews'
 import { DocumentDialog } from '../components/DocumentDialog'
 import { AgeBadge, AiBadge, EventStatusBadge, ModeBadge, RegistrationBadge } from '../components/EventBadges'
 import { MiniMap } from '../components/maps'
@@ -136,6 +137,7 @@ export function EventPage() {
 
           {event.aiSummary && <AiVerdictCard event={event} />}
 
+          <EventReviews event={event} onChanged={reload} />
           <Discussion event={event} onChanged={reload} />
         </div>
 

@@ -20,11 +20,25 @@ public class ReputationService {
     @Transactional
     public UserDto penalizeForModeration(Long userId, String reason) {
         UserAccount user = users.findById(userId).orElse(null);
-        if (user == null || user.getRole() != RoleType.USER) {
+        if (user == null || !isOrganizerAccount(user.getRole())) {
             return null;
         }
-        int next = Math.max(0, ReputationPolicy.normalize(user.getReputation()) - ReputationPolicy.MODERATION_PENALTY);
+        int next = ReputationPolicy.applyDelta(user.getReputation(), -ReputationPolicy.MODERATION_PENALTY);
         user.setReputation(next);
         return mapper.toDto(user);
+    }
+
+    @Transactional
+    public UserDto applyDelta(Long userId, int delta, String reason) {
+        UserAccount user = users.findById(userId).orElse(null);
+        if (user == null || !isOrganizerAccount(user.getRole()) || delta == 0) {
+            return null;
+        }
+        user.setReputation(ReputationPolicy.applyDelta(user.getReputation(), delta));
+        return mapper.toDto(user);
+    }
+
+    private static boolean isOrganizerAccount(RoleType role) {
+        return role == RoleType.USER || role == RoleType.ORGANIZATION;
     }
 }

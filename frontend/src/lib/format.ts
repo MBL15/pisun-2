@@ -137,12 +137,12 @@ export function normalizeReputation(score: number | undefined | null): number {
 
 export function reputationHint(score: number, blocked: boolean): string {
   if (blocked) {
-    return `Создание мероприятий недоступно: репутация ${score} баллов (нужно не меньше ${REPUTATION_MIN_TO_CREATE}). Снижение происходит, когда администратор снимает или удаляет ваше мероприятие после проверки.`
+    return `Создание мероприятий недоступно: репутация ${score} баллов (нужно не меньше ${REPUTATION_MIN_TO_CREATE}). Баллы снижают отзывы участников и решения модерации (снятие или удаление мероприятия).`
   }
   if (score < 60) {
-    return `Репутация ${score} баллов — будьте внимательны к правилам: при ${REPUTATION_MIN_TO_CREATE} и ниже публикация событий закроется.`
+    return `Репутация ${score} баллов — будьте внимательны к правилам: при ${REPUTATION_MIN_TO_CREATE} и ниже публикация событий закроется. Хорошие отзывы после мероприятий помогают восстановить рейтинг.`
   }
-  return `Репутация ${score} баллов — чем выше, тем больше доверия у участников.`
+  return `Репутация ${score} баллов — на неё влияют отзывы участников и модерация платформы.`
 }
 
 export function reputationTone(score: number, blocked: boolean): 'red' | 'amber' | 'green' | 'slate' {

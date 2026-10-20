@@ -72,8 +72,11 @@ public class IdentityMapper {
 
     private static boolean canCreateEvents(RoleType role, int reputation,
                                            ru.sportplatform.common.enums.ApplicationStatus orgStatus) {
+        if (!ReputationPolicy.canUserOrganize(reputation)) {
+            return false;
+        }
         return switch (role) {
-            case USER -> ReputationPolicy.canUserOrganize(reputation);
+            case USER -> true;
             case ORGANIZATION -> orgStatus == ru.sportplatform.common.enums.ApplicationStatus.APPROVED;
             default -> false;
         };

@@ -126,6 +126,27 @@ public class DataInitializer implements CommandLineRunner {
                 .aiReasons("Подходит детям: семейный формат, дневное время")
                 .build());
 
+        SportEvent pastYoga = events.save(SportEvent.builder()
+                .title("Йога на закате — прошедшая сессия (демо отзывов)")
+                .description("Спокойная практика на открытом воздухе. Событие уже завершилось — участники могут оставить отзыв.")
+                .sportType(runSport)
+                .startAt(today.minusDays(3).atTime(19, 0))
+                .durationMinutes(60)
+                .address("о. Татышев, смотровая площадка")
+                .latitude(56.0268).longitude(92.9410)
+                .conditions("Коврик, удобная одежда.")
+                .level(SkillLevel.BEGINNER)
+                .audience(Audience.ALL)
+                .registrationMode(RegistrationMode.FREE)
+                .status(EventStatus.PUBLISHED)
+                .organizerType(OrganizerType.USER)
+                .organizerUserId(DemoIds.ADULT)
+                .organizerName(DemoIds.ADULT_NAME)
+                .aiStatus(AiStatus.AI_APPROVED)
+                .ageRestriction(AgeRestriction.CHILD_SAFE)
+                .aiSummary("Демо: прошедшее мероприятие для отзывов участников.")
+                .build());
+
         SportEvent run = events.save(SportEvent.builder()
                 .title("Утренняя пробежка 5 км по острову Татышев")
                 .description("Лёгкая пробежка в разговорном темпе по кругу острова. Никого не бросаем: "
@@ -283,6 +304,13 @@ public class DataInitializer implements CommandLineRunner {
                 .registeredById(DemoIds.ADULT_IRINA).registeredByName(DemoIds.IRINA_NAME)
                 .status(ApplicationStatus.APPROVED)
                 .createdAt(now.minus(1, ChronoUnit.DAYS)).decidedAt(now.minus(1, ChronoUnit.DAYS))
+                .build());
+        registrations.save(Registration.builder()
+                .eventId(pastYoga.getId())
+                .participantId(DemoIds.ADULT_IRINA).participantName(DemoIds.IRINA_NAME).participantAge(29)
+                .registeredById(DemoIds.ADULT_IRINA).registeredByName(DemoIds.IRINA_NAME)
+                .status(ApplicationStatus.APPROVED)
+                .createdAt(now.minus(4, ChronoUnit.DAYS)).decidedAt(now.minus(4, ChronoUnit.DAYS))
                 .build());
 
         EventComment question = comments.save(comment(chess.getId(), null, DemoIds.ADULT_IRINA, DemoIds.IRINA_NAME,

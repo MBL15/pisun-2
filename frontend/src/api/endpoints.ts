@@ -7,6 +7,7 @@ import type {
   VerificationRequest,
   DocumentTemplate,
   EventFilters,
+  EventReview,
   EventForm,
   GeneratedDocument,
   ModerationAction,
@@ -104,6 +105,9 @@ export const eventsApi = {
     api.post<Comment>(`/api/events/${id}/comments`, { text, parentId }),
   inviteFriends: (id: number, friendIds: number[]) =>
     api.post<void>(`/api/events/${id}/invitations`, { friendIds }),
+  reviews: (id: number) => api.get<EventReview[]>(`/api/events/${id}/reviews`),
+  upsertReview: (id: number, body: { stars: number; comment?: string }) =>
+    api.post<EventReview>(`/api/events/${id}/reviews`, body),
 }
 
 export const commentsApi = {
