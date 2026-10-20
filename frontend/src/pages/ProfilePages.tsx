@@ -328,8 +328,11 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
 
   const row = ({ registration, event }: MyRegistration) => (
     <div key={registration.id} className="space-y-3">
-      <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-        <Link to={`/events/${event.id}`} className="flex min-w-0 flex-1 items-start gap-3 transition lift">
+      <div className="card card-plain flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <Link
+          to={`/events/${event.id}`}
+          className="flex min-w-0 flex-1 items-start gap-3 rounded-xl p-1 transition hover:bg-pop-yellow/25"
+        >
           <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold">{event.title}</p>

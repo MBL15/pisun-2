@@ -265,6 +265,12 @@
         4px 4px 0 0 var(--color-ink);
     }
 
+    /* Списки в кабинете: без жёлтого «ореола», только лёгкая подсветка строки. */
+    .card.card-plain:hover {
+      z-index: 0;
+      box-shadow: 4px 4px 0 0 var(--color-ink);
+    }
+
     .card.shadow-none:hover {
       box-shadow: 0 0 26px 7px color-mix(in srgb, var(--glow-halo) 55%, transparent);
     }
