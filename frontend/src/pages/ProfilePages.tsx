@@ -130,12 +130,12 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
         <Avatar name={user.displayName} color={user.avatarColor} size="lg" />
       </span>
       <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-center gap-3">
-          <span className="sm:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0 sm:hidden">
             <Avatar name={user.displayName} color={user.avatarColor} />
           </span>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl font-extrabold sm:text-3xl">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="min-w-0 max-w-full text-xl font-extrabold sm:text-3xl">
               <DisplayNameWithBadge name={user.displayName} verified={user.verified} />
             </h1>
             <Badge tone={user.role === 'CHILD' ? 'brand' : 'slate'}>{roleLabels[user.role]}</Badge>

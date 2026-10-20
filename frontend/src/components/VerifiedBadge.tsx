@@ -14,9 +14,9 @@ export function VerifiedBadge({ className = '' }: { className?: string }) {
 
 export function DisplayNameWithBadge({ name, verified }: { name: string; verified?: boolean }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5">
-      <span className="truncate">{name}</span>
-      {verified && <VerifiedBadge />}
+    <span className="flex min-w-0 max-w-full items-center gap-1.5">
+      <span className="min-w-0 truncate">{name}</span>
+      {verified && <VerifiedBadge className="shrink-0" />}
     </span>
   )
 }
