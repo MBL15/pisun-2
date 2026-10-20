@@ -1,6 +1,7 @@
 import { BadgeCheck, CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, Shield, UserPlus, Users } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ApiError } from '../api/client'
 import { eventsApi, familiesApi, friendsApi, usersApi } from '../api/endpoints'
 import type { Family, MyRegistration, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -197,9 +198,20 @@ export function CabinetPage() {
   const registrations = useAsync(() => eventsApi.myRegistrations(), [])
   const events = useAsync(() => (user?.role === 'USER' ? eventsApi.mine() : Promise.resolve([])), [user?.role])
   const family = useAsync(async () => {
-    if (user?.role !== 'USER' || !user.familyId) return null
-    return familiesApi.my()
-  }, [user?.id, user?.familyId, user?.role])
+    if (user?.role !== 'USER') return null
+    try {
+      return await familiesApi.my()
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    }
+  }, [user?.id, user?.role])
+
+  useEffect(() => {
+    if (family.data && user?.role === 'USER' && !user.familyId) {
+      void refreshUser()
+    }
+  }, [family.data, user?.familyId, user?.role, refreshUser])
 
   if (!user) return null
 
@@ -528,7 +540,11 @@ function FamilyPanel({
       await onChanged()
       notify('success', 'Семья создана', spouseId === '' ? 'Можно сразу добавить детей. Партнёра можно пригласить позже.' : 'Теперь оба родителя могут добавлять детей и записывать их на занятия.')
     } catch (err) {
-      notify('error', 'Не удалось создать семью', (err as Error).message)
+      const message = (err as Error).message
+      if (message.includes('уже состоите в семье') || message.includes('семье')) {
+        await onChanged()
+      }
+      notify('error', 'Не удалось создать семью', message)
     } finally {
       setCreating(false)
     }
@@ -549,6 +565,17 @@ function FamilyPanel({
     } finally {
       setAddingChild(false)
     }
+  }
+
+  if (!family && user.familyId) {
+    return (
+      <Section title="Семья" icon={<HeartHandshake className="size-6 text-brand-600" />}>
+        <p className="text-muted">Не удалось загрузить данные семьи.</p>
+        <Button type="button" onClick={() => familyState.reload()}>
+          Обновить
+        </Button>
+      </Section>
+    )
   }
 
   if (!family) {

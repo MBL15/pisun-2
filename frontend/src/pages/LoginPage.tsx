@@ -28,18 +28,17 @@ const roleSticker: Record<User['role'], string> = {
 }
 
 export function LoginPage() {
-  const { demoAccounts, login, loading } = useAuth()
+  const { demoAccounts, loginById, loading } = useAuth()
   const navigate = useNavigate()
   const { notify } = useToast()
 
-  const enter = (user: User) => {
-    const blocked = organizationLoginBlocked(user)
-    if (blocked) {
-      notify('error', blocked)
-      return
+  const enter = async (user: User) => {
+    try {
+      const fresh = await loginById(user.id)
+      navigate(homeFor(fresh))
+    } catch (e) {
+      notify('error', (e as Error).message)
     }
-    login(user)
-    navigate(homeFor(user))
   }
 
   return (
