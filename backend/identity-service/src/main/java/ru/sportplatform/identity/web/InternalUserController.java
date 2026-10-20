@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
+import ru.sportplatform.common.dto.ReputationDeltaRequest;
 import ru.sportplatform.common.dto.ReputationPenaltyRequest;
 import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.identity.service.ReputationService;
@@ -30,5 +31,10 @@ public class InternalUserController {
     @PostMapping("/{id}/reputation/moderation-penalty")
     public UserDto moderationPenalty(@PathVariable Long id, @RequestBody ReputationPenaltyRequest request) {
         return reputationService.penalizeForModeration(id, request.reason());
+    }
+
+    @PostMapping("/{id}/reputation/delta")
+    public UserDto reputationDelta(@PathVariable Long id, @RequestBody ReputationDeltaRequest request) {
+        return reputationService.applyDelta(id, request.delta(), request.reason());
     }
 }

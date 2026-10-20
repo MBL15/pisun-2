@@ -34,10 +34,12 @@ import ru.sportplatform.event.domain.SkillLevel;
 import ru.sportplatform.event.domain.SportEvent;
 import ru.sportplatform.event.domain.SportType;
 import ru.sportplatform.event.repository.EventCommentRepository;
+import ru.sportplatform.event.repository.EventReviewRepository;
 import ru.sportplatform.event.repository.RegistrationRepository;
 import ru.sportplatform.event.repository.SportEventRepository;
 import ru.sportplatform.event.web.dto.EventDto;
 import ru.sportplatform.event.web.dto.EventForm;
+import ru.sportplatform.event.web.dto.EventReviewSummaryDto;
 import ru.sportplatform.event.web.dto.RegistrationDto;
 
 @Service
@@ -47,6 +49,7 @@ public class EventService {
     private final SportEventRepository events;
     private final RegistrationRepository registrations;
     private final EventCommentRepository comments;
+    private final EventReviewRepository eventReviews;
     private final SportTypeService sportTypes;
     private final IdentityClient identity;
     private final AiClient ai;
@@ -70,8 +73,7 @@ public class EventService {
                 .filter(e -> filter.sportTypeId() == null || e.getSportType().getId().equals(filter.sportTypeId()))
                 .filter(e -> filter.mode() == null || e.getRegistrationMode() == filter.mode())
                 .filter(e -> filter.organizationId() == null || filter.organizationId().equals(e.getOrganizationId()))
-                .filter(e -> filter.organizerUserId() == null
-                        || (filter.organizerUserId().equals(e.getOrganizerUserId()) && e.getOrganizerType() == OrganizerType.USER))
+                .filter(e -> filter.organizerUserId() == null || filter.organizerUserId().equals(e.getOrganizerUserId()))
                 .filter(e -> filter.from() == null || !e.getStartAt().toLocalDate().isBefore(filter.from()))
                 .filter(e -> filter.to() == null || !e.getStartAt().toLocalDate().isAfter(filter.to()))
                 .filter(e -> TextUtils.containsIgnoreCase(searchText(e), filter.q()))
@@ -172,6 +174,13 @@ public class EventService {
                 if (!author.isApprovedOrganization()) {
                     throw ApiException.forbidden("Организация ещё не допущена администратором. "
                             + "Публикация событий откроется сразу после одобрения заявки");
+                }
+                if (!ReputationPolicy.canUserOrganize(author.reputation())) {
+                    throw ApiException.forbidden(
+                            "Создание мероприятий недоступно: репутация организации ниже "
+                                    + ReputationPolicy.MIN_TO_CREATE_EVENTS
+                                    + " баллов. Отзывы участников и решения модерации влияют на рейтинг — "
+                                    + "проверьте профиль в личном кабинете");
                 }
             }
             case USER -> {
@@ -322,6 +331,12 @@ public class EventService {
         boolean canSeeContacts = organizer || current.isAdmin()
                 || mine.stream().anyMatch(r -> r.status() == ApplicationStatus.APPROVED);
         String blocked = registrationBlockedReason(e, current, approved);
+        String reviewBlocked = reviewBlockedReason(e, current, regs);
+        Integer myReviewStars = !current.isAuthenticated() ? null
+                : eventReviews.findByEventIdAndAuthorId(e.getId(), current.id()).map(r -> r.getStars()).orElse(null);
+        EventReviewSummaryDto reviewSummary = eventReviews.countByEventId(e.getId()) == 0
+                ? new EventReviewSummaryDto(0, 0)
+                : new EventReviewSummaryDto(eventReviews.averageStars(e.getId()), eventReviews.countByEventId(e.getId()));
 
         return new EventDto(
                 e.getId(), e.getTitle(), e.getDescription(),
@@ -338,8 +353,33 @@ public class EventService {
                 e.getCapacity() == null ? null : (int) Math.max(0, e.getCapacity() - approved),
                 comments.countByEventIdAndHiddenFalse(e.getId()),
                 e.getEndAt().isBefore(LocalDateTime.now()),
-                new EventDto.ViewerState(organizer, blocked == null, blocked, canSeeContacts, mine)
+                reviewSummary,
+                new EventDto.ViewerState(organizer, blocked == null, blocked, canSeeContacts, mine,
+                        reviewBlocked == null, reviewBlocked, myReviewStars)
         );
+    }
+
+    /** null — отзыв можно оставить; иначе подсказка для UI. */
+    public String reviewBlockedReason(SportEvent event, CurrentUser current, List<Registration> regs) {
+        if (!current.isAuthenticated()) {
+            return "Войдите, чтобы оставить отзыв";
+        }
+        if (isOrganizer(event, current)) {
+            return "Организатор не оценивает своё мероприятие";
+        }
+        if (event.getStatus() == EventStatus.UNPUBLISHED || event.getStatus() == EventStatus.DELETED) {
+            return "Мероприятие снято с публикации";
+        }
+        if (event.getEndAt().isAfter(LocalDateTime.now())) {
+            return "Отзыв откроется после окончания мероприятия";
+        }
+        boolean participant = regs.stream()
+                .anyMatch(r -> r.getStatus() == ApplicationStatus.APPROVED
+                        && current.id().equals(r.getParticipantId()));
+        if (!participant) {
+            return "Только подтверждённые участники могут оставить отзыв";
+        }
+        return null;
     }
 
     public static RegistrationDto toDto(Registration r) {

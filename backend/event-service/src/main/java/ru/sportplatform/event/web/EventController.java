@@ -24,6 +24,7 @@ import ru.sportplatform.event.service.CommentService;
 import ru.sportplatform.event.service.EventFilter;
 import ru.sportplatform.event.service.EventService;
 import ru.sportplatform.event.service.RegistrationService;
+import ru.sportplatform.event.service.ReviewService;
 import ru.sportplatform.event.web.dto.CommentDto;
 import ru.sportplatform.event.web.dto.CommentForm;
 import ru.sportplatform.event.web.dto.DecisionRequest;
@@ -31,6 +32,8 @@ import ru.sportplatform.event.web.dto.EventDto;
 import ru.sportplatform.event.web.dto.EventForm;
 import ru.sportplatform.event.web.dto.MyRegistrationDto;
 import ru.sportplatform.event.web.dto.RegistrationDto;
+import ru.sportplatform.event.web.dto.EventReviewDto;
+import ru.sportplatform.event.web.dto.EventReviewForm;
 import ru.sportplatform.event.web.dto.RegistrationRequest;
 
 @RestController
@@ -41,6 +44,7 @@ public class EventController {
     private final EventService eventService;
     private final RegistrationService registrationService;
     private final CommentService commentService;
+    private final ReviewService reviewService;
 
     @GetMapping
     public List<EventDto> list(CurrentUser user,
@@ -121,5 +125,18 @@ public class EventController {
     @ResponseStatus(HttpStatus.CREATED)
     public CommentDto addComment(CurrentUser user, @PathVariable Long id, @Valid @RequestBody CommentForm form) {
         return commentService.add(user, id, form);
+    }
+
+    // ----- отзывы участников -----
+
+    @GetMapping("/{id}/reviews")
+    public List<EventReviewDto> reviews(CurrentUser user, @PathVariable Long id) {
+        return reviewService.list(user, id);
+    }
+
+    @PostMapping("/{id}/reviews")
+    @ResponseStatus(HttpStatus.CREATED)
+    public EventReviewDto upsertReview(CurrentUser user, @PathVariable Long id, @Valid @RequestBody EventReviewForm form) {
+        return reviewService.upsert(user, id, form);
     }
 }

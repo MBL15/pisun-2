@@ -23,7 +23,7 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 | `components/Toast.tsx` | Уведомления |
 | `lib/useAsync.ts` | Хук загрузки данных: `data`, `error`, `loading`, `reload()` без мигания, защита от гонок |
 | `lib/format.ts` | Форматирование дат, статусов и подписей на русском |
-| `lib/yandexMaps.ts` | Загрузчик Яндекс Карт JS API 2.1, центр по умолчанию — Красноярск |
+| `lib/osmGeocode.ts` | Nominatim/OSRM для поиска адреса и маршрута (OpenStreetMap) |
 | `pages/*` | Страницы: афиша, карта, событие, форма события, клубы, кабинет, профиль, админка, вход |
 
 ## Сессия и заголовки
@@ -59,12 +59,12 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 
 ## Карты
 
-- Скрипт `https://api-maps.yandex.ru/2.1/` загружается один раз (`loadYandexMaps`).
-- Без `VITE_YANDEX_MAPS_API_KEY` карта работает, а геокодер (поиск адреса) — нет. `hasGeocoderKey()` позволяет скрыть кнопку «Найти». Точку ставят кликом, сохраняются `latitude` и `longitude`.
-- Метки — собственные HTML-макеты (`templateLayoutFactory` в `maps.tsx`), стили `.map-pin*` и `.map-cluster` лежат в `index.css`. Клуб — оранжевый скруглённый квадрат, пользователь — голубой круг, выбранное событие — крупная жёлтая метка с подписью времени, прошедшее событие — серая метка с пунктирной обводкой. Условные обозначения выводит `MapLegend`.
-- Яндекс Карты ловят клики по `iconShape`, а не по DOM. Поэтому, если меняете размер метки, поправьте `pinShape`. Наведение делается через события `mouseenter` и `mouseleave` и свойство `pinClass`, CSS `:hover` здесь не работает. Контейнер `.ymaps-host` ограничен шириной родителя (`min-width: 0`, `max-width: 100%`): иначе внутренний холст карты раздувает страницу по горизонтали.
-- Камера двигается сама только в двух случаях: при первой загрузке и при смене набора событий карта показывает все метки, а выбранное событие `revealPoint` выводит в поле зрения, если оно в кластере или под карточкой события (справа на широком экране, снизу на мобильном). Масштаб пользователя при этом сохраняется. Закрытие карточки и повторные рендеры камеру не трогают.
-- Кнопка «Построить маршрут» открывает Яндекс Карты по координатам события.
+- Тайлы и интерактив — **Leaflet** + **react-leaflet** (`components/maps.tsx`), тайлы OpenStreetMap. API-ключ не нужен.
+- Поиск адреса и обратное геокодирование — публичный **Nominatim** (`lib/osmGeocode.ts`, переменная `VITE_NOMINATIM_URL` для своего инстанса).
+- Маршрут в личном кабинете — **OSRM** (`VITE_OSRM_URL`, по умолчанию `router.project-osrm.org`).
+- Метки — HTML через `L.divIcon`, стили `.map-pin*` в `index.css`. Кластеризация — `react-leaflet-markercluster`.
+- Контейнер `.map-host` ограничен шириной родителя (`min-width: 0`, `max-width: 100%`).
+- Кнопка «Построить маршрут» открывает openstreetmap.org.
 
 ## Переменные сборки
 
@@ -73,9 +73,8 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 | Переменная | По умолчанию |
 |---|---|
 | `VITE_API_URL` | `http://localhost:8080` |
-| `VITE_YANDEX_MAPS_API_KEY` | пусто |
-| `VITE_YANDEX_GEOCODER_API_KEY` | пусто — отдельный ключ геокодера (подсказки адресов) |
-| `VITE_YANDEX_ROUTER_API_KEY` | пусто — маршрутизация на карте «Как добраться» в личном кабинете |
+| `VITE_NOMINATIM_URL` | `https://nominatim.openstreetmap.org` |
+| `VITE_OSRM_URL` | `https://router.project-osrm.org` |
 
 ## Команды
 

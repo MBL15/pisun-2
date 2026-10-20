@@ -277,17 +277,21 @@
     }
   }
 
+  @import '../node_modules/react-leaflet-markercluster/dist/styles.min.css';
+
+  .map-host,
   .ymaps-host {
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
 
-  .ymaps-host [class*="copyrights-pane"] {
+  .map-host .leaflet-control-attribution {
     z-index: 1 !important;
+    font-size: 10px;
   }
 
-  /* Метки карты: HTML-макеты Яндекс Карт. Острие «хвостика» стоит ровно в точке координат. */
+  /* Метки карты: HTML поверх Leaflet. Острие «хвостика» в точке координат. */
   .map-pin {
     --pin-size: 2.5rem;
     --pin-bg: var(--color-pop-blue);

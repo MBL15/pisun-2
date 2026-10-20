@@ -4,6 +4,7 @@ import type {
   AiVerdict,
   ApplicationStatus,
   Comment,
+  EventReview,
   DocumentTemplate,
   EventFilters,
   EventForm,
@@ -75,6 +76,9 @@ export const eventsApi = {
   comments: (id: number) => api.get<Comment[]>(`/api/events/${id}/comments`),
   addComment: (id: number, text: string, parentId?: number) =>
     api.post<Comment>(`/api/events/${id}/comments`, { text, parentId }),
+  reviews: (id: number) => api.get<EventReview[]>(`/api/events/${id}/reviews`),
+  upsertReview: (id: number, body: { stars: number; comment?: string }) =>
+    api.post<EventReview>(`/api/events/${id}/reviews`, body),
 }
 
 export const commentsApi = {

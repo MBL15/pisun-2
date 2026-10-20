@@ -136,12 +136,33 @@ export interface Registration {
   decidedAt: string | null
 }
 
+export interface EventReviewSummary {
+  averageStars: number
+  count: number
+}
+
+export interface EventReview {
+  id: number
+  eventId: number
+  authorId: number
+  authorName: string
+  authorAvatarColor: string | null
+  stars: number
+  comment: string | null
+  createdAt: string
+  updatedAt: string
+  mine: boolean
+}
+
 export interface ViewerState {
   organizer: boolean
   registrationOpen: boolean
   registrationBlockedReason: string | null
   canSeeContacts: boolean
   myRegistrations: Registration[]
+  canLeaveReview: boolean
+  reviewBlockedReason: string | null
+  myReviewStars: number | null
 }
 
 export interface SportEvent {
@@ -183,6 +204,7 @@ export interface SportEvent {
   spotsLeft: number | null
   commentsCount: number
   past: boolean
+  reviews: EventReviewSummary
   viewer: ViewerState
 }
 

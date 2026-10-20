@@ -37,7 +37,7 @@ bash docker-up.sh
 
 | Переменная | Где | Назначение |
 |---|---|---|
-| `VITE_YANDEX_MAPS_API_KEY` | frontend | Ключ JS API Яндекс Карт; без него карта работает, геокодер «Найти адрес» — нет |
+| `VITE_NOMINATIM_URL`, `VITE_OSRM_URL` | frontend | Необязательно: свой Nominatim/OSRM; по умолчанию публичные сервисы OpenStreetMap (ключ не нужен) |
 | `VITE_API_URL` | frontend | Шлюз, по умолчанию `http://localhost:8080` |
 | `AI_LLM_API_KEY` | ai-moderation-service | OpenAI-совместимый API; без ключа — только Java-эвристика |
 | `AI_LLM_BASE_URL`, `AI_LLM_MODEL` | ai-moderation-service | По умолчанию OpenAI / `gpt-4o-mini`; подойдут YandexGPT или Ollama |

@@ -42,11 +42,17 @@ export function ProfilePage() {
           </Link>
         </Section>
       )}
-      {person.role === 'USER' && (
+      {(person.role === 'USER' || person.role === 'ORGANIZATION') && (
         <Section title="Организует" icon={<CalendarDays className="size-6 text-brand-600" />}>
           {events.data?.length === 0 && <p className="text-muted">Сейчас нет запланированных мероприятий.</p>}
           <div className="grid gap-5 sm:grid-cols-2">
-            {events.data?.filter((e) => e.organizerType === 'USER').map((event) => <EventCard key={event.id} event={event} />)}
+            {events.data
+              ?.filter((e) =>
+                person.role === 'ORGANIZATION' ? e.organizerType === 'ORGANIZATION' : e.organizerType === 'USER',
+              )
+              .map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
           </div>
         </Section>
       )}
@@ -68,7 +74,7 @@ function reputationBarClass(tone: ReturnType<typeof reputationTone>): string {
 }
 
 function ReputationPanel({ user }: { user: User }) {
-  if (user.role !== 'USER') return null
+  if (user.role !== 'USER' && user.role !== 'ORGANIZATION') return null
   const score = normalizeReputation(user.reputation)
   const blocked = user.canCreateEvents === false
   const tone = reputationTone(score, blocked)

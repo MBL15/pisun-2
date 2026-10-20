@@ -7,6 +7,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import ru.sportplatform.common.dto.ReputationDeltaRequest;
 import ru.sportplatform.common.dto.UserDto;
 
 @Component
@@ -26,5 +27,13 @@ public class IdentityClient {
         return client.get().uri("/api/users/{id}/children", parentId).retrieve()
                 .body(new ParameterizedTypeReference<>() {
                 });
+    }
+
+    public void applyReputationDelta(Long userId, int delta, String reason) {
+        client.post()
+                .uri("/internal/users/{id}/reputation/delta", userId)
+                .body(new ReputationDeltaRequest(delta, reason))
+                .retrieve()
+                .toBodilessEntity();
     }
 }

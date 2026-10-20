@@ -87,7 +87,6 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ""
-        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
     environment:
       API_UPSTREAM: http://api-gateway:8080
     extra_hosts:

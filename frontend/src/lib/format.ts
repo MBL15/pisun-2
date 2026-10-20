@@ -121,16 +121,16 @@ export const organizationStatusLabels: Record<ApplicationStatus, string> = {
   CANCELLED: 'Отозвана',
 }
 
-export function yandexRouteUrl(lat: number, lon: number, from?: string): string {
-  const dest = `${lat},${lon}`
-  if (from?.trim()) {
-    return `https://yandex.ru/maps/?rtext=${encodeURIComponent(from.trim())}~${dest}&rtt=auto`
-  }
-  return `https://yandex.ru/maps/?rtext=~${dest}&rtt=auto`
+export function osmPointUrl(lat: number, lon: number): string {
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`
 }
 
-export function yandexPointUrl(lat: number, lon: number): string {
-  return `https://yandex.ru/maps/?pt=${lon},${lat}&z=16&l=map`
+export function osmRouteUrl(lat: number, lon: number, from?: string): string {
+  const to = `${lat},${lon}`
+  if (from?.trim()) {
+    return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(from.trim())}%3B${encodeURIComponent(to)}`
+  }
+  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(to)}`
 }
 
 const sportTones = ['bg-pop-yellow', 'bg-pop-blue', 'bg-pop-green', 'bg-pop-pink', 'bg-pop-lilac', 'bg-pop-orange', 'bg-pop-cyan']
@@ -147,12 +147,12 @@ export function normalizeReputation(score: number | undefined | null): number {
 
 export function reputationHint(score: number, blocked: boolean): string {
   if (blocked) {
-    return `Создание мероприятий недоступно: репутация ${score} баллов (нужно не меньше ${REPUTATION_MIN_TO_CREATE}). Снижение происходит, когда администратор снимает или удаляет ваше мероприятие после проверки.`
+    return `Создание мероприятий недоступно: репутация ${score} баллов (нужно не меньше ${REPUTATION_MIN_TO_CREATE}). Баллы снижают отзывы участников и решения модерации (снятие или удаление мероприятия).`
   }
   if (score < 60) {
-    return `Репутация ${score} баллов — будьте внимательны к правилам: при ${REPUTATION_MIN_TO_CREATE} и ниже публикация событий закроется.`
+    return `Репутация ${score} баллов — будьте внимательны к правилам: при ${REPUTATION_MIN_TO_CREATE} и ниже публикация событий закроется. Хорошие отзывы после мероприятий помогают восстановить рейтинг.`
   }
-  return `Репутация ${score} баллов — чем выше, тем больше доверия у участников.`
+  return `Репутация ${score} баллов — на неё влияют отзывы участников и модерация платформы.`
 }
 
 export function reputationTone(score: number, blocked: boolean): 'red' | 'amber' | 'green' | 'slate' {

@@ -21,8 +21,6 @@ import ru.sportplatform.moderation.domain.ModerationAction.Type;
 import ru.sportplatform.moderation.repository.ModerationActionRepository;
 import ru.sportplatform.moderation.web.dto.SettingsDto;
 import ru.sportplatform.moderation.web.dto.SettingsForm;
-import ru.sportplatform.common.enums.OrganizerType;
-
 /** Ручной контур администратора: каждое решение меняет данные в профильном сервисе и попадает в журнал. */
 @Slf4j
 @Service
@@ -73,8 +71,7 @@ public class ModerationService {
         String admin = adminName(current);
         EventSnapshotDto event = platform.changeEventStatus(id, new EventStatusChangeRequest(status, reason, admin));
         log(current, admin, type, "EVENT", id, event.title(), reason);
-        if (event.organizerType() == OrganizerType.USER
-                && (type == Type.EVENT_UNPUBLISHED || type == Type.EVENT_DELETED)) {
+        if (type == Type.EVENT_UNPUBLISHED || type == Type.EVENT_DELETED) {
             try {
                 platform.penalizeOrganizerReputation(event, reason);
             } catch (Exception e) {

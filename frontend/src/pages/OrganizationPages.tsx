@@ -8,7 +8,7 @@ import { useAuth } from '../auth/AuthContext'
 import { EventCard } from '../components/EventCard'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, PageHeader, Section, Spinner } from '../components/ui'
-import { formatDateTime, organizationStatusLabels } from '../lib/format'
+import { formatDateTime, organizationStatusLabels, reputationHint } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 export function OrganizationsPage() {
@@ -135,7 +135,7 @@ const toForm = (org: Organization | null): OrganizationForm => ({
 })
 
 export function MyOrganizationPage() {
-  const { refreshUser } = useAuth()
+  const { user, refreshUser } = useAuth()
   const org = useAsync(
     () => organizationsApi.my().catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
     [],
@@ -178,11 +178,22 @@ export function MyOrganizationPage() {
           title="Наши мероприятия"
           icon={<CalendarDays className="size-6 text-brand-600" />}
           action={
-            <LinkButton to="/events/new" icon={<PlusCircle className="size-5" />}>
-              Создать
-            </LinkButton>
+            user?.canCreateEvents ? (
+              <LinkButton to="/events/new" icon={<PlusCircle className="size-5" />}>
+                Создать
+              </LinkButton>
+            ) : (
+              <Button variant="secondary" disabled icon={<PlusCircle className="size-5" />}>
+                Создать
+              </Button>
+            )
           }
         >
+          {!user?.canCreateEvents && user?.role === 'ORGANIZATION' && (
+            <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+              {reputationHint(user.reputation, true)}
+            </p>
+          )}
           {events.loading && !events.data && <Spinner />}
           {events.data?.length === 0 && <p className="text-muted">Вы ещё не создали ни одного мероприятия.</p>}
           <div className="grid gap-5 sm:grid-cols-2">

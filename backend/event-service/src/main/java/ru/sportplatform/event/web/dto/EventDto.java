@@ -52,6 +52,7 @@ public record EventDto(
         Integer spotsLeft,
         long commentsCount,
         boolean past,
+        EventReviewSummaryDto reviews,
         ViewerState viewer
 ) {
 
@@ -61,7 +62,10 @@ public record EventDto(
             boolean registrationOpen,
             String registrationBlockedReason,
             boolean canSeeContacts,
-            List<RegistrationDto> myRegistrations
+            List<RegistrationDto> myRegistrations,
+            boolean canLeaveReview,
+            String reviewBlockedReason,
+            Integer myReviewStars
     ) {
     }
 }
