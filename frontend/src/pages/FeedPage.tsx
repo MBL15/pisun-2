@@ -1,6 +1,5 @@
 import {
   Baby,
-  CalendarDays,
   LayoutGrid,
   Map as MapIcon,
   MapPin,
@@ -15,13 +14,12 @@ import {
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eventsApi, sportsApi } from '../api/endpoints'
-import type { EventFilters, RegistrationMode, SportEvent } from '../api/types'
+import type { EventFilters, RegistrationMode } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { EventCard } from '../components/EventCard'
-import { AgeBadge, ModeBadge } from '../components/EventBadges'
 import { EventsMap, MapLegend } from '../components/maps'
 import { Button, EmptyState, ErrorBox, LinkButton, Spinner } from '../components/ui'
-import { formatRelativeDay, formatTime, sportTone, toIsoDate } from '../lib/format'
+import { toIsoDate } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 type DateRange = 'any' | 'today' | 'weekend' | 'week'
@@ -29,43 +27,6 @@ type DateRange = 'any' | 'today' | 'weekend' | 'week'
 const chip = 'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-[3px] border-ink px-4 py-1.5 font-bold transition'
 const chipOn = 'translate-x-0.5 translate-y-0.5 bg-ink text-white dark:text-[#111111]'
 const chipOff = 'bg-white text-ink shadow-sm hover:bg-pop-yellow/50'
-
-function FeedSelectedEventPanel({
-  event,
-  onClose,
-  onOpen,
-  className,
-}: {
-  event: SportEvent
-  onClose: () => void
-  onOpen: () => void
-  className: string
-}) {
-  return (
-    <div className={className} role="dialog" aria-label="Выбранное мероприятие">
-      <div className="flex items-start justify-between gap-2">
-        <span className={`rounded-md border-2 border-ink px-2 py-0.5 font-bold ${sportTone(event.sportTypeId)}`}>
-          {event.sportEmoji} {event.sportName}
-        </span>
-        <button onClick={onClose} aria-label="Закрыть" className="rounded-md border-2 border-ink bg-white p-1 hover:bg-pop-yellow">
-          <X className="size-5" />
-        </button>
-      </div>
-      <h3 className="text-lg font-bold leading-snug">{event.title}</h3>
-      <p className="flex items-start gap-2 text-sm font-medium text-ink sm:text-base">
-        <CalendarDays className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <ModeBadge event={event} />
-        <AgeBadge event={event} />
-      </div>
-      <Button className="w-full sm:w-auto" onClick={onOpen}>
-        Подробнее и запись
-      </Button>
-    </div>
-  )
-}
 
 function rangeToDates(range: DateRange): Pick<EventFilters, 'from' | 'to'> {
   const now = new Date()
@@ -95,7 +56,6 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
   const [mode, setMode] = useState<RegistrationMode | undefined>()
   const [range, setRange] = useState<DateRange>('any')
   const [kidsOnly, setKidsOnly] = useState(false)
-  const [selected, setSelected] = useState<SportEvent | null>(null)
 
   const filters = useMemo<EventFilters>(
     () => ({ q: appliedQuery || undefined, sportTypeId, mode, childSafe: kidsOnly || undefined, ...rangeToDates(range) }),
@@ -271,15 +231,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
 
       {events.data && view === 'map' && (
         <div className="relative">
-          <EventsMap events={events.data} selectedId={selected?.id} onSelect={setSelected} />
-          {selected && (
-            <FeedSelectedEventPanel
-              event={selected}
-              onClose={() => setSelected(null)}
-              onOpen={() => navigate(`/events/${selected.id}`)}
-              className="card pointer-events-auto absolute inset-x-3 bottom-3 z-[1000] flex flex-col gap-3 p-4 shadow-xl sm:left-auto sm:right-3 sm:w-96"
-            />
-          )}
+          <EventsMap events={events.data} onSelect={(event) => navigate(`/events/${event.id}`)} />
           <MapLegend className="mt-4" />
         </div>
       )}
@@ -313,34 +265,11 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
                 </Link>
               )}
             </div>
-            <div
-              className={`grid gap-5 sm:grid-cols-2 xl:grid-cols-3 ${selected ? 'pb-[calc(var(--mobile-nav-h)+11rem)] lg:pb-0' : ''}`}
-            >
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {events.data.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  selected={selected?.id === event.id}
-                  onSelect={() => setSelected((prev) => (prev?.id === event.id ? null : event))}
-                />
+                <EventCard key={event.id} event={event} />
               ))}
             </div>
-            {selected && (
-              <>
-                <FeedSelectedEventPanel
-                  event={selected}
-                  onClose={() => setSelected(null)}
-                  onOpen={() => navigate(`/events/${selected.id}`)}
-                  className="card hidden flex-col gap-3 p-4 sm:p-5 lg:flex"
-                />
-                <FeedSelectedEventPanel
-                  event={selected}
-                  onClose={() => setSelected(null)}
-                  onOpen={() => navigate(`/events/${selected.id}`)}
-                  className="fixed inset-x-0 bottom-[var(--mobile-nav-h)] z-30 flex flex-col gap-3 border-t-[3px] border-ink bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_0_0_rgba(26,26,26,0.08)] backdrop-blur-sm lg:hidden"
-                />
-              </>
-            )}
           </>
         )
       )}

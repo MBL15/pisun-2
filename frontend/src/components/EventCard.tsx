@@ -9,7 +9,7 @@ import { Badge } from './ui'
 type EventCardProps = {
   event: SportEvent
   showStatus?: boolean
-  /** Афиша: выбор карточки без мгновенного перехода на страницу события */
+  /** Выбор без перехода (например, список рядом с картой на отдельной странице) */
   onSelect?: () => void
   selected?: boolean
 }
