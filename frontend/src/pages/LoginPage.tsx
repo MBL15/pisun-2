@@ -5,7 +5,6 @@ import { ApiError } from '../api/client'
 import { usersApi } from '../api/endpoints'
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
-import { organizationLoginBlocked } from '../lib/auth'
 import { useToast } from '../components/Toast'
 import { Avatar, Button, ErrorBox, Field, Spinner, Tabs } from '../components/ui'
 
