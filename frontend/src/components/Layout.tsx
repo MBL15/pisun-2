@@ -200,7 +200,7 @@ export function Layout() {
   }, [location.pathname])
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `inline-flex items-center gap-2 rounded-lg border-[3px] px-3 py-1.5 font-bold transition ${
+    `inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border-[3px] px-2.5 py-1.5 text-sm font-bold transition xl:gap-2 xl:px-3 xl:text-base ${
       isActive ? 'border-ink bg-pop-yellow text-ink shadow-sm' : 'border-transparent text-ink hover:border-ink hover:bg-surface'
     }`
 
@@ -221,11 +221,18 @@ export function Layout() {
             </span>
           </Link>
 
-          <nav className="ml-4 hidden items-center gap-1 lg:flex">
+          <nav className="ml-2 hidden min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 overflow-x-auto no-scrollbar lg:flex xl:gap-1">
             {items.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === '/feed'} className={linkClass}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/feed'}
+                className={linkClass}
+                title={item.short && item.short !== item.label ? item.label : undefined}
+              >
                 {item.icon}
-                {item.label}
+                <span className="hidden 2xl:inline">{item.label}</span>
+                <span className="2xl:hidden">{item.short ?? item.label}</span>
               </NavLink>
             ))}
           </nav>
