@@ -153,7 +153,7 @@ function RoleSwitcher() {
             <Link
               to="/login"
               onClick={() => setOpen(false)}
-              className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold leading-tight text-white hover:bg-pop-yellow/40 hover:text-[#111111]"
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold leading-tight text-ink hover:bg-pop-yellow/40"
             >
               <LogIn className="size-4 shrink-0" aria-hidden />
               <span className="text-center whitespace-nowrap">Вход</span>
@@ -165,7 +165,7 @@ function RoleSwitcher() {
                   logout()
                   navigate('/login')
                 }}
-                className="flex flex-1 items-center justify-center gap-2 border-l-[3px] border-ink px-3 py-3.5 text-sm font-bold text-white hover:bg-pop-red/40"
+                className="flex flex-1 items-center justify-center gap-2 border-l-[3px] border-ink px-3 py-3.5 text-sm font-bold text-ink hover:bg-pop-red/40"
               >
                 <LogOut className="size-4" />
                 Выйти
