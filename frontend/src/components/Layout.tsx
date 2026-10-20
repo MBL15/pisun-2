@@ -210,19 +210,19 @@ export function Layout() {
         К содержимому
       </a>
       <header className="sticky top-0 z-40 isolate border-b-[3px] border-ink bg-surface">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+        <div className="flex w-full items-center gap-3 px-4 py-2.5 sm:px-6 sm:py-3 lg:gap-4 lg:px-8">
           <Link to={user ? homeFor(user) : '/'} className="group flex shrink-0 items-center gap-3" aria-label="СпортВместе — на главную">
             <span className="flex size-11 rotate-[-6deg] items-center justify-center rounded-xl border-[3px] border-ink bg-pop-yellow text-ink shadow-sm transition group-hover:rotate-0">
               <Zap className="size-6 fill-ink" aria-hidden />
             </span>
-            <span className="hidden leading-tight lg:block">
+            <span className="hidden leading-tight sm:block">
               <span className="block font-display text-lg font-black uppercase">СпортВместе</span>
               <span className="block text-xs font-semibold text-muted">находите компанию для спорта</span>
             </span>
           </Link>
 
           <nav
-            className="hidden min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pe-1 no-scrollbar lg:flex"
+            className="hidden min-w-0 flex-1 flex-nowrap items-center justify-evenly gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 no-scrollbar lg:flex xl:gap-2"
             aria-label="Разделы"
           >
             {items.map((item) => (
