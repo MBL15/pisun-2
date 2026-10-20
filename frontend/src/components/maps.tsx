@@ -292,7 +292,7 @@ export function PickPointMap({
     map.geoObjects.add(placemarkRef.current)
   }
 
-  const { containerRef, mapRef, ymapsRef, error } = useYandexMap(
+  const { containerRef, mapRef, ymapsRef, error, ready } = useYandexMap(
     { center: initial, zoom: latitude != null ? 15 : 12, controls: ['zoomControl', 'geolocationControl', 'searchControl'] },
     (map, ymaps) => {
       if (latitude != null && longitude != null) place(map, ymaps, [latitude, longitude])
@@ -303,6 +303,22 @@ export function PickPointMap({
       })
     },
   )
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    if (latitude == null || longitude == null) {
+      if (placemarkRef.current) {
+        map.geoObjects.remove(placemarkRef.current)
+        placemarkRef.current = null
+      }
+      return
+    }
+    const ymaps = ymapsRef.current
+    if (ymaps) place(map, ymaps, [latitude, longitude])
+    // place читает placemarkRef; координаты приходят из формы («убрать» или повторный выбор)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude, ready])
 
   const findAddress = async () => {
     const ymaps = ymapsRef.current
