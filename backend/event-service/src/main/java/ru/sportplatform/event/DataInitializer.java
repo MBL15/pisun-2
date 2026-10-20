@@ -18,6 +18,7 @@ import ru.sportplatform.common.enums.AiStatus;
 import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.Audience;
 import ru.sportplatform.common.enums.EventStatus;
+import ru.sportplatform.common.enums.EventVisibility;
 import ru.sportplatform.common.enums.OrganizerType;
 import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.common.enums.RoleType;
@@ -223,6 +224,28 @@ public class DataInitializer implements CommandLineRunner {
                 .ageRestriction(AgeRestriction.CHILD_SAFE)
                 .aiSummary("ИИ отметил возможное несоответствие вида спорта и описания (SPORT_MISMATCH).")
                 .aiReasons("SPORT_MISMATCH: выбран бег, в тексте — шахматы")
+                .build());
+
+        events.save(SportEvent.builder()
+                .title("Закрытая тренировка — только для друзей (демо)")
+                .description("Приватная встреча: видят только друзья организатора. В демо Дмитрий и Ирина — друзья.")
+                .sportType(runSport)
+                .startAt(today.plusDays(2).atTime(18, 0))
+                .durationMinutes(60)
+                .address("Сквер у Коммунального моста")
+                .latitude(56.0095).longitude(92.8712)
+                .conditions("Для своих — без посторонних.")
+                .level(SkillLevel.AMATEUR)
+                .audience(Audience.ADULTS)
+                .registrationMode(RegistrationMode.FREE)
+                .status(EventStatus.PUBLISHED)
+                .visibility(EventVisibility.FRIENDS_ONLY)
+                .organizerType(OrganizerType.USER)
+                .organizerUserId(DemoIds.ADULT_DMITRY)
+                .organizerName(DemoIds.DMITRY_NAME)
+                .aiStatus(AiStatus.AI_APPROVED)
+                .ageRestriction(AgeRestriction.ADULT_ONLY)
+                .aiSummary("Закрытое мероприятие для друзей.")
                 .build());
 
         events.save(SportEvent.builder()

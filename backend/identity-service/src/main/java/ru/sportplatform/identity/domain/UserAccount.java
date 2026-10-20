@@ -79,6 +79,9 @@ public class UserAccount {
     /** Репутация организатора-пользователя; для клубов не используется. */
     private Integer reputation;
 
+    /** Галочка доверия (для USER — после заявки и одобрения админом). */
+    private boolean verified;
+
     private Instant createdAt;
 
     @PrePersist

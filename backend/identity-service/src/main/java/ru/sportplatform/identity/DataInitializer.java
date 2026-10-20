@@ -14,9 +14,11 @@ import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.Gender;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.identity.domain.Family;
+import ru.sportplatform.identity.domain.FriendRequest;
 import ru.sportplatform.identity.domain.Organization;
 import ru.sportplatform.identity.domain.UserAccount;
 import ru.sportplatform.identity.repository.FamilyRepository;
+import ru.sportplatform.identity.repository.FriendRequestRepository;
 import ru.sportplatform.identity.repository.OrganizationRepository;
 import ru.sportplatform.identity.repository.UserAccountRepository;
 
@@ -32,6 +34,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserAccountRepository users;
     private final OrganizationRepository organizations;
     private final FamilyRepository families;
+    private final FriendRequestRepository friendRequests;
 
     @Override
     @Transactional
@@ -56,10 +59,18 @@ public class DataInitializer implements CommandLineRunner {
         UserAccount pendingOwner = users.save(user(DemoIds.ORG_PENDING_OWNER_NAME, "ladya@demo.sport",
                 RoleType.ORGANIZATION, 51, "Шахматы", "Руководитель шахматного клуба.",
                 "#9333ea", "Организация (на рассмотрении)", 5, null));
-        users.save(user(DemoIds.IRINA_NAME, "irina@demo.sport", RoleType.USER, 29,
+        UserAccount irina = users.save(user(DemoIds.IRINA_NAME, "irina@demo.sport", RoleType.USER, 29,
                 "Бег, йога", "Бегаю по утрам на Татышеве, ищу компанию.", "#0891b2", "Пользователь Ирина", 6, Gender.FEMALE));
-        users.save(user(DemoIds.DMITRY_NAME, "dmitry@demo.sport", RoleType.USER, 24,
+        UserAccount dmitry = users.save(user(DemoIds.DMITRY_NAME, "dmitry@demo.sport", RoleType.USER, 24,
                 "Футбол, единоборства", "Играю в футбол с универа.", "#ca8a04", "Пользователь Дмитрий", 7, Gender.MALE));
+        adult.setVerified(true);
+        users.save(adult);
+        friendRequests.save(FriendRequest.builder()
+                .fromUserId(dmitry.getId())
+                .toUserId(irina.getId())
+                .status(ApplicationStatus.APPROVED)
+                .decidedAt(Instant.now())
+                .build());
         UserAccount spouse = users.save(user(DemoIds.ADULT_SPOUSE_NAME, "maria@demo.sport", RoleType.USER, 36,
                 "Бег, семейный спорт", "Мама Миши. Помогаю мужу собирать ребят на дворовый футбол.",
                 "#db2777", "Супруга (демо)", 8, Gender.FEMALE));

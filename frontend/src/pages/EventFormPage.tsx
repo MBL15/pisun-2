@@ -2,7 +2,8 @@ import { Bot, Check, Hourglass, MapPin, Plus, Save, Users } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { aiApi, eventsApi, sportsApi } from '../api/endpoints'
-import type { Audience, EventForm, EventVerificationPreview, RegistrationMode, SkillLevel, SportEvent, SportNormalizeResult, SportSuggestItem } from '../api/types'
+import type { Audience, EventForm, EventVerificationPreview, EventVisibility, RegistrationMode, SkillLevel, SportEvent, SportNormalizeResult, SportSuggestItem } from '../api/types'
+import { InviteFriendsModal } from '../components/InviteFriendsModal'
 import { useAuth } from '../auth/AuthContext'
 import { AgentHintsPanel } from '../components/AgentHintsPanel'
 import { PickPointMap } from '../components/maps'
@@ -35,6 +36,7 @@ const emptyForm = (contact: string | null): EventForm => ({
   capacity: null,
   registrationMode: 'FREE',
   organizerContact: contact,
+  visibility: 'PUBLIC',
 })
 
 const fromEvent = (event: SportEvent): EventForm => ({
@@ -54,6 +56,7 @@ const fromEvent = (event: SportEvent): EventForm => ({
   capacity: event.capacity,
   registrationMode: event.registrationMode,
   organizerContact: event.organizerContact,
+  visibility: event.visibility,
 })
 
 const blankToNull = (value: string | null) => (value && value.trim() ? value.trim() : null)
@@ -113,6 +116,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [missingSportQuery, setMissingSportQuery] = useState('')
   const [missingSportResult, setMissingSportResult] = useState<SportNormalizeResult | null>(null)
   const [missingBusy, setMissingBusy] = useState(false)
+  const [inviteEventId, setInviteEventId] = useState<number | null>(null)
   const selectedSportName =
     sports.data?.find((s) => s.id === form.sportTypeId)?.name ?? (form.sportTypeId ? event?.sportName : sportSearch) ?? ''
 
@@ -204,6 +208,10 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
         notify('error', 'Отправлено на проверку', saved.aiSummary ?? 'ИИ-модератор нашёл возможные нарушения — администратор проверит мероприятие.')
       } else {
         notify('success', event ? 'Изменения сохранены' : 'Мероприятие опубликовано', saved.aiSummary ?? undefined)
+      }
+      if (!event && saved.visibility === 'FRIENDS_ONLY') {
+        setInviteEventId(saved.id)
+        return
       }
       navigate(`/events/${saved.id}`, { replace: true })
     } catch (err) {
@@ -346,6 +354,25 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
               </ChoiceCard>
             ))}
           </div>
+          <Field label="Кто видит мероприятие" hint="Закрытое видят только ваши друзья — посторонние не найдут его в афише.">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ['PUBLIC', 'Для всех', 'Показываем в афише и на карте'],
+                  ['FRIENDS_ONLY', 'Только друзья', 'Закрытая встреча для своих'],
+                ] as const
+              ).map(([value, title, hint]) => (
+                <ChoiceCard
+                  key={value}
+                  active={(form.visibility ?? 'PUBLIC') === value}
+                  onClick={() => set('visibility', value as EventVisibility)}
+                  title={title}
+                >
+                  {hint}
+                </ChoiceCard>
+              ))}
+            </div>
+          </Field>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Field label="Уровень">
               <select className="input" value={form.level} onChange={(e) => set('level', e.target.value as SkillLevel)}>
@@ -463,6 +490,15 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             </div>
           )}
       </Modal>
+      <InviteFriendsModal
+        open={inviteEventId != null}
+        eventId={inviteEventId ?? 0}
+        onClose={() => setInviteEventId(null)}
+        onDone={() => {
+          if (inviteEventId) navigate(`/events/${inviteEventId}`, { replace: true })
+          setInviteEventId(null)
+        }}
+      />
     </form>
   )
 }

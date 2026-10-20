@@ -31,6 +31,7 @@ import { AgeBadge, AiBadge, EventStatusBadge, ModeBadge, RegistrationBadge } fro
 import { MiniMap } from '../components/maps'
 import { ReasonDialog } from '../components/ReasonDialog'
 import { useToast } from '../components/Toast'
+import { DisplayNameWithBadge } from '../components/VerifiedBadge'
 import { Avatar, Badge, Button, ErrorBox, LinkButton, Section, Spinner } from '../components/ui'
 import {
   audienceLabels,
@@ -236,7 +237,9 @@ function OrganizerLink({ event }: { event: SportEvent }) {
       </span>
       <span className="min-w-0 leading-tight">
         <span className="block text-xs font-bold uppercase tracking-wide text-muted">{event.organizerType === 'ORGANIZATION' ? 'Организация' : 'Организатор'}</span>
-        <span className="block font-bold">{event.organizerName}</span>
+        <span className="block font-bold">
+          <DisplayNameWithBadge name={event.organizerName} verified={event.organizerVerified} />
+        </span>
       </span>
     </Link>
   )

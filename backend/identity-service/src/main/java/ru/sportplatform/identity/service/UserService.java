@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.enums.ApplicationStatus;
+import ru.sportplatform.common.enums.FriendshipRelation;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
 import ru.sportplatform.common.policy.ReputationPolicy;
@@ -33,6 +34,7 @@ public class UserService {
     private final UserAccountRepository users;
     private final OrganizationRepository organizations;
     private final IdentityMapper mapper;
+    private final FriendshipService friendship;
 
     @Transactional(readOnly = true)
     public List<UserDto> list(boolean demoOnly) {
@@ -43,7 +45,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto get(CurrentUser viewer, Long id) {
         UserAccount user = find(id);
-        UserDto dto = mapper.toDto(user);
+        FriendshipRelation rel = viewer.isAuthenticated() ? friendship.relation(viewer.id(), id) : FriendshipRelation.NONE;
+        UserDto dto = mapper.toDto(user, rel);
         if (!canSeePrivateProfile(viewer, user)) {
             return dto.asPublicView();
         }

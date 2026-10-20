@@ -13,6 +13,7 @@ import {
   Shield,
   Type,
   UserRound,
+  Users,
   Zap,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -47,10 +48,11 @@ function navFor(user: User | null): NavItem[] {
         { to: '/my-organization', label: 'Моя организация', short: 'Мой клуб', icon: <LayoutDashboard className="size-5" /> },
         feed,
         map,
+        { to: '/people', label: 'Люди', icon: <Users className="size-5" /> },
         create,
       ]
     case 'USER':
-      return [feed, map, orgs, create, cabinet]
+      return [feed, map, { to: '/people', label: 'Люди', icon: <Users className="size-5" /> }, orgs, create, cabinet]
     default:
       return [feed, map, orgs]
   }

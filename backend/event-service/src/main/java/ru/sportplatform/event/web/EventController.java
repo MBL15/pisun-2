@@ -85,6 +85,15 @@ public class EventController {
         return eventService.update(user, id, form);
     }
 
+    @PostMapping("/{id}/invitations")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void inviteFriends(CurrentUser user, @PathVariable Long id, @RequestBody FriendInviteForm form) {
+        eventService.addFriendInvites(user, id, form.friendIds());
+    }
+
+    public record FriendInviteForm(java.util.List<Long> friendIds) {
+    }
+
     // ----- записи и заявки -----
 
     @GetMapping("/{id}/registrations")

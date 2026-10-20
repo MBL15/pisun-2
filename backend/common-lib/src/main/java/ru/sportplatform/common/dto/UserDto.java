@@ -1,6 +1,7 @@
 package ru.sportplatform.common.dto;
 
 import ru.sportplatform.common.enums.ApplicationStatus;
+import ru.sportplatform.common.enums.FriendshipRelation;
 import ru.sportplatform.common.enums.Gender;
 import ru.sportplatform.common.enums.RoleType;
 /** Публичное представление аккаунта, которое identity-service отдаёт клиенту и другим сервисам. */
@@ -25,7 +26,11 @@ public record UserDto(
         boolean demo,
         String demoLabel,
         int reputation,
-        boolean canCreateEvents
+        boolean canCreateEvents,
+        /** Галочка доверия: публикация без придержки ИИ (у организаций всегда true). */
+        boolean verified,
+        /** Связь с текущим зрителем; для списка поиска и чужого профиля. */
+        FriendshipRelation friendship
 ) {
     public boolean isApprovedOrganization() {
         return role == RoleType.ORGANIZATION && organizationStatus == ApplicationStatus.APPROVED;
@@ -54,7 +59,9 @@ public record UserDto(
                 demo,
                 demoLabel,
                 reputation,
-                canCreateEvents
+                canCreateEvents,
+                verified,
+                friendship
         );
     }
 }

@@ -4,6 +4,7 @@ import type {
   AiVerdict,
   ApplicationStatus,
   Comment,
+  VerificationRequest,
   DocumentTemplate,
   EventFilters,
   EventForm,
@@ -35,6 +36,26 @@ export const usersApi = {
   children: (id: number) => api.get<User[]>(`/api/users/${id}/children`),
   addChild: (id: number, body: { displayName: string; age: number; interests?: string }) =>
     api.post<User>(`/api/users/${id}/children`, body),
+  submitVerification: (body: { message: string; attachments?: { fileName: string; contentBase64: string }[] }) =>
+    api.post<VerificationRequest>('/api/users/me/verification-request', body),
+  myVerification: () => api.get<VerificationRequest | null>('/api/users/me/verification-request'),
+}
+
+export const friendsApi = {
+  list: () => api.get<User[]>('/api/friends'),
+  incoming: () => api.get<User[]>('/api/friends/incoming'),
+  search: (q: string) => api.get<User[]>(`/api/friends/search${buildQuery({ q })}`),
+  sendRequest: (toUserId: number) => api.post<User>(`/api/friends/requests/${toUserId}`),
+  accept: (fromUserId: number) => api.post<User>(`/api/friends/requests/${fromUserId}/accept`),
+  reject: (fromUserId: number) => api.post<void>(`/api/friends/requests/${fromUserId}/reject`),
+}
+
+export const verificationAdminApi = {
+  list: (status?: VerificationRequest['status']) =>
+    api.get<VerificationRequest[]>(`/api/verification-requests${buildQuery({ status })}`),
+  approve: (id: number) => api.post<VerificationRequest>(`/api/verification-requests/${id}/approve`),
+  reject: (id: number, reason: string) =>
+    api.post<VerificationRequest>(`/api/verification-requests/${id}/reject`, { reason }),
 }
 
 export const familiesApi = {
@@ -75,6 +96,8 @@ export const eventsApi = {
   comments: (id: number) => api.get<Comment[]>(`/api/events/${id}/comments`),
   addComment: (id: number, text: string, parentId?: number) =>
     api.post<Comment>(`/api/events/${id}/comments`, { text, parentId }),
+  inviteFriends: (id: number, friendIds: number[]) =>
+    api.post<void>(`/api/events/${id}/invitations`, { friendIds }),
 }
 
 export const commentsApi = {

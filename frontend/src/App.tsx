@@ -13,6 +13,7 @@ import { LandingPage } from './pages/LandingPage'
 import { MapPage } from './pages/MapPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyOrganizationPage, OrganizationPage, OrganizationsPage } from './pages/OrganizationPages'
+import { PeoplePage } from './pages/PeoplePage'
 import { CabinetPage, ProfilePage } from './pages/ProfilePages'
 
 function RequireRole({ roles, children }: { roles?: RoleType[]; children: ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="organizations/:id" element={<OrganizationPage />} />
         <Route path="my-organization" element={<RequireRole roles={['ORGANIZATION']}><MyOrganizationPage /></RequireRole>} />
         <Route path="users/:id" element={<ProfilePage />} />
+        <Route path="people" element={<RequireRole roles={['USER', 'ORGANIZATION']}><PeoplePage /></RequireRole>} />
         <Route path="me" element={<RequireRole roles={['USER', 'CHILD']}><CabinetPage /></RequireRole>} />
         <Route path="admin" element={<RequireRole roles={['ADMIN']}><AdminPage /></RequireRole>} />
         <Route path="*" element={<EmptyState icon={<SearchX className="size-8" aria-hidden />} title="Страница не найдена" action={<LinkButton to="/feed">К афише</LinkButton>} />} />

@@ -27,4 +27,22 @@ public class IdentityClient {
                 .body(new ParameterizedTypeReference<>() {
                 });
     }
+
+    public List<Long> getFriendIds(Long userId) {
+        List<Long> ids = client.get().uri("/internal/friendship/users/{id}/friend-ids", userId).retrieve()
+                .body(new ParameterizedTypeReference<>() {
+                });
+        return ids == null ? List.of() : ids;
+    }
+
+    public boolean areFriends(Long userA, Long userB) {
+        if (userA == null || userB == null || userA.equals(userB)) {
+            return false;
+        }
+        Boolean result = client.get()
+                .uri(uri -> uri.path("/internal/friendship/check").queryParam("a", userA).queryParam("b", userB).build())
+                .retrieve()
+                .body(Boolean.class);
+        return Boolean.TRUE.equals(result);
+    }
 }

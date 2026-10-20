@@ -8,6 +8,7 @@ import ru.sportplatform.common.enums.AgeRestriction;
 import ru.sportplatform.common.enums.AiStatus;
 import ru.sportplatform.common.enums.Audience;
 import ru.sportplatform.common.enums.EventStatus;
+import ru.sportplatform.common.enums.EventVisibility;
 import ru.sportplatform.common.enums.OrganizerType;
 import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.event.domain.SkillLevel;
@@ -33,6 +34,8 @@ public record EventDto(
         Integer capacity,
         RegistrationMode registrationMode,
         EventStatus status,
+        EventVisibility visibility,
+        boolean organizerVerified,
         OrganizerType organizerType,
         Long organizerUserId,
         String organizerName,

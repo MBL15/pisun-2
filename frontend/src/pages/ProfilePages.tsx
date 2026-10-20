@@ -1,12 +1,14 @@
-import { CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, Shield, UserPlus, Users } from 'lucide-react'
+import { BadgeCheck, CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, Shield, UserPlus, Users } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { eventsApi, familiesApi, usersApi } from '../api/endpoints'
+import { eventsApi, familiesApi, friendsApi, usersApi } from '../api/endpoints'
 import type { Family, MyRegistration, User } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { RegistrationBadge } from '../components/EventBadges'
 import { EventCard } from '../components/EventCard'
 import { EventRoutePlanner } from '../components/maps'
+import { VerificationRequestModal } from '../components/VerificationRequestModal'
+import { DisplayNameWithBadge } from '../components/VerifiedBadge'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, Modal, Section, Spinner, Tabs } from '../components/ui'
 import {
@@ -24,6 +26,7 @@ import { useAsync } from '../lib/useAsync'
 
 export function ProfilePage() {
   const id = Number(useParams().id)
+  const { user: me } = useAuth()
   const profile = useAsync(() => usersApi.get(id), [id])
   const events = useAsync(() => eventsApi.list({ organizerUserId: id }), [id])
 
@@ -34,7 +37,14 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <ProfileCard user={person} />
+      <ProfileCard
+        user={person}
+        action={
+          me && me.id !== person.id && (person.role === 'USER' || person.role === 'ORGANIZATION') ? (
+            <ProfileFriendActions person={person} onChanged={profile.reload} />
+          ) : undefined
+        }
+      />
       {person.role === 'ORGANIZATION' && person.organizationId && (
         <Section title="Клуб" icon={<Users className="size-6 text-brand-600" />}>
           <Link to={`/organizations/${person.organizationId}`} className="font-semibold text-brand-700 hover:underline">
@@ -124,7 +134,9 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
             <Avatar name={user.displayName} color={user.avatarColor} />
           </span>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl font-extrabold sm:text-3xl">{user.displayName}</h1>
+            <h1 className="text-xl font-extrabold sm:text-3xl">
+              <DisplayNameWithBadge name={user.displayName} verified={user.verified} />
+            </h1>
             <Badge tone={user.role === 'CHILD' ? 'brand' : 'slate'}>{roleLabels[user.role]}</Badge>
           </div>
         </div>
@@ -155,10 +167,33 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
 
 type CabinetTab = 'registrations' | 'events' | 'family'
 
+function ProfileFriendActions({ person, onChanged }: { person: User; onChanged: () => void }) {
+  const { notify } = useToast()
+  const act = async () => {
+    try {
+      if (person.friendship === 'INCOMING') await friendsApi.accept(person.id)
+      else await friendsApi.sendRequest(person.id)
+      notify('success', person.friendship === 'INCOMING' ? 'Вы приняли заявку' : 'Заявка отправлена')
+      onChanged()
+    } catch (e) {
+      notify('error', (e as Error).message)
+    }
+  }
+  if (person.friendship === 'FRIENDS') return <Badge tone="green">Друзья</Badge>
+  if (person.friendship === 'OUTGOING') return <Badge tone="amber">Заявка отправлена</Badge>
+  return (
+    <Button variant="secondary" icon={<UserPlus className="size-4" />} onClick={act}>
+      {person.friendship === 'INCOMING' ? 'Принять в друзья' : 'Добавить в друзья'}
+    </Button>
+  )
+}
+
 export function CabinetPage() {
   const { user, refreshUser } = useAuth()
   const [tab, setTab] = useState<CabinetTab>('registrations')
   const [editing, setEditing] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
+  const verification = useAsync(() => (user?.role === 'USER' ? usersApi.myVerification() : Promise.resolve(null)), [user?.id, user?.role])
   const registrations = useAsync(() => eventsApi.myRegistrations(), [])
   const events = useAsync(() => (user?.role === 'USER' ? eventsApi.mine() : Promise.resolve([])), [user?.role])
   const family = useAsync(async () => {
@@ -181,10 +216,31 @@ export function CabinetPage() {
       <ProfileCard
         user={user}
         action={
-          <Button variant="secondary" icon={<Pencil className="size-4" />} onClick={() => setEditing(true)}>
-            Изменить
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button variant="secondary" icon={<Pencil className="size-4" />} onClick={() => setEditing(true)}>
+              Изменить
+            </Button>
+            {user.role === 'USER' && !user.verified && (
+              <Button variant="secondary" icon={<BadgeCheck className="size-4" />} onClick={() => setVerifyOpen(true)}>
+                Получить галочку
+              </Button>
+            )}
+          </div>
         }
+      />
+      {user.role === 'USER' && !user.verified && verification.data?.status === 'PENDING' && (
+        <p className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Заявка на верификацию на рассмотрении у администратора.
+        </p>
+      )}
+      <VerificationRequestModal
+        open={verifyOpen}
+        onClose={() => setVerifyOpen(false)}
+        latest={verification.data ?? null}
+        onSubmitted={async () => {
+          await verification.reload()
+          await refreshUser()
+        }}
       />
       <Tabs value={tab} onChange={setTab} items={tabs} />
 

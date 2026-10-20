@@ -23,7 +23,7 @@ spring:
         - id: identity-service
           uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
           predicates:
-            - Path=/api/users/**,/api/users,/api/organizations/**,/api/organizations,/api/families/**,/api/families
+            - Path=/api/users/**,/api/users,/api/organizations/**,/api/organizations,/api/families/**,/api/families,/api/friends/**,/api/friends,/api/verification-requests/**
         - id: event-service
           uri: ${EVENT_SERVICE_URL:http://localhost:8082}
           predicates:

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.common.dto.UserDto;
+import ru.sportplatform.common.enums.FriendshipRelation;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.policy.ReputationPolicy;
 import ru.sportplatform.identity.domain.Family;
@@ -23,6 +24,10 @@ public class IdentityMapper {
     private final FamilyRepository families;
 
     public UserDto toDto(UserAccount user) {
+        return toDto(user, FriendshipRelation.NONE);
+    }
+
+    public UserDto toDto(UserAccount user, FriendshipRelation friendship) {
         String parentName = user.getParentId() == null ? null
                 : users.findById(user.getParentId()).map(UserAccount::getDisplayName).orElse(null);
         String spouseName = spouseName(user);
@@ -50,8 +55,17 @@ public class IdentityMapper {
                 user.isDemo(),
                 user.getDemoLabel(),
                 reputation,
-                canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus())
+                canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus()),
+                isVerified(user),
+                friendship
         );
+    }
+
+    private static boolean isVerified(UserAccount user) {
+        if (user.getRole() == RoleType.ORGANIZATION) {
+            return true;
+        }
+        return user.isVerified();
     }
 
     private static boolean canCreateEvents(RoleType role, int reputation,

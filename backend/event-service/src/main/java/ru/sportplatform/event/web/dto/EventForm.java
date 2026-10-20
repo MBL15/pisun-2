@@ -10,7 +10,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import ru.sportplatform.common.enums.Audience;
+import ru.sportplatform.common.enums.EventVisibility;
 import ru.sportplatform.common.enums.RegistrationMode;
+
+import java.util.List;
 import ru.sportplatform.event.domain.SkillLevel;
 
 /**
@@ -34,6 +37,8 @@ public record EventForm(
         Audience audience,
         @Min(value = 2, message = "Мест должно быть хотя бы 2") @Max(10000) Integer capacity,
         @NotNull(message = "Выберите режим записи") RegistrationMode registrationMode,
-        @Size(max = 1000) String organizerContact
+        @Size(max = 1000) String organizerContact,
+        EventVisibility visibility,
+        List<Long> inviteFriendIds
 ) {
 }

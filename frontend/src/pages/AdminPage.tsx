@@ -1,6 +1,7 @@
 import {
   Ban,
   Bot,
+  BadgeCheck,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { aiApi, commentsApi, documentsApi, eventsApi, moderationApi, organizationsApi } from '../api/endpoints'
+import { aiApi, commentsApi, documentsApi, eventsApi, moderationApi, organizationsApi, verificationAdminApi } from '../api/endpoints'
 import type { AiSettings, ApplicationStatus, Comment, DocumentTemplate, EventStatus, ModerationAction, Organization, SportEvent } from '../api/types'
 import { AgeBadge, AiBadge, EventStatusBadge, ModeBadge } from '../components/EventBadges'
 import { ReasonDialog } from '../components/ReasonDialog'
@@ -27,7 +28,7 @@ import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, Modal, PageHeader, 
 import { formatDateTime, organizationStatusLabels } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
-type AdminTab = 'organizations' | 'events' | 'comments' | 'ai' | 'templates' | 'journal'
+type AdminTab = 'organizations' | 'events' | 'comments' | 'verification' | 'ai' | 'templates' | 'journal'
 
 type ReasonRequest = {
   title: string
@@ -43,6 +44,7 @@ export function AdminPage() {
   const pendingOrgs = useAsync(() => organizationsApi.list({ status: 'PENDING' }), [tab])
   const reviewEvents = useAsync(() => eventsApi.list({ scope: 'all', status: 'ON_REVIEW', includePast: true }), [tab])
   const hiddenComments = useAsync(() => commentsApi.all({ hidden: true }), [tab])
+  const verificationPending = useAsync(() => verificationAdminApi.list('PENDING'), [tab])
 
   return (
     <div>
@@ -55,6 +57,7 @@ export function AdminPage() {
             { value: 'organizations', label: 'Организации', icon: <Building2 className="size-5" />, count: pendingOrgs.data?.length },
             { value: 'events', label: 'Мероприятия', icon: <CalendarDays className="size-5" />, count: reviewEvents.data?.length },
             { value: 'comments', label: 'Обсуждения', icon: <MessageSquare className="size-5" />, count: hiddenComments.data?.length },
+            { value: 'verification', label: 'Верификация', icon: <BadgeCheck className="size-5" />, count: verificationPending.data?.length },
             { value: 'ai', label: 'ИИ-модерация', icon: <Bot className="size-5" /> },
             { value: 'templates', label: 'Шаблоны документов', icon: <FileText className="size-5" /> },
             { value: 'journal', label: 'Журнал', icon: <History className="size-5" /> },
@@ -64,6 +67,7 @@ export function AdminPage() {
       {tab === 'organizations' && <OrganizationsTab />}
       {tab === 'events' && <EventsTab />}
       {tab === 'comments' && <CommentsTab />}
+      {tab === 'verification' && <VerificationTab />}
       {tab === 'ai' && <AiTab />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'journal' && <JournalTab />}
@@ -699,6 +703,76 @@ function TemplatesTab() {
       <Modal open={preview} title={`Просмотр: ${draft.name}`} onClose={() => setPreview(false)} wide>
         <iframe title="Просмотр шаблона" className="h-[70svh] w-full rounded-xl border-[3px] border-ink bg-white" srcDoc={draft.content} sandbox="" />
       </Modal>
+    </div>
+  )
+}
+
+function VerificationTab() {
+  const { notify } = useToast()
+  const { data, error, loading, reload } = useAsync(() => verificationAdminApi.list('PENDING'), [])
+  const [busy, setBusy] = useState<number | null>(null)
+  const reasonDialog = useReasonDialog()
+
+  const approve = async (id: number) => {
+    setBusy(id)
+    try {
+      await verificationAdminApi.approve(id)
+      notify('success', 'Галочка выдана')
+      await reload()
+    } catch (e) {
+      notify('error', (e as Error).message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (error) return <ErrorBox error={error} onRetry={reload} />
+  if (loading && !data) return <Spinner />
+  if (!data?.length) return <EmptyState icon={<BadgeCheck className="size-8" />} title="Заявок на верификацию нет" />
+
+  return (
+    <div className="space-y-4">
+      {reasonDialog.dialog}
+      {data.map((req) => (
+        <article key={req.id} className="card space-y-3 p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-bold">{req.userDisplayName}</h3>
+            <Badge tone="amber">На проверке</Badge>
+            <Link to={`/users/${req.userId}`} className="text-sm font-semibold text-brand-700 underline">
+              Профиль
+            </Link>
+          </div>
+          <p className="whitespace-pre-line text-ink">{req.message}</p>
+          {req.attachments.length > 0 && (
+            <ul className="text-sm text-muted">
+              {req.attachments.map((a) => (
+                <li key={a.fileName}>📎 {a.fileName}</li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="success" size="sm" loading={busy === req.id} icon={<CheckCircle2 className="size-4" />} onClick={() => approve(req.id)}>
+              Выдать галочку
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() =>
+                reasonDialog.ask({
+                  title: 'Отклонить верификацию',
+                  description: 'Причину увидит пользователь в личном кабинете.',
+                  confirmLabel: 'Отклонить',
+                  presets: ['Недостаточно подтверждений опыта', 'Нужны ссылки на прошлые мероприятия', 'Профиль заполнен неполно'],
+                  run: (reason) => verificationAdminApi.reject(req.id, reason),
+                  done: 'Заявка отклонена',
+                })
+              }
+            >
+              Отклонить
+            </Button>
+          </div>
+        </article>
+      ))}
     </div>
   )
 }

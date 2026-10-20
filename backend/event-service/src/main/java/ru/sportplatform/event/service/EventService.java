@@ -3,7 +3,9 @@ package ru.sportplatform.event.service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import ru.sportplatform.common.enums.AiStatus;
 import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.Audience;
 import ru.sportplatform.common.enums.EventStatus;
+import ru.sportplatform.common.enums.EventVisibility;
 import ru.sportplatform.common.enums.OrganizerType;
 import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.common.enums.RoleType;
@@ -29,11 +32,13 @@ import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.event.client.AiClient;
 import ru.sportplatform.event.client.IdentityClient;
+import ru.sportplatform.event.domain.EventFriendInvite;
 import ru.sportplatform.event.domain.Registration;
 import ru.sportplatform.event.domain.SkillLevel;
 import ru.sportplatform.event.domain.SportEvent;
 import ru.sportplatform.event.domain.SportType;
 import ru.sportplatform.event.repository.EventCommentRepository;
+import ru.sportplatform.event.repository.EventFriendInviteRepository;
 import ru.sportplatform.event.repository.RegistrationRepository;
 import ru.sportplatform.event.repository.SportEventRepository;
 import ru.sportplatform.event.web.dto.EventDto;
@@ -47,6 +52,7 @@ public class EventService {
     private final SportEventRepository events;
     private final RegistrationRepository registrations;
     private final EventCommentRepository comments;
+    private final EventFriendInviteRepository friendInvites;
     private final SportTypeService sportTypes;
     private final IdentityClient identity;
     private final AiClient ai;
@@ -61,8 +67,10 @@ public class EventService {
                 : events.findByStatusOrderByStartAtAsc(EventStatus.PUBLISHED);
         LocalDateTime now = LocalDateTime.now();
         boolean childViewer = current.is(RoleType.CHILD);
+        Set<Long> friendIds = current.isAuthenticated() ? new HashSet<>(identity.getFriendIds(current.id())) : Set.of();
 
         return source.stream()
+                .filter(e -> canSeeInCatalog(e, current, friendIds))
                 .filter(e -> !adminScope || filter.status() == null || e.getStatus() == filter.status())
                 .filter(e -> adminScope || filter.includePast() || e.getEndAt().isAfter(now))
                 .filter(e -> !childViewer || isChildSafe(e))
@@ -112,6 +120,9 @@ public class EventService {
         if (current.is(RoleType.CHILD) && !isChildSafe(event) && !registered) {
             throw ApiException.forbidden("Это мероприятие для взрослых. Попроси родителя подобрать занятие вместе");
         }
+        if (!canSeePrivateEvent(event, current, registered)) {
+            throw ApiException.notFound("Мероприятие доступно только друзьям организатора");
+        }
         return event;
     }
 
@@ -137,9 +148,12 @@ public class EventService {
         event.setOrganizerUserId(author.id());
         event.setOrganizerName(orgEvent ? author.organizationName() : author.displayName());
         event.setOrganizationId(orgEvent ? author.organizationId() : null);
+        event.setOrganizerVerified(author.verified());
 
-        applyVerdict(event, ai.verifyEvent(verificationRequest(event)));
-        return toDto(events.save(event), current);
+        applyVerdict(event, ai.verifyEvent(verificationRequest(event)), author);
+        SportEvent saved = events.save(event);
+        saveFriendInvites(saved, author.id(), form.inviteFriendIds());
+        return toDto(saved, current);
     }
 
     @Transactional
@@ -159,7 +173,9 @@ public class EventService {
         }
         SportType sport = sportTypes.resolve(form.sportTypeId(), form.customSportName(), current.id());
         applyForm(event, form, sport);
-        applyVerdict(event, ai.verifyEvent(verificationRequest(event)));
+        UserDto author = identity.getUser(current.id());
+        event.setOrganizerVerified(author.verified());
+        applyVerdict(event, ai.verifyEvent(verificationRequest(event)), author);
         return toDto(event, current);
     }
 
@@ -210,6 +226,7 @@ public class EventService {
         event.setCapacity(form.capacity());
         event.setRegistrationMode(form.registrationMode());
         event.setOrganizerContact(form.organizerContact());
+        event.setVisibility(form.visibility() == null ? EventVisibility.PUBLIC : form.visibility());
     }
 
     private static EventVerificationRequest verificationRequest(SportEvent event) {
@@ -223,13 +240,56 @@ public class EventService {
      * Событие пользователя с вердиктом FLAGGED уходит на проверку администратору. Допущенная организация
      * публикует без премодерации — вердикт ИИ лишь подсвечивается администратору.
      */
-    private static void applyVerdict(SportEvent event, EventVerificationResult verdict) {
+    private static void applyVerdict(SportEvent event, EventVerificationResult verdict, UserDto author) {
         event.setAiStatus(verdict.status());
         event.setAgeRestriction(event.getAudience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : verdict.ageRestriction());
         event.setAiSummary(verdict.summary());
         event.setAiReasons(verdict.reasons() == null ? null : String.join("\n", verdict.reasons()));
-        boolean hold = verdict.hold() && event.getOrganizerType() == OrganizerType.USER;
+        boolean hold = verdict.hold()
+                && event.getOrganizerType() == OrganizerType.USER
+                && !author.verified();
         event.setStatus(hold ? EventStatus.ON_REVIEW : EventStatus.PUBLISHED);
+    }
+
+    private void saveFriendInvites(SportEvent event, Long organizerId, List<Long> inviteFriendIds) {
+        if (inviteFriendIds == null || inviteFriendIds.isEmpty()) {
+            return;
+        }
+        for (Long friendId : inviteFriendIds.stream().distinct().toList()) {
+            if (identity.areFriends(organizerId, friendId)) {
+                friendInvites.save(EventFriendInvite.builder().eventId(event.getId()).friendUserId(friendId).build());
+            }
+        }
+    }
+
+    @Transactional
+    public void addFriendInvites(CurrentUser current, Long eventId, List<Long> friendIds) {
+        current.requireAuthenticated();
+        SportEvent event = find(eventId);
+        if (!isOrganizer(event, current)) {
+            throw ApiException.forbidden("Приглашать друзей может только организатор");
+        }
+        saveFriendInvites(event, current.id(), friendIds);
+    }
+
+    private boolean canSeeInCatalog(SportEvent event, CurrentUser current, Set<Long> friendIds) {
+        if (event.getVisibility() != EventVisibility.FRIENDS_ONLY) {
+            return true;
+        }
+        if (current.isAdmin() || isOrganizer(event, current)) {
+            return true;
+        }
+        return current.isAuthenticated() && friendIds.contains(event.getOrganizerUserId());
+    }
+
+    private boolean canSeePrivateEvent(SportEvent event, CurrentUser current, boolean registered) {
+        if (event.getVisibility() != EventVisibility.FRIENDS_ONLY) {
+            return true;
+        }
+        if (registered || current.isAdmin() || isOrganizer(event, current)) {
+            return true;
+        }
+        return current.isAuthenticated() && identity.areFriends(current.id(), event.getOrganizerUserId());
     }
 
     // ---------- модерация (вызывается ai-moderation-service) ----------
@@ -301,6 +361,11 @@ public class EventService {
         if (current.is(RoleType.CHILD) && !isChildSafe(event)) {
             return "Мероприятие только для взрослых";
         }
+        if (event.getVisibility() == EventVisibility.FRIENDS_ONLY
+                && !isOrganizer(event, current)
+                && !identity.areFriends(current.id(), event.getOrganizerUserId())) {
+            return "Закрытое мероприятие — записаться могут только друзья организатора";
+        }
         if (event.getCapacity() != null && approvedCount >= event.getCapacity()) {
             return "Все места заняты";
         }
@@ -329,7 +394,7 @@ public class EventService {
                 e.getStartAt(), e.getEndAt(), e.getDurationMinutes(),
                 e.getAddress(), e.getLocationNote(), e.getLatitude(), e.getLongitude(),
                 e.getConditions(), e.getLevel(), e.getAudience(), e.getCapacity(),
-                e.getRegistrationMode(), e.getStatus(),
+                e.getRegistrationMode(), e.getStatus(), e.getVisibility(), e.isOrganizerVerified(),
                 e.getOrganizerType(), e.getOrganizerUserId(), e.getOrganizerName(), e.getOrganizationId(),
                 canSeeContacts ? e.getOrganizerContact() : null,
                 e.getAiStatus(), e.getAgeRestriction(), e.getAiSummary(), splitReasons(e.getAiReasons()),

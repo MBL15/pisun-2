@@ -8,6 +8,9 @@ export type Audience = 'ALL' | 'KIDS' | 'ADULTS'
 export type OrganizerType = 'USER' | 'ORGANIZATION'
 export type SkillLevel = 'ANY' | 'BEGINNER' | 'AMATEUR' | 'PRO'
 export type Gender = 'MALE' | 'FEMALE'
+export type EventVisibility = 'PUBLIC' | 'FRIENDS_ONLY'
+export type FriendshipRelation = 'NONE' | 'FRIENDS' | 'OUTGOING' | 'INCOMING'
+export type VerificationRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export interface User {
   id: number
@@ -31,6 +34,26 @@ export interface User {
   demoLabel: string | null
   reputation: number
   canCreateEvents: boolean
+  verified: boolean
+  friendship: FriendshipRelation
+}
+
+export interface VerificationAttachment {
+  fileName: string
+  contentBase64: string
+}
+
+export interface VerificationRequest {
+  id: number
+  userId: number
+  userDisplayName: string
+  message: string
+  attachments: VerificationAttachment[]
+  status: VerificationRequestStatus
+  rejectionReason: string | null
+  reviewedBy: string | null
+  createdAt: string
+  reviewedAt: string | null
 }
 
 export interface Organization {
@@ -165,6 +188,8 @@ export interface SportEvent {
   capacity: number | null
   registrationMode: RegistrationMode
   status: EventStatus
+  visibility: EventVisibility
+  organizerVerified: boolean
   organizerType: OrganizerType
   organizerUserId: number
   organizerName: string
@@ -203,6 +228,8 @@ export interface EventForm {
   capacity: number | null
   registrationMode: RegistrationMode
   organizerContact: string | null
+  visibility?: EventVisibility | null
+  inviteFriendIds?: number[] | null
 }
 
 export interface EventFilters {

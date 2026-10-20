@@ -2,7 +2,9 @@ import { Building2, CalendarDays, MapPin, MessageCircle, UserRound, Users } from
 import { Link } from 'react-router-dom'
 import type { SportEvent } from '../api/types'
 import { formatRelativeDay, formatTime, plural, sportTone } from '../lib/format'
+import { DisplayNameWithBadge } from './VerifiedBadge'
 import { AgeBadge, EventStatusBadge, ModeBadge, RegistrationBadge } from './EventBadges'
+import { Badge } from './ui'
 
 export function EventCard({ event, showStatus = false }: { event: SportEvent; showStatus?: boolean }) {
   const myActive = event.viewer.myRegistrations.find((r) => r.status === 'APPROVED' || r.status === 'PENDING')
@@ -27,7 +29,14 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div>
-          <h3 className="text-lg leading-snug decoration-[3px] underline-offset-4 group-hover:underline">{event.title}</h3>
+          <h3 className="text-lg leading-snug decoration-[3px] underline-offset-4 group-hover:underline">
+            {event.title}
+            {event.visibility === 'FRIENDS_ONLY' && (
+              <span className="ml-2 inline-block align-middle">
+                <Badge tone="slate">для друзей</Badge>
+              </span>
+            )}
+          </h3>
           <p className="mt-1.5 line-clamp-2 text-muted">{event.description}</p>
         </div>
 
@@ -48,7 +57,9 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
             ) : (
               <UserRound className="size-5 shrink-0" aria-hidden />
             )}
-            <dd className="line-clamp-1 font-medium">{event.organizerName}</dd>
+            <dd className="line-clamp-1 font-medium">
+              <DisplayNameWithBadge name={event.organizerName} verified={event.organizerVerified} />
+            </dd>
           </div>
         </dl>
 
