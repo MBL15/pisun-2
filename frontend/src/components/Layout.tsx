@@ -209,19 +209,22 @@ export function Layout() {
       <a href="#main" className="sr-only z-50 rounded-lg border-[3px] border-ink bg-pop-yellow px-4 py-2 font-bold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
         К содержимому
       </a>
-      <header className="sticky top-0 z-40 border-b-[3px] border-ink bg-surface">
-        <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 px-4 py-2.5 sm:gap-x-4 sm:px-6 sm:py-3">
-          <Link to={user ? homeFor(user) : '/'} className="group flex min-w-0 items-center gap-3" aria-label="СпортВместе — на главную">
+      <header className="sticky top-0 z-40 isolate border-b-[3px] border-ink bg-surface">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+          <Link to={user ? homeFor(user) : '/'} className="group flex shrink-0 items-center gap-3" aria-label="СпортВместе — на главную">
             <span className="flex size-11 rotate-[-6deg] items-center justify-center rounded-xl border-[3px] border-ink bg-pop-yellow text-ink shadow-sm transition group-hover:rotate-0">
               <Zap className="size-6 fill-ink" aria-hidden />
             </span>
-            <span className="hidden leading-tight sm:block">
+            <span className="hidden leading-tight lg:block">
               <span className="block font-display text-lg font-black uppercase">СпортВместе</span>
               <span className="block text-xs font-semibold text-muted">находите компанию для спорта</span>
             </span>
           </Link>
 
-          <nav className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible no-scrollbar px-1 lg:flex">
+          <nav
+            className="hidden min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pe-1 no-scrollbar lg:flex"
+            aria-label="Разделы"
+          >
             {items.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/feed'} className={linkClass}>
                 {item.icon}
@@ -230,7 +233,7 @@ export function Layout() {
             ))}
           </nav>
 
-          <div className="relative z-10 flex shrink-0 items-center gap-2 bg-surface pl-1 sm:pl-2">
+          <div className="flex shrink-0 items-center gap-2 bg-surface pl-1 sm:pl-2">
             <button
               onClick={toggleTheme}
               className="flex size-11 items-center justify-center rounded-lg border-[3px] border-ink bg-surface text-ink shadow-sm lift"
