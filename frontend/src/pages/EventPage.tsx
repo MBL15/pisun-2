@@ -65,7 +65,7 @@ export function EventPage() {
   if (!event) return null
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
+    <div className="space-y-6 pb-[calc(var(--mobile-nav-h)+6.5rem)] lg:pb-0">
       <BackLink />
       <StatusBanner event={event} />
       <MobileRegistrationBar event={event} user={user} />
@@ -209,20 +209,27 @@ function MobileRegistrationBar({ event, user }: { event: SportEvent; user: User 
   const spots =
     event.capacity == null ? `Участников: ${event.participantsCount}` : event.spotsLeft === 0 ? 'Мест нет' : `Свободно ${event.spotsLeft} из ${event.capacity}`
 
+  const meta = self ? registrationStatusLabels[self.status] : spots
+
   return (
-    <div className="fixed inset-x-0 bottom-[var(--mobile-nav-h)] z-30 flex items-center gap-3 border-t-[3px] border-ink bg-surface px-4 py-2.5 lg:hidden">
-      <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate font-bold">
+    <div
+      className="fixed inset-x-0 bottom-[var(--mobile-nav-h)] z-30 border-t-[3px] border-ink bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_0_0_rgba(26,26,26,0.08)] backdrop-blur-sm lg:hidden"
+      role="region"
+      aria-label="Запись на мероприятие"
+    >
+      <p className="mb-2.5 text-center text-sm leading-snug text-muted">
+        <span className="font-bold text-ink">
           {formatShortDate(event.startAt)}, {formatTime(event.startAt)}
-        </p>
-        <p className="truncate text-sm text-muted">{self ? registrationStatusLabels[self.status] : spots}</p>
-      </div>
+        </span>
+        <span aria-hidden> · </span>
+        <span>{meta}</span>
+      </p>
       {user ? (
-        <Button size="sm" variant={self ? 'secondary' : 'success'} className="shrink-0" onClick={scrollToRegistration}>
+        <Button size="lg" variant={self ? 'secondary' : 'success'} className="w-full" onClick={scrollToRegistration}>
           {label}
         </Button>
       ) : (
-        <LinkButton to="/login" size="sm" variant="success" className="shrink-0">
+        <LinkButton to="/login" size="lg" variant="success" className="w-full">
           {label}
         </LinkButton>
       )}
