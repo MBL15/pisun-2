@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, UserPlus, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Heart, HeartHandshake, MapPin, Pencil, PlusCircle, Shield, UserPlus, Users } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { eventsApi, familiesApi, usersApi } from '../api/endpoints'
@@ -9,7 +9,17 @@ import { EventCard } from '../components/EventCard'
 import { EventRoutePlanner } from '../components/maps'
 import { useToast } from '../components/Toast'
 import { Avatar, Badge, Button, EmptyState, ErrorBox, Field, LinkButton, Modal, Section, Spinner, Tabs } from '../components/ui'
-import { formatRelativeDay, formatTime, genderLabels, plural, roleLabels } from '../lib/format'
+import {
+  formatRelativeDay,
+  formatTime,
+  genderLabels,
+  normalizeReputation,
+  plural,
+  REPUTATION_MIN_TO_CREATE,
+  reputationHint,
+  reputationTone,
+  roleLabels,
+} from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 export function ProfilePage() {
@@ -25,9 +35,16 @@ export function ProfilePage() {
   return (
     <div className="space-y-6">
       <ProfileCard user={person} />
+      {person.role === 'ORGANIZATION' && person.organizationId && (
+        <Section title="Клуб" icon={<Users className="size-6 text-brand-600" />}>
+          <Link to={`/organizations/${person.organizationId}`} className="font-semibold text-brand-700 hover:underline">
+            {person.organizationName ?? 'Страница организации'}
+          </Link>
+        </Section>
+      )}
       {person.role === 'USER' && (
         <Section title="Организует" icon={<CalendarDays className="size-6 text-brand-600" />}>
-          {events.data?.length === 0 && <p className="text-slate-600">Сейчас нет запланированных мероприятий.</p>}
+          {events.data?.length === 0 && <p className="text-muted">Сейчас нет запланированных мероприятий.</p>}
           <div className="grid gap-5 sm:grid-cols-2">
             {events.data?.filter((e) => e.organizerType === 'USER').map((event) => <EventCard key={event.id} event={event} />)}
           </div>
@@ -37,16 +54,74 @@ export function ProfilePage() {
   )
 }
 
+function reputationBarClass(tone: ReturnType<typeof reputationTone>): string {
+  switch (tone) {
+    case 'red':
+      return 'bg-red-500'
+    case 'amber':
+      return 'bg-amber-500'
+    case 'green':
+      return 'bg-emerald-500'
+    default:
+      return 'bg-slate-400'
+  }
+}
+
+function ReputationPanel({ user }: { user: User }) {
+  if (user.role !== 'USER') return null
+  const score = normalizeReputation(user.reputation)
+  const blocked = user.canCreateEvents === false
+  const tone = reputationTone(score, blocked)
+  const width = `${Math.min(100, Math.max(0, score))}%`
+  const thresholdLeft = `${REPUTATION_MIN_TO_CREATE}%`
+
+  return (
+    <div
+      className="rounded-2xl border-2 border-ink/10 bg-surface/80 p-4 dark:border-white/10"
+      aria-label={`Репутация ${score} из 100`}
+    >
+      <div className="flex flex-wrap items-start gap-3">
+        <span className="hidden size-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-pop-blue/30 text-[#111111] sm:flex">
+          <Shield className="size-6" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-sm font-bold uppercase tracking-wide text-muted">Репутация организатора</p>
+            <Badge tone={tone}>{score} баллов</Badge>
+            {blocked ? (
+              <Badge tone="red">Создание мероприятий закрыто</Badge>
+            ) : (
+              <Badge tone="green">Можно организовывать</Badge>
+            )}
+          </div>
+          <div className="relative h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+            <div className={`h-full rounded-full transition-[width] ${reputationBarClass(tone)}`} style={{ width }} />
+            <div
+              className="pointer-events-none absolute inset-y-0 w-0.5 bg-ink/40 dark:bg-white/50"
+              style={{ left: thresholdLeft }}
+              title={`Минимум ${REPUTATION_MIN_TO_CREATE} баллов для создания мероприятий`}
+            />
+          </div>
+          <p className="text-xs text-muted">
+            Порог для публикации событий — {REPUTATION_MIN_TO_CREATE} баллов (отметка на шкале).
+          </p>
+          <p className="text-sm text-muted">{reputationHint(score, blocked)}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
   return (
-    <section className="card flex flex-col gap-5 p-6 sm:flex-row sm:items-start">
+    <section className="card flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
       <Avatar name={user.displayName} color={user.avatarColor} size="lg" />
-      <div className="flex-1 space-y-2">
+      <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-extrabold">{user.displayName}</h1>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">{user.displayName}</h1>
           <Badge tone={user.role === 'CHILD' ? 'brand' : 'slate'}>{roleLabels[user.role]}</Badge>
         </div>
-        <p className="flex flex-wrap gap-x-5 gap-y-1 text-slate-600">
+        <p className="flex flex-wrap gap-x-5 gap-y-1 text-muted">
           {user.age && <span>{user.age} {plural(user.age, 'год', 'года', 'лет')}</span>}
           {user.city && (
             <span className="flex items-center gap-1">
@@ -63,7 +138,8 @@ function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
             {user.interests}
           </p>
         )}
-        {user.bio && <p className="whitespace-pre-line text-slate-700">{user.bio}</p>}
+        {user.bio && <p className="whitespace-pre-line text-muted">{user.bio}</p>}
+        <ReputationPanel user={user} />
       </div>
       {action}
     </section>
@@ -109,10 +185,21 @@ export function CabinetPage() {
 
       {tab === 'events' && (
         <div className="space-y-4">
+          {!user.canCreateEvents && user.role === 'USER' && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+              {reputationHint(user.reputation, true)}
+            </p>
+          )}
           <div className="flex justify-end">
-            <LinkButton to="/events/new" icon={<PlusCircle className="size-5" />}>
-              Создать мероприятие
-            </LinkButton>
+            {user.canCreateEvents ? (
+              <LinkButton to="/events/new" icon={<PlusCircle className="size-5" />}>
+                Создать мероприятие
+              </LinkButton>
+            ) : (
+              <Button variant="secondary" disabled icon={<PlusCircle className="size-5" />}>
+                Создать мероприятие
+              </Button>
+            )}
           </div>
           {events.loading && !events.data && <Spinner />}
           {events.data?.length === 0 && (
@@ -122,7 +209,7 @@ export function CabinetPage() {
             {events.data?.map((event) => (
               <div key={event.id} className="relative">
                 {event.pendingCount > 0 && (
-                  <span className="absolute -right-2 -top-2 z-10 rounded-full bg-accent-500 px-3 py-1 text-sm font-bold text-white shadow">
+                  <span className="absolute -right-2 -top-2 z-10 rounded-full bg-accent-500 px-3 py-1 text-sm font-bold text-[#111111] shadow">
                     {event.pendingCount} {plural(event.pendingCount, 'заявка', 'заявки', 'заявок')}
                   </span>
                 )}
@@ -169,7 +256,7 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
         icon={<CalendarCheck className="size-8" />}
         title="Записей пока нет"
         text="Найдите занятие по душе в афише."
-        action={<LinkButton to="/">Открыть афишу</LinkButton>}
+        action={<LinkButton to="/feed">Открыть афишу</LinkButton>}
       />
     )
 
@@ -183,11 +270,11 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
           <span className="text-3xl">{event.sportEmoji ?? '🏅'}</span>
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold">{event.title}</p>
-            <p className="text-slate-600">
+            <p className="text-muted">
               {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)} · {event.address}
             </p>
             {registration.child && <p className="text-sm font-medium text-emerald-700">Участник: {registration.participantName}</p>}
-            {registration.decisionComment && <p className="text-sm text-slate-600">Организатор: {registration.decisionComment}</p>}
+            {registration.decisionComment && <p className="text-sm text-muted">Организатор: {registration.decisionComment}</p>}
             {event.status !== 'PUBLISHED' && event.moderationReason && (
               <p className="text-sm font-medium text-red-700">Снято с публикации: {event.moderationReason}</p>
             )}
@@ -213,7 +300,7 @@ function RegistrationsList({ state }: { state: { data: MyRegistration[] | undefi
       {upcoming.length > 0 && <div className="space-y-3">{upcoming.map(row)}</div>}
       {past.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold text-slate-600">Прошедшие</h2>
+          <h2 className="text-lg font-bold text-muted">Прошедшие</h2>
           <div className="space-y-3 opacity-75">{past.map(row)}</div>
         </div>
       )}
@@ -291,7 +378,7 @@ function FamilyPanel({
               Укажите пол в профиле (кнопка «Изменить» выше) — семью могут создать мужчина и женщина.
             </p>
           )}
-          <p className="text-slate-700">
+          <p className="text-muted">
             Выберите партнёра из пользователей без семьи противоположного пола. После создания семьи можно добавить детские аккаунты.
           </p>
           {spouses.error && <ErrorBox error={spouses.error} onRetry={spouses.reload} />}
@@ -311,7 +398,7 @@ function FamilyPanel({
                 </select>
               </Field>
               {user.gender && spouses.data?.length === 0 && (
-                <p className="text-slate-600">Сейчас нет подходящих партнёров — зарегистрируйте второго родителя или переключитесь на другой демо-аккаунт.</p>
+                <p className="text-muted">Сейчас нет подходящих партнёров — зарегистрируйте второго родителя или переключитесь на другой демо-аккаунт.</p>
               )}
               <Button type="button" loading={creating} disabled={spouseId === '' || !user.gender} onClick={createFamily} icon={<HeartHandshake className="size-5" />}>
                 Создать семью
@@ -330,11 +417,11 @@ function FamilyPanel({
       <Section title="Ваша семья" icon={<HeartHandshake className="size-6 text-brand-600" />}>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border-2 border-ink bg-pop-blue/30 p-4">
-            <p className="text-sm font-semibold text-slate-600">Мужчина</p>
+            <p className="text-sm font-semibold text-muted">Мужчина</p>
             <p className="text-lg font-bold">{family.maleName}</p>
           </div>
           <div className="rounded-xl border-2 border-ink bg-pop-pink/30 p-4">
-            <p className="text-sm font-semibold text-slate-600">Женщина</p>
+            <p className="text-sm font-semibold text-muted">Женщина</p>
             <p className="text-lg font-bold">{family.femaleName}</p>
           </div>
         </div>
@@ -342,7 +429,7 @@ function FamilyPanel({
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Дети" icon={<Users className="size-6 text-brand-600" />}>
           {kids.length === 0 ? (
-            <p className="text-slate-600">Добавьте ребёнка — любой из родителей сможет записывать его на занятия и формировать согласие.</p>
+            <p className="text-muted">Добавьте ребёнка — любой из родителей сможет записывать его на занятия и формировать согласие.</p>
           ) : (
             <ul className="space-y-3">
               {kids.map((child) => (
@@ -350,7 +437,7 @@ function FamilyPanel({
                   <Avatar name={child.displayName} color={child.avatarColor} />
                   <div>
                     <p className="font-bold">{child.displayName}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted">
                       {child.age} {plural(child.age ?? 0, 'год', 'года', 'лет')}
                       {child.interests ? ` · ${child.interests}` : ''}
                     </p>

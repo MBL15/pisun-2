@@ -28,7 +28,7 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
       <div className="flex flex-1 flex-col gap-4 p-5">
         <div>
           <h3 className="text-lg leading-snug decoration-[3px] underline-offset-4 group-hover:underline">{event.title}</h3>
-          <p className="mt-1.5 line-clamp-2 text-slate-700">{event.description}</p>
+          <p className="mt-1.5 line-clamp-2 text-muted">{event.description}</p>
         </div>
 
         <dl className="space-y-2 text-ink">

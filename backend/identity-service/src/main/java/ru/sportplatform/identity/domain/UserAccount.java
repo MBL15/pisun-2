@@ -76,6 +76,9 @@ public class UserAccount {
 
     private Integer demoOrder;
 
+    /** Репутация организатора-пользователя; для клубов не используется. */
+    private Integer reputation;
+
     private Instant createdAt;
 
     @PrePersist

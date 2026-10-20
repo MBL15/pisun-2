@@ -29,6 +29,8 @@ export interface User {
   organizationStatus: ApplicationStatus | null
   demo: boolean
   demoLabel: string | null
+  reputation: number
+  canCreateEvents: boolean
 }
 
 export interface Organization {

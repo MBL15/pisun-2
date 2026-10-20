@@ -48,7 +48,7 @@ export function LoginPage() {
         <h1 className="text-3xl sm:text-5xl">
           <span className="bg-pop-yellow px-1.5">Вход</span>
         </h1>
-        <p className="mt-3 text-lg font-medium text-slate-700">
+        <p className="mt-3 text-lg font-medium text-muted">
           Авторизация имитируется: выберите демо-аккаунт — пароль не нужен. Роль можно сменить в любой момент кнопкой в шапке.
         </p>
         {loading ? (
@@ -71,7 +71,7 @@ export function LoginPage() {
                   <span className={`mt-1 inline-block rounded border-2 border-ink px-1.5 text-xs font-bold ${roleSticker[account.role]}`}>
                     {account.demoLabel}
                   </span>
-                  <span className="mt-1 block text-sm text-slate-600">{hints[account.id] ?? account.bio}</span>
+                  <span className="mt-1 block text-sm text-muted">{hints[account.id] ?? account.bio}</span>
                 </span>
               </button>
             ))}
@@ -133,7 +133,7 @@ function RegisterForm({ onRegistered }: { onRegistered: (user: User) => void }) 
         <UserPlus className="size-6 text-brand-600" />
         Регистрация
       </h2>
-      <p className="mt-1 text-slate-600">Новый аккаунт сохранится в базе и появится в списке для входа.</p>
+      <p className="mt-1 text-muted">Новый аккаунт сохранится в базе и появится в списке для входа.</p>
       <div className="mt-4">
         <Tabs
           value={kind}

@@ -1,5 +1,6 @@
 import { BadgeCheck, EyeOff, MessageCircle, Reply, RotateCcw, Send, Trash2 } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { commentsApi, eventsApi, moderationApi } from '../api/endpoints'
 import type { Comment, SportEvent } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -78,7 +79,7 @@ export function Discussion({ event, onChanged }: { event: SportEvent; onChanged:
       {loading && !data && <Spinner />}
 
       {data && threads.length === 0 && (
-        <p className="mb-4 text-slate-600">Пока никто ничего не спросил. Задайте вопрос — организатор ответит здесь.</p>
+        <p className="mb-4 text-muted">Пока никто ничего не спросил. Задайте вопрос — организатор ответит здесь.</p>
       )}
 
       <div className="space-y-5">
@@ -118,7 +119,7 @@ export function Discussion({ event, onChanged }: { event: SportEvent; onChanged:
           />
         </div>
       ) : !user ? (
-        <p className="mt-5 text-slate-600">Войдите, чтобы задать вопрос организатору.</p>
+        <p className="mt-5 text-muted">Войдите, чтобы задать вопрос организатору.</p>
       ) : null}
 
       <ReasonDialog
@@ -144,6 +145,18 @@ export function Discussion({ event, onChanged }: { event: SportEvent; onChanged:
   )
 }
 
+function CommentAuthorProfileLink({ comment, className, children }: { comment: Comment; className?: string; children: ReactNode }) {
+  return (
+    <Link
+      to={`/users/${comment.authorId}`}
+      className={className}
+      title={`Профиль: ${comment.authorName}`}
+    >
+      {children}
+    </Link>
+  )
+}
+
 function CommentItem({
   comment,
   nested,
@@ -165,7 +178,9 @@ function CommentItem({
 }) {
   return (
     <article className={`flex gap-3 ${comment.hidden ? 'opacity-80' : ''}`}>
-      <Avatar name={comment.authorName} color={comment.authorAvatarColor} size={nested ? 'sm' : 'md'} />
+      <CommentAuthorProfileLink comment={comment} className="shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+        <Avatar name={comment.authorName} color={comment.authorAvatarColor} size={nested ? 'sm' : 'md'} />
+      </CommentAuthorProfileLink>
       <div className="min-w-0 flex-1">
         <div
           className={`rounded-2xl px-4 py-3 ${
@@ -177,24 +192,26 @@ function CommentItem({
           }`}
         >
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="font-bold">{comment.authorName}</span>
+            <CommentAuthorProfileLink comment={comment} className="font-bold text-brand-800 hover:underline dark:text-brand-300">
+              {comment.authorName}
+            </CommentAuthorProfileLink>
             {comment.organizerReply && (
-              <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-brand-600 px-2 py-0.5 text-xs font-bold text-white">
+              <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-brand-600 px-2 py-0.5 text-xs font-bold text-[#111111]">
                 <BadgeCheck className="size-3.5" />
                 Организатор
               </span>
             )}
-            <span className="text-sm text-slate-600">{formatDateTime(comment.createdAt)}</span>
+            <span className="text-sm text-muted">{formatDateTime(comment.createdAt)}</span>
           </div>
           {comment.hidden && (
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-muted">
               <EyeOff className="size-4" />
               {comment.text ? `Скрыто${comment.hiddenByAi ? ' ИИ-модератором' : ' модератором'}: ${comment.hiddenReason ?? ''}` : comment.hiddenReason}
             </p>
           )}
-          {comment.text && <p className="mt-1 whitespace-pre-line break-words text-slate-800">{comment.text}</p>}
+          {comment.text && <p className="mt-1 whitespace-pre-line break-words text-ink">{comment.text}</p>}
         </div>
-        <div className="mt-1 flex flex-wrap gap-3 pl-2 text-sm font-semibold text-slate-600">
+        <div className="mt-1 flex flex-wrap gap-3 pl-2 text-sm font-semibold text-muted">
           {canReply && !comment.hidden && (
             <button onClick={onReply} className="inline-flex items-center gap-1 hover:underline">
               <Reply className="size-4" />

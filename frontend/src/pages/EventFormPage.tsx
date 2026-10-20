@@ -8,7 +8,7 @@ import { AgentHintsPanel } from '../components/AgentHintsPanel'
 import { PickPointMap } from '../components/maps'
 import { useToast } from '../components/Toast'
 import { Button, EmptyState, ErrorBox, Field, LinkButton, Modal, PageHeader, Section, Spinner } from '../components/ui'
-import { audienceLabels, levelLabels, modeHints, modeLabels, toLocalInput } from '../lib/format'
+import { audienceLabels, levelLabels, modeHints, modeLabels, reputationHint, toLocalInput } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 function defaultStart(): string {
@@ -70,7 +70,9 @@ export function EventFormPage() {
       ? 'Создавать мероприятия могут взрослые пользователи и одобренные организации.'
       : user.role === 'ORGANIZATION' && user.organizationStatus !== 'APPROVED'
         ? 'Организация сможет публиковать мероприятия после одобрения заявки администратором.'
-        : null
+        : user.role === 'USER' && !user.canCreateEvents
+          ? reputationHint(user.reputation, true)
+          : null
 
   if (blocked)
     return (
@@ -82,7 +84,7 @@ export function EventFormPage() {
           user.role === 'ORGANIZATION' ? (
             <LinkButton to="/my-organization">Статус заявки</LinkButton>
           ) : (
-            <LinkButton to="/">К афише</LinkButton>
+            <LinkButton to="/feed">К афише</LinkButton>
           )
         }
       />
@@ -281,7 +283,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
       </Section>
 
       <Section title="Когда" >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Начало" error={errors.startAt}>
             <input type="datetime-local" className="input" value={form.startAt} onChange={(e) => set('startAt', e.target.value)} />
           </Field>
@@ -302,7 +304,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
           <Field label="Адрес или место" error={errors.address} hint="Кликните по карте, чтобы поставить точку. Участники смогут построить маршрут.">
             <div className="flex gap-2">
               <input
-                className="input"
+                className="input min-w-0"
                 value={form.address}
                 maxLength={300}
                 placeholder="Красноярск, о. Татышев, у главного входа"
@@ -322,7 +324,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             }
           />
           {form.latitude != null && form.longitude != null && (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               Точка: {form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}{' '}
               <button type="button" className="font-semibold underline" onClick={() => setForm((f) => ({ ...f, latitude: null, longitude: null }))}>
                 убрать
@@ -337,14 +339,14 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
 
       <Section title="Участники и запись" icon={<Users className="size-6 text-brand-600" />}>
         <div className="space-y-5">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(['FREE', 'BY_APPLICATION'] as RegistrationMode[]).map((mode) => (
               <ChoiceCard key={mode} active={form.registrationMode === mode} onClick={() => set('registrationMode', mode)} title={modeLabels[mode]}>
                 {modeHints[mode]}
               </ChoiceCard>
             ))}
           </div>
-          <div className="grid gap-5 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Field label="Уровень">
               <select className="input" value={form.level} onChange={(e) => set('level', e.target.value as SkillLevel)}>
                 {(Object.keys(levelLabels) as SkillLevel[]).map((level) => (
@@ -400,7 +402,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
       </div>
 
       <Modal open={missingSportOpen} title="Куратор видов спорта" onClose={() => setMissingSportOpen(false)}>
-          <p className="text-slate-700">Опишите вид спорта своими словами — агент найдёт похожий в реестре или предложит каноническое название.</p>
+          <p className="text-muted">Опишите вид спорта своими словами — агент найдёт похожий в реестре или предложит каноническое название.</p>
           <div className="mt-4">
           <Field label="Ваш вид спорта">
             <textarea
@@ -481,7 +483,7 @@ function ChoiceCard({ active, onClick, title, children }: { active: boolean; onC
         </span>
       )}
       <span className="block text-lg font-bold">{title}</span>
-      <span className="text-slate-700">{children}</span>
+      <span className="text-muted">{children}</span>
     </button>
   )
 }

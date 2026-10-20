@@ -6,6 +6,8 @@
 
   --color-ink: #111111;
   --color-paper: #fff4dc;
+  --color-surface: #ffffff;
+  --color-muted: #475569;
   --color-pop-yellow: #ffd23f;
   --color-pop-orange: #ff8a3d;
   --color-pop-red: #ff6b6b;
@@ -51,9 +53,14 @@
     transform 120ms ease-out,
     box-shadow 120ms ease-out,
     background-color 120ms ease-out;
-  &:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0 0 var(--color-ink);
+  /* На сенсорных экранах :hover «залипает» после тапа. */
+  @media (hover: hover) {
+    &:hover {
+      transform: translate(-2px, -2px);
+      box-shadow:
+        0 0 22px 6px color-mix(in srgb, var(--glow-halo) 50%, transparent),
+        6px 6px 0 0 var(--color-ink);
+    }
   }
   &:active {
     transform: translate(2px, 2px);
@@ -76,15 +83,59 @@
   html {
     font-size: 17px;
     -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    --glow-halo: var(--color-pop-yellow);
+    /* Высота нижней навигации на мобильном: по ней отступают контент, тосты и плашка записи. */
+    --mobile-nav-h: calc(3.75rem + 3px + env(safe-area-inset-bottom));
   }
 
   html.large-text {
     font-size: 20px;
   }
 
+  html.dark {
+    color-scheme: dark;
+    --color-ink: #f4efe6;
+    --color-paper: #12121a;
+    --color-surface: #1e1e28;
+    /* Вторичный текст на тёмных surface/paper — как на лендинге (text-muted). */
+    --color-muted: #c4beb4;
+    --color-brand-600: #8a9cff;
+    --color-brand-500: #a8b8ff;
+    --glow-halo: #ffffff;
+  }
+
+  /* Белые панели в тёмной теме — тёмный текст; карточки на surface — светлый. */
+  html.dark .bg-white {
+    --color-ink: #111111;
+    --color-muted: #475569;
+  }
+
+  html.dark :where(.bg-surface, .bg-paper, .card) {
+    --color-ink: #f4efe6;
+    --color-muted: #c4beb4;
+  }
+
+  /* Жёлтые, голубые и белые фоны — только тёмный текст (в т.ч. в dark, где text-ink светлый). */
+  :where(
+    [class*='bg-pop-yellow'],
+    [class*='bg-pop-blue'],
+    [class*='bg-brand-600'],
+    [class*='bg-brand-500'],
+    [class*='bg-accent-400'],
+    [class*='bg-accent-500'],
+    .bg-white
+  ) {
+    --color-ink: #111111;
+    --color-muted: #334155;
+    color: #111111;
+  }
+
   body {
     @apply bg-paper text-ink antialiased;
     min-height: 100svh;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px);
     background-size: 22px 22px;
   }
@@ -94,6 +145,24 @@
   h3 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+    overflow-wrap: break-word;
+  }
+
+  /* Крупный Unbounded: одно длинное слово («Администрирование») шире телефона. */
+  @media (max-width: 639px) {
+    h1,
+    h2 {
+      hyphens: auto;
+    }
+  }
+
+  /* iOS увеличивает страницу при фокусе на поле со шрифтом меньше 16px. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: max(16px, 1em) !important;
+    }
   }
 
   h1 {
@@ -134,7 +203,7 @@
 
 @layer components {
   .input {
-    @apply w-full rounded-xl border-[3px] border-ink bg-white px-4 py-3 text-base font-medium text-ink shadow-sm transition placeholder:font-normal placeholder:text-slate-500 focus:bg-[#fffbea] focus:shadow-md focus:outline-none disabled:bg-slate-100 disabled:shadow-none;
+    @apply w-full rounded-xl border-[3px] border-ink bg-surface px-4 py-3 text-base font-medium text-ink shadow-sm transition placeholder:font-normal placeholder:text-muted focus:bg-pop-yellow/15 focus:shadow-md focus:outline-none disabled:opacity-60 disabled:shadow-none;
   }
 
   .label {
@@ -142,7 +211,70 @@
   }
 
   .card {
-    @apply min-w-0 rounded-2xl border-[3px] border-ink bg-white shadow-md;
+    @apply min-w-0 rounded-2xl border-[3px] border-ink bg-surface shadow-md;
+    position: relative;
+    z-index: 0;
+    transform-origin: center;
+    transition:
+      transform 200ms ease-out,
+      box-shadow 200ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .card:hover {
+      z-index: 1;
+      box-shadow:
+        0 0 28px 8px color-mix(in srgb, var(--glow-halo) 50%, transparent),
+        4px 4px 0 0 var(--color-ink);
+    }
+
+    .card.shadow-none:hover {
+      box-shadow: 0 0 26px 7px color-mix(in srgb, var(--glow-halo) 55%, transparent);
+    }
+  }
+
+  /* Лёгкое увеличение (лендинг); glow даёт .card или правило :not(.card) ниже. */
+  .card-glow {
+    position: relative;
+    z-index: 0;
+    transform-origin: center;
+    transition:
+      transform 200ms ease-out,
+      box-shadow 200ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .card-glow:hover {
+      z-index: 1;
+      transform: scale(1.02);
+    }
+
+    .card-glow:not(.card):hover {
+      box-shadow:
+        0 0 28px 8px color-mix(in srgb, var(--glow-halo) 50%, transparent),
+        3px 3px 0 0 var(--color-ink);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card-glow:hover {
+      transform: none;
+    }
+  }
+
+  /* Кнопка без neo-brutalist-тени (например, на тёмном фоне карточки). */
+  .neo-flat {
+    box-shadow: none !important;
+  }
+
+  .neo-flat:active {
+    box-shadow: none !important;
+  }
+
+  @media (hover: hover) {
+    .neo-flat:hover {
+      box-shadow: 0 0 22px 6px color-mix(in srgb, var(--glow-halo) 50%, transparent) !important;
+    }
   }
 
   .ymaps-host {
@@ -208,8 +340,8 @@
     padding: 0.125rem 0.5rem;
     border: 2px solid var(--color-ink);
     border-radius: 0.375rem;
-    background: var(--color-ink);
-    color: #fff;
+    background: #111111;
+    color: #fff4dc;
     font-size: 0.8125rem;
     font-weight: 700;
     white-space: nowrap;
@@ -266,9 +398,9 @@
     transform: translate(-50%, -50%);
     border: 3px solid var(--color-ink);
     border-radius: 0.75rem;
-    background: var(--color-ink);
+    background: #111111;
     box-shadow: 3px 3px 0 0 var(--color-pop-yellow);
-    color: #fff;
+    color: #fff4dc;
     font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 800;

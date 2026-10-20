@@ -5,7 +5,9 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Moon,
   Map as MapIcon,
+  Sun,
   PlusCircle,
   Search,
   Shield,
@@ -18,16 +20,19 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import type { User } from '../api/types'
 import { homeFor, useAuth } from '../auth/AuthContext'
 import { roleLabels } from '../lib/format'
+import { useTheme } from '../lib/theme'
 import { Avatar } from './ui'
 
 interface NavItem {
   to: string
   label: string
+  /** Подпись в нижней навигации, если основная не помещается в ячейку. */
+  short?: string
   icon: ReactNode
 }
 
 function navFor(user: User | null): NavItem[] {
-  const feed = { to: '/', label: 'Афиша', icon: <Search className="size-5" /> }
+  const feed = { to: '/feed', label: 'Афиша', icon: <Search className="size-5" /> }
   const map = { to: '/map', label: 'Карта', icon: <MapIcon className="size-5" /> }
   const orgs = { to: '/organizations', label: 'Клубы', icon: <Building2 className="size-5" /> }
   const create = { to: '/events/new', label: 'Создать', icon: <PlusCircle className="size-5" /> }
@@ -39,7 +44,7 @@ function navFor(user: User | null): NavItem[] {
       return [feed, map, { ...cabinet, label: 'Мои занятия' }]
     case 'ORGANIZATION':
       return [
-        { to: '/my-organization', label: 'Моя организация', icon: <LayoutDashboard className="size-5" /> },
+        { to: '/my-organization', label: 'Моя организация', short: 'Мой клуб', icon: <LayoutDashboard className="size-5" /> },
         feed,
         map,
         create,
@@ -80,7 +85,7 @@ function RoleSwitcher() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-11 items-center gap-2 rounded-xl border-[3px] border-ink bg-white py-1 pl-1 pr-3 shadow-sm lift"
+        className="flex min-h-11 items-center gap-2 rounded-xl border-[3px] border-ink bg-surface py-1 pl-1 pr-3 shadow-sm lift"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -89,7 +94,7 @@ function RoleSwitcher() {
             <Avatar name={user.displayName} color={user.avatarColor} size="sm" />
             <span className="hidden text-left leading-tight sm:block">
               <span className="block max-w-40 truncate text-sm font-semibold">{user.displayName}</span>
-              <span className="block text-xs font-medium text-slate-600">{user.demoLabel ?? roleLabels[user.role]}</span>
+              <span className="block text-xs font-medium text-muted">{roleLabels[user.role]}</span>
             </span>
           </>
         ) : (
@@ -104,11 +109,26 @@ function RoleSwitcher() {
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-3 w-80 overflow-hidden rounded-xl border-[3px] border-ink bg-white shadow-lg">
-          <p className="border-b-[3px] border-ink bg-pop-yellow px-4 py-3 text-sm font-semibold text-ink">
-            Быстрое переключение демо-аккаунтов. Все изменения сохраняются в базе.
-          </p>
-          <div className="max-h-96 overflow-y-auto py-1">
+        <div
+          role="menu"
+          className="absolute right-0 z-50 mt-3 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border-y-[3px] border-l-[3px] border-r-2 border-solid border-ink bg-surface shadow-sm"
+        >
+          {user && (
+            <Link
+              to={`/users/${user.id}`}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 border-b-[3px] border-ink px-4 py-3 hover:bg-pop-blue/30"
+            >
+              <Avatar name={user.displayName} color={user.avatarColor} size="sm" />
+              <span className="min-w-0 text-left">
+                <span className="block font-bold">Мой профиль</span>
+                <span className="block text-xs font-medium text-muted">Как вас видят другие участники</span>
+              </span>
+            </Link>
+          )}
+          <p className="border-b-2 border-ink/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">Сменить аккаунт</p>
+          <div className="max-h-[min(24rem,calc(100svh-17rem))] overflow-y-auto overscroll-contain py-1">
             {demoAccounts.map((account) => (
               <button
                 key={account.id}
@@ -120,16 +140,20 @@ function RoleSwitcher() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-bold">{account.displayName}</span>
                   <span className={`mt-0.5 inline-block rounded border-2 border-ink px-1.5 text-xs font-bold text-ink ${roleTone[account.role]}`}>
-                    {account.demoLabel ?? roleLabels[account.role]}
+                    {roleLabels[account.role]}
                   </span>
                 </span>
               </button>
             ))}
           </div>
           <div className="flex border-t-[3px] border-ink">
-            <Link to="/login" onClick={() => setOpen(false)} className="flex flex-1 items-center justify-center gap-2 py-3 text-sm font-bold text-ink hover:bg-pop-yellow/40">
-              <LogIn className="size-4" />
-              Вход и регистрация
+            <Link
+              to="/login"
+              onClick={() => setOpen(false)}
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold leading-tight text-white hover:bg-pop-yellow/40 hover:text-[#111111]"
+            >
+              <LogIn className="size-4 shrink-0" aria-hidden />
+              <span className="text-center whitespace-nowrap">Вход</span>
             </Link>
             {user && (
               <button
@@ -138,7 +162,7 @@ function RoleSwitcher() {
                   logout()
                   navigate('/login')
                 }}
-                className="flex flex-1 items-center justify-center gap-2 border-l-[3px] border-ink py-3 text-sm font-bold text-ink hover:bg-pop-red/40"
+                className="flex flex-1 items-center justify-center gap-2 border-l-[3px] border-ink px-3 py-3.5 text-sm font-bold text-white hover:bg-pop-red/40"
               >
                 <LogOut className="size-4" />
                 Выйти
@@ -164,7 +188,9 @@ export function Layout() {
   const { user } = useAuth()
   const items = navFor(user)
   const [largeText, toggleLargeText] = useLargeText()
+  const [theme, toggleTheme] = useTheme()
   const location = useLocation()
+  const isLanding = location.pathname === '/'
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -172,7 +198,7 @@ export function Layout() {
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-2 rounded-lg border-[3px] px-3 py-1.5 font-bold transition ${
-      isActive ? 'border-ink bg-pop-yellow text-ink shadow-sm' : 'border-transparent text-ink hover:border-ink hover:bg-white'
+      isActive ? 'border-ink bg-pop-yellow text-ink shadow-sm' : 'border-transparent text-ink hover:border-ink hover:bg-surface'
     }`
 
   return (
@@ -180,21 +206,21 @@ export function Layout() {
       <a href="#main" className="sr-only z-50 rounded-lg border-[3px] border-ink bg-pop-yellow px-4 py-2 font-bold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
         К содержимому
       </a>
-      <header className="sticky top-0 z-40 border-b-[3px] border-ink bg-white">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-40 border-b-[3px] border-ink bg-surface">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
           <Link to={user ? homeFor(user) : '/'} className="group flex items-center gap-3" aria-label="СпортВместе — на главную">
             <span className="flex size-11 rotate-[-6deg] items-center justify-center rounded-xl border-[3px] border-ink bg-pop-yellow text-ink shadow-sm transition group-hover:rotate-0">
               <Zap className="size-6 fill-ink" aria-hidden />
             </span>
             <span className="hidden leading-tight sm:block">
               <span className="block font-display text-lg font-black uppercase">СпортВместе</span>
-              <span className="block text-xs font-semibold text-slate-600">находите компанию для спорта</span>
+              <span className="block text-xs font-semibold text-muted">находите компанию для спорта</span>
             </span>
           </Link>
 
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
             {items.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
+              <NavLink key={item.to} to={item.to} end={item.to === '/feed'} className={linkClass}>
                 {item.icon}
                 {item.label}
               </NavLink>
@@ -203,8 +229,17 @@ export function Layout() {
 
           <div className="ml-auto flex items-center gap-2">
             <button
+              onClick={toggleTheme}
+              className="flex size-11 items-center justify-center rounded-lg border-[3px] border-ink bg-surface text-ink shadow-sm lift"
+              title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+              aria-pressed={theme === 'dark'}
+            >
+              {theme === 'dark' ? <Sun className="size-5" aria-hidden /> : <Moon className="size-5" aria-hidden />}
+            </button>
+            <button
               onClick={toggleLargeText}
-              className={`flex size-11 items-center justify-center rounded-lg border-[3px] border-ink transition ${largeText ? 'bg-ink text-white' : 'bg-white text-ink shadow-sm lift'}`}
+              className={`flex size-11 items-center justify-center rounded-lg border-[3px] border-ink transition ${largeText ? 'bg-ink text-paper' : 'bg-surface text-ink shadow-sm lift'}`}
               title="Крупный шрифт"
               aria-label="Крупный шрифт"
               aria-pressed={largeText}
@@ -216,24 +251,32 @@ export function Layout() {
         </div>
       </header>
 
-      <main id="main" key={user?.id ?? 'guest'} className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-6 lg:pb-14">
+      <main
+        id="main"
+        key={user?.id ?? 'guest'}
+        className={
+          isLanding
+            ? 'w-full min-w-0 flex-1 pb-[calc(var(--mobile-nav-h)+2rem)] lg:pb-14'
+            : 'mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pb-[calc(var(--mobile-nav-h)+2rem)] pt-5 sm:px-6 sm:pt-8 lg:pb-14'
+        }
+      >
         <Outlet />
       </main>
 
-      <footer className="hidden border-t-[3px] border-ink bg-ink py-5 text-center text-sm font-medium text-white lg:block">
+      <footer className="hidden border-t-[3px] border-ink bg-[#111111] py-5 text-center text-sm font-medium text-[#fff4dc] lg:block">
         <span className="font-display font-bold text-pop-yellow">СпортВместе</span> — прототип для кейса «Столото», финал ФСП · Вход имитируется
         демо-аккаунтами, бизнес-логика работает на реальной БД
       </footer>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid border-t-[3px] border-ink bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid border-t-[3px] border-ink bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/'}
+            end={item.to === '/feed'}
             className={({ isActive }) =>
               `mx-1 my-1.5 flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border-[3px] py-1 text-xs font-bold ${
                 isActive ? 'border-ink bg-pop-yellow text-ink' : 'border-transparent text-ink'
@@ -241,7 +284,7 @@ export function Layout() {
             }
           >
             {item.icon}
-            <span className="truncate">{item.label}</span>
+            <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
           </NavLink>
         ))}
       </nav>

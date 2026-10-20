@@ -63,17 +63,28 @@ async function parseError(response: Response): Promise<ApiError> {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 12_000
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData
   const finalHeaders = headers(init.headers)
   if (init.body && !isForm && !finalHeaders.has('Content-Type')) {
     finalHeaders.set('Content-Type', 'application/json')
   }
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
   let response: Response
   try {
-    response = await fetch(`${API_URL}${path}`, { ...init, headers: finalHeaders })
-  } catch {
-    throw new ApiError(0, 'NETWORK', 'Нет связи с сервером. Запустите бэкенд (api-gateway на порту 8080) и обновите страницу.')
+    response = await fetch(`${API_URL}${path}`, { ...init, headers: finalHeaders, signal })
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === 'TimeoutError'
+    throw new ApiError(
+      0,
+      'NETWORK',
+      timedOut
+        ? 'Сервер не ответил вовремя. Запустите бэкенд (`.\\start.ps1` или api-gateway на порту 8080) и обновите страницу.'
+        : 'Нет связи с сервером. Запустите бэкенд (api-gateway на порту 8080) и обновите страницу.',
+    )
   }
   if (!response.ok) throw await parseError(response)
   if (response.status === 204) return undefined as T

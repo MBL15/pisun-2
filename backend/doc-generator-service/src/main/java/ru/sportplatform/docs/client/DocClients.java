@@ -27,7 +27,7 @@ public class DocClients {
     }
 
     public UserDto user(Long id) {
-        return identity.get().uri("/api/users/{id}", id).retrieve().body(UserDto.class);
+        return identity.get().uri("/internal/users/{id}", id).retrieve().body(UserDto.class);
     }
 
     public EventSnapshotDto event(Long id) {

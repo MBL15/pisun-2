@@ -8,7 +8,8 @@ type MapInstance = YMaps
 
 /** Создаёт карту в контейнере и отдаёт её в onReady; при размонтировании уничтожает. */
 function useYandexMap(
-  options: { center: [number, number]; zoom: number; controls?: string[]; scrollZoom?: boolean },
+  /** touchPreview: на сенсорном экране не перехватывать свайп одним пальцем, иначе страницу не прокрутить. */
+  options: { center: [number, number]; zoom: number; controls?: string[]; scrollZoom?: boolean; touchPreview?: boolean },
   onReady: (map: MapInstance, ymaps: YMaps) => void,
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -30,6 +31,7 @@ function useYandexMap(
           { suppressMapOpenBlock: true },
         )
         if (!options.scrollZoom) map.behaviors.disable('scrollZoom')
+        if (options.touchPreview && window.matchMedia('(pointer: coarse)').matches) map.behaviors.disable('drag')
         mapRef.current = map
         ymapsRef.current = ymaps
         onReadyRef.current(map, ymaps)
@@ -64,7 +66,7 @@ function useYandexMap(
 function MapFallback({ message, lat, lon }: { message: string; lat?: number | null; lon?: number | null }) {
   return (
     <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 rounded-xl border-[3px] border-dashed border-ink bg-white p-6 text-center font-medium text-ink">
-      <MapPinOff className="size-8 text-slate-600" />
+      <MapPinOff className="size-8 text-muted" />
       <p>{message}</p>
       {lat != null && lon != null && (
         <a href={yandexPointUrl(lat, lon)} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">
@@ -329,7 +331,7 @@ export function PickPointMap({
   return (
     <div className="space-y-2">
       <div ref={containerRef} className="ymaps-host h-80 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
-      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+      <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
         <span>Кликните по карте или перетащите метку, чтобы указать точное место встречи.</span>
         {searchQuery && (
           <button type="button" onClick={findAddress} disabled={searching} className="font-semibold text-brand-700 underline">
@@ -366,7 +368,7 @@ export function MiniMap({
   emoji?: string | null
   club?: boolean
 }) {
-  const { containerRef, error } = useYandexMap({ center: [latitude, longitude], zoom: 15, controls: ['zoomControl'] }, (map, ymaps) => {
+  const { containerRef, error } = useYandexMap({ center: [latitude, longitude], zoom: 15, controls: ['zoomControl'], touchPreview: true }, (map, ymaps) => {
     map.geoObjects.add(
       new ymaps.Placemark(
         [latitude, longitude],
@@ -410,7 +412,7 @@ export function EventRoutePlanner({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { containerRef, mapRef, ymapsRef, error: mapError, ready } = useYandexMap(
-    { center: [latitude, longitude], zoom: 11, controls: ['zoomControl', 'routeButtonControl'] },
+    { center: [latitude, longitude], zoom: 11, controls: ['zoomControl', 'routeButtonControl'], touchPreview: true },
     () => {},
   )
 

@@ -19,7 +19,7 @@ public class IdentityClient {
     }
 
     public UserDto getUser(Long id) {
-        return client.get().uri("/api/users/{id}", id).retrieve().body(UserDto.class);
+        return client.get().uri("/internal/users/{id}", id).retrieve().body(UserDto.class);
     }
 
     public List<UserDto> getChildren(Long parentId) {

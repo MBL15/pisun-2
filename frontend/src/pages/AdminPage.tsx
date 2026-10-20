@@ -94,14 +94,14 @@ function useReasonDialog() {
 
 function StatusFilter<T extends string>({ value, onChange, options }: { value: T | ''; onChange: (v: T | '') => void; options: [T | '', string][] }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
       {options.map(([key, label]) => (
         <button
           key={key || 'all'}
           onClick={() => onChange(key)}
           aria-pressed={value === key}
-          className={`min-h-11 rounded-full border-[3px] border-ink px-4 py-1.5 font-bold transition ${
-            value === key ? 'translate-x-0.5 translate-y-0.5 bg-brand-600 text-white' : 'bg-white text-ink shadow-sm hover:bg-pop-yellow/50'
+          className={`min-h-11 shrink-0 rounded-full border-[3px] border-ink px-4 py-1.5 font-bold transition ${
+            value === key ? 'translate-x-0.5 translate-y-0.5 bg-brand-600 text-[#111111]' : 'bg-white text-ink shadow-sm hover:bg-pop-yellow/50'
           }`}
         >
           {label}
@@ -155,7 +155,7 @@ function OrganizationsTab() {
                 <h3 className="text-xl font-bold">{org.name}</h3>
                 <Badge tone={org.status === 'APPROVED' ? 'green' : org.status === 'PENDING' ? 'amber' : 'red'}>{organizationStatusLabels[org.status]}</Badge>
               </div>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted">
                 Заявитель: {org.ownerName} · подана {formatDateTime(org.createdAt)}
               </p>
             </div>
@@ -190,14 +190,14 @@ function OrganizationsTab() {
             </div>
           </div>
           <p className="font-medium text-brand-700">{org.sportsInterests}</p>
-          <p className="whitespace-pre-line text-slate-700">{org.description}</p>
-          <p className="text-sm text-slate-600">{[org.city, org.address, org.contacts, org.website].filter(Boolean).join(' · ')}</p>
+          <p className="whitespace-pre-line text-muted">{org.description}</p>
+          <p className="text-sm text-muted">{[org.city, org.address, org.contacts, org.website].filter(Boolean).join(' · ')}</p>
           {org.rejectionReason && (
             <p className="rounded-xl bg-pop-red/30 p-3 text-ink">
               <span className="font-semibold">Причина отказа:</span> {org.rejectionReason}
             </p>
           )}
-          {org.reviewedAt && <p className="text-sm text-slate-600">Решение: {org.reviewedBy} · {formatDateTime(org.reviewedAt)}</p>}
+          {org.reviewedAt && <p className="text-sm text-muted">Решение: {org.reviewedBy} · {formatDateTime(org.reviewedAt)}</p>}
         </article>
       ))}
       {dialog}
@@ -263,7 +263,7 @@ function EventsTab() {
             setApplied(query.trim())
           }}
         >
-          <input className="input py-2" placeholder="Поиск" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="input min-w-0 py-2" placeholder="Поиск" value={query} onChange={(e) => setQuery(e.target.value)} />
           <Button type="submit" variant="secondary" icon={<Search className="size-4" />}>
             Найти
           </Button>
@@ -284,10 +284,10 @@ function EventsTab() {
             <Link to={`/events/${event.id}`} className="block text-lg font-bold hover:underline">
               {event.sportEmoji} {event.title}
             </Link>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               {event.organizerName} · {formatDateTime(event.startAt)} · участников {event.participantsCount}
             </p>
-            {event.aiSummary && <p className="text-sm text-slate-600">ИИ: {event.aiSummary}</p>}
+            {event.aiSummary && <p className="text-sm text-muted">ИИ: {event.aiSummary}</p>}
             {event.moderationReason && <p className="text-sm font-medium text-red-700">Причина: {event.moderationReason}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -352,8 +352,8 @@ function CommentsTab() {
         <article key={comment.id} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
           <Avatar name={comment.authorName} color={comment.authorAvatarColor} size="sm" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-slate-600">
-              <span className="font-bold text-slate-800">{comment.authorName}</span>
+            <p className="text-sm text-muted">
+              <span className="font-bold text-ink">{comment.authorName}</span>
               {comment.organizerReply && ' · организатор'} · {formatDateTime(comment.createdAt)} ·{' '}
               <Link to={`/events/${comment.eventId}`} className="text-brand-700 underline">
                 {comment.eventTitle}
@@ -432,7 +432,7 @@ function Toggle({ checked, onChange, title, text, disabled }: { checked: boolean
       <input type="checkbox" className="mt-1 size-6 shrink-0 accent-ink" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span>
         <span className="block font-bold">{title}</span>
-        <span className="text-slate-700">{text}</span>
+        <span className="text-muted">{text}</span>
       </span>
     </label>
   )
@@ -505,7 +505,7 @@ function AiTab() {
             <Button loading={busy} icon={<Save className="size-5" />} onClick={save}>
               Сохранить
             </Button>
-            {draft.updatedAt && <p className="text-sm text-slate-600">Изменено: {draft.updatedBy} · {formatDateTime(draft.updatedAt)}</p>}
+            {draft.updatedAt && <p className="text-sm text-muted">Изменено: {draft.updatedBy} · {formatDateTime(draft.updatedAt)}</p>}
           </>
         )}
       </section>
@@ -514,11 +514,11 @@ function AiTab() {
         {agentStats.data && (
           <article className="card space-y-2 p-4">
             <h2 className="text-xl font-bold">Event Quality Guardian — за 24 часа</h2>
-            <p className="text-slate-700">
+            <p className="text-muted">
               Проверок: {agentStats.data.checks24h}, с флагами: {agentStats.data.flagged24h}, авто-придержек: {agentStats.data.autoUnpublish24h}
             </p>
             {agentStats.data.topFlagReasons.length > 0 && (
-              <p className="text-sm text-slate-600">Частые причины: {agentStats.data.topFlagReasons.join(' · ')}</p>
+              <p className="text-sm text-muted">Частые причины: {agentStats.data.topFlagReasons.join(' · ')}</p>
             )}
           </article>
         )}
@@ -530,7 +530,7 @@ function AiTab() {
               <Badge tone={verdict.status === 'FLAGGED' ? 'red' : 'green'}>{verdict.status === 'FLAGGED' ? 'Нарушения' : 'Одобрено'}</Badge>
               <Badge tone={verdict.ageRestriction === 'CHILD_SAFE' ? 'brand' : 'orange'}>{verdict.ageRestriction === 'CHILD_SAFE' ? 'Можно детям' : '18+'}</Badge>
               {verdict.hold && <Badge tone="amber">Отправлено на проверку</Badge>}
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-muted">
                 {verdict.source} · {formatDateTime(verdict.createdAt)}
               </span>
             </div>
@@ -542,11 +542,11 @@ function AiTab() {
               ) : (
                 verdict.eventTitle
               )}
-              {verdict.organizerName && <span className="font-normal text-slate-600"> · {verdict.organizerName}</span>}
+              {verdict.organizerName && <span className="font-normal text-muted"> · {verdict.organizerName}</span>}
             </p>
-            <p className="text-slate-700">{verdict.summary}</p>
+            <p className="text-muted">{verdict.summary}</p>
             {verdict.reasons.length > 0 && (
-              <ul className="mt-1 list-inside list-disc text-sm text-slate-600">
+              <ul className="mt-1 list-inside list-disc text-sm text-muted">
                 {verdict.reasons.map((reason) => (
                   <li key={reason}>{reason}</li>
                 ))}
@@ -624,7 +624,7 @@ function TemplatesTab() {
             <button
               key={template.code}
               onClick={() => select(template)}
-              className={`rounded-xl border-[3px] border-ink px-4 py-2 font-bold ${template.code === code ? 'bg-ink text-white' : 'bg-white shadow-sm hover:bg-pop-yellow/50'}`}
+              className={`rounded-xl border-[3px] border-ink px-4 py-2 font-bold ${template.code === code ? 'bg-ink text-white dark:text-[#111111]' : 'bg-white shadow-sm hover:bg-pop-yellow/50'}`}
             >
               {template.name}
             </button>
@@ -641,7 +641,7 @@ function TemplatesTab() {
         <Field label="Текст шаблона (HTML)" hint="Плейсхолдеры в двойных фигурных скобках подставляются при генерации">
           <textarea
             ref={editorRef}
-            className="input min-h-[420px] font-mono text-sm"
+            className="input min-h-80 font-mono text-sm sm:min-h-[420px]"
             spellCheck={false}
             value={draft.content}
             onChange={(e) => setDraft({ ...draft, content: e.target.value })}
@@ -678,18 +678,18 @@ function TemplatesTab() {
             }}
           />
         </div>
-        {draft.updatedAt && <p className="text-sm text-slate-600">Изменено: {draft.updatedBy ?? 'система'} · {formatDateTime(draft.updatedAt)}</p>}
+        {draft.updatedAt && <p className="text-sm text-muted">Изменено: {draft.updatedBy ?? 'система'} · {formatDateTime(draft.updatedAt)}</p>}
       </section>
 
       <aside className="card space-y-3 self-start p-5">
         <h2 className="text-lg font-bold">Плейсхолдеры</h2>
-        <p className="text-sm text-slate-600">Нажмите, чтобы вставить в позицию курсора.</p>
+        <p className="text-sm text-muted">Нажмите, чтобы вставить в позицию курсора.</p>
         <ul className="space-y-1">
           {Object.entries(placeholders.data ?? {}).map(([key, description]) => (
             <li key={key}>
               <button onClick={() => insert(key)} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-pop-yellow/50">
                 <code className="text-sm font-semibold text-brand-700">{`{{${key}}}`}</code>
-                <span className="block text-sm text-slate-600">{description}</span>
+                <span className="block text-sm text-muted">{description}</span>
               </button>
             </li>
           ))}
@@ -726,15 +726,15 @@ function JournalTab() {
         const meta = journalLabels[action.type]
         return (
           <div key={action.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start">
-            <div className="w-40 shrink-0 text-sm text-slate-600">{formatDateTime(action.createdAt)}</div>
+            <div className="w-40 shrink-0 text-sm text-muted">{formatDateTime(action.createdAt)}</div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={meta.tone}>{meta.label}</Badge>
                 <span className="font-semibold">{action.targetTitle ?? `#${action.targetId}`}</span>
               </div>
-              {action.reason && <p className="mt-1 text-slate-700">Причина: {action.reason}</p>}
+              {action.reason && <p className="mt-1 text-muted">Причина: {action.reason}</p>}
             </div>
-            <div className="text-sm text-slate-600">{action.adminName}</div>
+            <div className="text-sm text-muted">{action.adminName}</div>
           </div>
         )
       })}

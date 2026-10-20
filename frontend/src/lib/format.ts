@@ -138,6 +138,30 @@ const sportTones = ['bg-pop-yellow', 'bg-pop-blue', 'bg-pop-green', 'bg-pop-pink
 /** Стабильный цвет «стикера» направления, чтобы карточки разных видов спорта различались. */
 export const sportTone = (sportTypeId: number) => sportTones[Math.abs(sportTypeId) % sportTones.length]
 
+export const REPUTATION_DEFAULT = 100
+export const REPUTATION_MIN_TO_CREATE = 30
+
+export function normalizeReputation(score: number | undefined | null): number {
+  return typeof score === 'number' && Number.isFinite(score) ? score : REPUTATION_DEFAULT
+}
+
+export function reputationHint(score: number, blocked: boolean): string {
+  if (blocked) {
+    return `Создание мероприятий недоступно: репутация ${score} баллов (нужно не меньше ${REPUTATION_MIN_TO_CREATE}). Снижение происходит, когда администратор снимает или удаляет ваше мероприятие после проверки.`
+  }
+  if (score < 60) {
+    return `Репутация ${score} баллов — будьте внимательны к правилам: при ${REPUTATION_MIN_TO_CREATE} и ниже публикация событий закроется.`
+  }
+  return `Репутация ${score} баллов — чем выше, тем больше доверия у участников.`
+}
+
+export function reputationTone(score: number, blocked: boolean): 'red' | 'amber' | 'green' | 'slate' {
+  if (blocked) return 'red'
+  if (score < 60) return 'amber'
+  if (score >= 80) return 'green'
+  return 'slate'
+}
+
 export function initials(name: string): string {
   return name
     .replace(/[«»"]/g, '')

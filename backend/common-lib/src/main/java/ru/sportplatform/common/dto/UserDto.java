@@ -3,7 +3,6 @@ package ru.sportplatform.common.dto;
 import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.Gender;
 import ru.sportplatform.common.enums.RoleType;
-
 /** Публичное представление аккаунта, которое identity-service отдаёт клиенту и другим сервисам. */
 public record UserDto(
         Long id,
@@ -24,9 +23,38 @@ public record UserDto(
         String organizationName,
         ApplicationStatus organizationStatus,
         boolean demo,
-        String demoLabel
+        String demoLabel,
+        int reputation,
+        boolean canCreateEvents
 ) {
     public boolean isApprovedOrganization() {
         return role == RoleType.ORGANIZATION && organizationStatus == ApplicationStatus.APPROVED;
+    }
+
+    /** Публичная карточка: без почты и семейных связей. */
+    public UserDto asPublicView() {
+        return new UserDto(
+                id,
+                displayName,
+                null,
+                role,
+                age,
+                city,
+                bio,
+                interests,
+                avatarColor,
+                gender,
+                null,
+                null,
+                null,
+                null,
+                organizationId,
+                organizationName,
+                organizationStatus,
+                demo,
+                demoLabel,
+                reputation,
+                canCreateEvents
+        );
     }
 }

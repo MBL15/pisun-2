@@ -50,7 +50,7 @@ export function ReasonDialog({
 
   return (
     <Modal open={open} title={title} onClose={onClose}>
-      {description && <p className="mb-4 text-slate-600">{description}</p>}
+      {description && <p className="mb-4 text-muted">{description}</p>}
       {presets.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           {presets.map((preset) => (

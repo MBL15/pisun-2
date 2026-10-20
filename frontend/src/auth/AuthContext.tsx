@@ -98,6 +98,6 @@ export function homeFor(user: User): string {
     case 'ORGANIZATION':
       return '/my-organization'
     default:
-      return '/'
+      return '/feed'
   }
 }

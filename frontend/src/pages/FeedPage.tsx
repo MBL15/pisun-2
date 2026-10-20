@@ -28,7 +28,7 @@ import { useAsync } from '../lib/useAsync'
 type DateRange = 'any' | 'today' | 'weekend' | 'week'
 
 const chip = 'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-[3px] border-ink px-4 py-1.5 font-bold transition'
-const chipOn = 'translate-x-0.5 translate-y-0.5 bg-ink text-white'
+const chipOn = 'translate-x-0.5 translate-y-0.5 bg-ink text-white dark:text-[#111111]'
 const chipOff = 'bg-white text-ink shadow-sm hover:bg-pop-yellow/50'
 
 function rangeToDates(range: DateRange): Pick<EventFilters, 'from' | 'to'> {
@@ -84,7 +84,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border-[3px] border-ink bg-pop-yellow px-6 py-8 shadow-lg sm:px-10 sm:py-12">
+      <section className="relative overflow-hidden rounded-2xl border-[3px] border-ink bg-pop-yellow px-6 py-8 text-[#111111] shadow-lg sm:px-10 sm:py-12">
         <div className="pointer-events-none absolute right-6 top-6 hidden gap-4 lg:flex" aria-hidden>
           <span className="flex size-24 rotate-[8deg] items-center justify-center rounded-2xl border-[3px] border-ink bg-pop-blue shadow-md">
             <Trophy className="size-12" strokeWidth={2.5} />
@@ -165,16 +165,16 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <SlidersHorizontal className="size-5 text-ink" aria-hidden />
-          <select className="input w-auto py-2" value={range} onChange={(event) => setRange(event.target.value as DateRange)} aria-label="Когда">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+          <SlidersHorizontal className="hidden size-5 text-ink sm:block" aria-hidden />
+          <select className="input min-w-0 py-2 pl-3 sm:w-auto sm:pl-4" value={range} onChange={(event) => setRange(event.target.value as DateRange)} aria-label="Когда">
             <option value="any">Любая дата</option>
             <option value="today">Сегодня</option>
             <option value="weekend">Ближайшие выходные</option>
             <option value="week">На этой неделе</option>
           </select>
           <select
-            className="input w-auto py-2"
+            className="input min-w-0 py-2 pl-3 sm:w-auto sm:pl-4"
             value={mode ?? ''}
             onChange={(event) => setMode((event.target.value || undefined) as RegistrationMode | undefined)}
             aria-label="Режим записи"
@@ -183,29 +183,33 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
             <option value="FREE">Свободная запись</option>
             <option value="BY_APPLICATION">По заявке</option>
           </select>
-          {!isChild && (
-            <button
-              onClick={() => setKidsOnly((value) => !value)}
-              className={`inline-flex min-h-12 items-center gap-2 rounded-xl border-[3px] border-ink px-4 py-2 font-bold transition ${
-                kidsOnly ? 'translate-x-0.5 translate-y-0.5 bg-pop-green' : 'bg-white shadow-sm hover:bg-pop-green/40'
-              }`}
-              aria-pressed={kidsOnly}
-            >
-              <Baby className="size-5" />
-              Можно с детьми
-            </button>
+          {(!isChild || hasFilters) && (
+            <div className="col-span-2 flex gap-2 sm:contents">
+              {!isChild && (
+                <button
+                  onClick={() => setKidsOnly((value) => !value)}
+                  className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border-[3px] border-ink px-4 py-2 font-bold text-[#111111] transition sm:flex-none ${
+                    kidsOnly ? 'translate-x-0.5 translate-y-0.5 bg-pop-green' : 'bg-white shadow-sm hover:bg-pop-green/40'
+                  }`}
+                  aria-pressed={kidsOnly}
+                >
+                  <Baby className="size-5" />
+                  Можно с детьми
+                </button>
+              )}
+              {hasFilters && (
+                <button onClick={reset} className="inline-flex min-h-12 items-center gap-1 px-2 font-bold text-ink underline decoration-2 underline-offset-4">
+                  <X className="size-4" />
+                  Сбросить
+                </button>
+              )}
+            </div>
           )}
-          {hasFilters && (
-            <button onClick={reset} className="inline-flex min-h-12 items-center gap-1 px-2 font-bold text-ink underline decoration-2 underline-offset-4">
-              <X className="size-4" />
-              Сбросить
-            </button>
-          )}
-          <div className="ml-auto flex rounded-xl border-[3px] border-ink bg-white p-1 shadow-sm" role="group" aria-label="Вид афиши">
+          <div className="col-span-2 flex rounded-xl border-[3px] border-ink bg-white p-1 shadow-sm sm:ml-auto" role="group" aria-label="Вид афиши">
             <button
               onClick={() => setView('list')}
               aria-pressed={view === 'list'}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-1.5 font-bold ${view === 'list' ? 'bg-ink text-white' : 'text-ink hover:bg-pop-yellow/50'}`}
+              className={`inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-bold sm:flex-none ${view === 'list' ? 'bg-[#111111] text-white' : 'text-ink hover:bg-pop-yellow/50'}`}
             >
               <LayoutGrid className="size-4" />
               Список
@@ -213,7 +217,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
             <button
               onClick={() => setView('map')}
               aria-pressed={view === 'map'}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-1.5 font-bold ${view === 'map' ? 'bg-ink text-white' : 'text-ink hover:bg-pop-yellow/50'}`}
+              className={`inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-bold sm:flex-none ${view === 'map' ? 'bg-[#111111] text-white' : 'text-ink hover:bg-pop-yellow/50'}`}
             >
               <MapIcon className="size-4" />
               Карта
@@ -274,11 +278,11 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
           />
         ) : (
           <>
-            <div className="flex items-center justify-between">
-              <p className="text-slate-600">Найдено: {events.data.length}</p>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <p className="shrink-0 text-muted">Найдено: {events.data.length}</p>
               {canCreate && (
                 <Link to="/events/new" className="inline-flex items-center gap-2 font-semibold text-brand-700 hover:underline">
-                  <PlusCircle className="size-5" />
+                  <PlusCircle className="size-5 shrink-0" />
                   Не нашли подходящее? Создайте своё
                 </Link>
               )}

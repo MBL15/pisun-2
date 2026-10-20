@@ -24,6 +24,7 @@ import ru.sportplatform.common.enums.OrganizerType;
 import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
+import ru.sportplatform.common.policy.ReputationPolicy;
 import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.event.client.AiClient;
@@ -171,6 +172,15 @@ public class EventService {
                 if (!author.isApprovedOrganization()) {
                     throw ApiException.forbidden("Организация ещё не допущена администратором. "
                             + "Публикация событий откроется сразу после одобрения заявки");
+                }
+            }
+            case USER -> {
+                if (!ReputationPolicy.canUserOrganize(author.reputation())) {
+                    throw ApiException.forbidden(
+                            "Создание мероприятий недоступно: репутация ниже "
+                                    + ReputationPolicy.MIN_TO_CREATE_EVENTS
+                                    + " баллов из‑за отклонённых модерацией публикаций. "
+                                    + "Проверьте профиль в личном кабинете");
                 }
             }
             default -> {

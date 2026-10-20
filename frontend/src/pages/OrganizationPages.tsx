@@ -27,7 +27,7 @@ export function OrganizationsPage() {
         }}
       >
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-600" />
+          <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted" />
           <input className="input pl-12" placeholder="Название или вид спорта" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <Button type="submit">Найти</Button>
@@ -37,14 +37,14 @@ export function OrganizationsPage() {
       {data && data.length === 0 && <EmptyState icon={<Building2 className="size-8" />} title="Ничего не найдено" />}
       <div className="grid gap-5 sm:grid-cols-2">
         {data?.map((org) => (
-          <Link key={org.id} to={`/organizations/${org.id}`} className="card flex gap-4 p-5 lift">
+          <Link key={org.id} to={`/organizations/${org.id}`} className="card flex gap-4 p-4 lift sm:p-5">
             <Avatar name={org.name} color={org.logoColor} size="lg" />
             <div className="min-w-0">
               <h2 className="text-xl font-bold">{org.name}</h2>
               <p className="mt-1 font-medium text-brand-700">{org.sportsInterests}</p>
-              <p className="mt-2 line-clamp-2 text-slate-600">{org.description}</p>
+              <p className="mt-2 line-clamp-2 text-muted">{org.description}</p>
               {org.city && (
-                <p className="mt-2 flex items-center gap-1 text-sm text-slate-600">
+                <p className="mt-2 flex items-center gap-1 text-sm text-muted">
                   <MapPin className="size-4" />
                   {org.city}
                 </p>
@@ -71,7 +71,7 @@ export function OrganizationPage() {
       <OrganizationHeader org={org.data} />
       <Section title="Ближайшие мероприятия" icon={<CalendarDays className="size-6 text-brand-600" />}>
         {events.loading && !events.data && <Spinner />}
-        {events.data?.length === 0 && <p className="text-slate-600">Сейчас нет запланированных мероприятий.</p>}
+        {events.data?.length === 0 && <p className="text-muted">Сейчас нет запланированных мероприятий.</p>}
         <div className="grid gap-5 sm:grid-cols-2">
           {events.data?.map((event) => (
             <EventCard key={event.id} event={event} />
@@ -84,12 +84,12 @@ export function OrganizationPage() {
 
 function OrganizationHeader({ org }: { org: Organization }) {
   return (
-    <section className="card p-6">
+    <section className="card p-5 sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row">
         <Avatar name={org.name} color={org.logoColor} size="lg" />
-        <div className="flex-1 space-y-3">
+        <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-extrabold">{org.name}</h1>
+            <h1 className="text-2xl font-extrabold sm:text-3xl">{org.name}</h1>
             {org.status === 'APPROVED' && (
               <Badge tone="green" icon={<CheckCircle2 className="size-4" />}>
                 Проверенная организация
@@ -97,23 +97,23 @@ function OrganizationHeader({ org }: { org: Organization }) {
             )}
           </div>
           <p className="text-lg font-medium text-brand-700">{org.sportsInterests}</p>
-          <p className="whitespace-pre-line text-lg text-slate-700">{org.description}</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-slate-600">
+          <p className="whitespace-pre-line text-lg text-muted">{org.description}</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted">
             {(org.city || org.address) && (
               <span className="flex items-center gap-1.5">
-                <MapPin className="size-4" />
+                <MapPin className="size-4 shrink-0" />
                 {[org.city, org.address].filter(Boolean).join(', ')}
               </span>
             )}
             {org.contacts && (
               <span className="flex items-center gap-1.5">
-                <Phone className="size-4" />
+                <Phone className="size-4 shrink-0" />
                 {org.contacts}
               </span>
             )}
             {org.website && (
-              <a href={org.website.startsWith('http') ? org.website : `https://${org.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-brand-700 underline">
-                <Globe className="size-4" />
+              <a href={org.website.startsWith('http') ? org.website : `https://${org.website}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 break-all text-brand-700 underline">
+                <Globe className="size-4 shrink-0" />
                 {org.website}
               </a>
             )}
@@ -184,7 +184,7 @@ export function MyOrganizationPage() {
           }
         >
           {events.loading && !events.data && <Spinner />}
-          {events.data?.length === 0 && <p className="text-slate-600">Вы ещё не создали ни одного мероприятия.</p>}
+          {events.data?.length === 0 && <p className="text-muted">Вы ещё не создали ни одного мероприятия.</p>}
           <div className="grid gap-5 sm:grid-cols-2">
             {events.data?.map((event) => (
               <EventCard key={event.id} event={event} showStatus />
@@ -260,7 +260,7 @@ function OrganizationEditor({ org, onSaved, onCancel }: { org: Organization | nu
   }
 
   return (
-    <form onSubmit={submit} className="card space-y-5 p-6">
+    <form onSubmit={submit} className="card space-y-5 p-5 sm:p-6">
       {org?.status === 'REJECTED' && org.rejectionReason && (
         <div className="rounded-2xl border-[3px] border-ink bg-pop-red shadow-md p-4 text-ink">
           <span className="font-semibold">Замечание администратора:</span> {org.rejectionReason}

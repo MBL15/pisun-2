@@ -20,7 +20,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { eventsApi, moderationApi, usersApi } from '../api/endpoints'
 import type { Registration, SportEvent, User } from '../api/types'
@@ -37,6 +37,7 @@ import {
   formatDate,
   formatDateTime,
   formatDuration,
+  formatShortDate,
   formatTime,
   levelLabels,
   modeHints,
@@ -62,9 +63,10 @@ export function EventPage() {
   if (!event) return null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 lg:pb-0">
       <BackLink />
       <StatusBanner event={event} />
+      <MobileRegistrationBar event={event} user={user} />
 
       <header className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -80,7 +82,7 @@ export function EventPage() {
           <AiBadge event={event} />
           {event.status !== 'PUBLISHED' && <EventStatusBadge status={event.status} />}
         </div>
-        <h1 className="max-w-4xl text-3xl font-black leading-tight sm:text-5xl">{event.title}</h1>
+        <h1 className="max-w-4xl text-[1.75rem] font-black leading-tight sm:text-5xl">{event.title}</h1>
         <OrganizerLink event={event} />
       </header>
 
@@ -111,7 +113,7 @@ export function EventPage() {
           </Section>
 
           <Section title="О мероприятии" icon={<Sparkles className="size-6 text-brand-600" />}>
-            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-800">{event.description}</p>
+            <p className="whitespace-pre-line text-lg leading-relaxed text-ink">{event.description}</p>
           </Section>
 
           <Section title="Условия участия" icon={<ListChecks className="size-6 text-brand-600" />}>
@@ -122,12 +124,12 @@ export function EventPage() {
                 {event.capacity ? `Мест: ${event.capacity}` : 'Без ограничения мест'}
               </Badge>
             </div>
-            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-800">
+            <p className="whitespace-pre-line text-lg leading-relaxed text-ink">
               {event.conditions || 'Организатор не указал особых требований.'}
             </p>
             <div className={`mt-4 rounded-xl border-[3px] border-ink p-4 ${event.registrationMode === 'FREE' ? 'bg-pop-green/40' : 'bg-pop-lilac/40'}`}>
               <p className="font-bold">{modeLabels[event.registrationMode]}</p>
-              <p className="text-slate-800">{modeHints[event.registrationMode]}</p>
+              <p className="text-ink">{modeHints[event.registrationMode]}</p>
             </div>
           </Section>
 
@@ -162,9 +164,65 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
         {icon}
       </span>
       <div className="min-w-0">
-        <dt className="text-xs font-bold uppercase tracking-wide text-slate-700">{label}</dt>
+        <dt className="text-xs font-bold uppercase tracking-wide text-muted">{label}</dt>
         <dd className="break-words text-lg font-bold">{value}</dd>
       </div>
+    </div>
+  )
+}
+
+function selfRegistration(event: SportEvent, user: User | null) {
+  return event.viewer.myRegistrations.find((r) => r.participantId === user?.id && (r.status === 'APPROVED' || r.status === 'PENDING'))
+}
+
+function scrollToRegistration() {
+  document.getElementById('registration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/** На телефоне панель записи стоит после описания и обсуждения: плашка над навигацией ведёт к ней. */
+function MobileRegistrationBar({ event, user }: { event: SportEvent; user: User | null }) {
+  const [panelVisible, setPanelVisible] = useState(false)
+
+  useEffect(() => {
+    const panel = document.getElementById('registration')
+    if (!panel) return
+    const observer = new IntersectionObserver(([entry]) => setPanelVisible(entry.isIntersecting))
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [])
+
+  const self = selfRegistration(event, user)
+  const label = !user
+    ? 'Войти и записаться'
+    : self
+      ? 'Моя запись'
+      : event.viewer.registrationOpen
+        ? event.registrationMode === 'BY_APPLICATION'
+          ? 'Подать заявку'
+          : 'Записаться'
+        : null
+  if (!label || panelVisible) return null
+
+  const spots =
+    event.capacity == null ? `Участников: ${event.participantsCount}` : event.spotsLeft === 0 ? 'Мест нет' : `Свободно ${event.spotsLeft} из ${event.capacity}`
+
+  return (
+    <div className="fixed inset-x-0 bottom-[var(--mobile-nav-h)] z-30 flex items-center gap-3 border-t-[3px] border-ink bg-surface px-4 py-2.5 lg:hidden">
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate font-bold">
+          {formatShortDate(event.startAt)}, {formatTime(event.startAt)}
+        </p>
+        <p className="truncate text-sm text-muted">{self ? registrationStatusLabels[self.status] : spots}</p>
+      </div>
+      {user ? (
+        <Button size="sm" variant={self ? 'secondary' : 'success'} className="shrink-0" onClick={scrollToRegistration}>
+          {label}
+        </Button>
+      ) : (
+        <LinkButton to="/login" size="sm" variant="success" className="shrink-0">
+          {label}
+        </LinkButton>
+      )}
     </div>
   )
 }
@@ -172,12 +230,12 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
 function OrganizerLink({ event }: { event: SportEvent }) {
   const to = event.organizerType === 'ORGANIZATION' && event.organizationId ? `/organizations/${event.organizationId}` : `/users/${event.organizerUserId}`
   return (
-    <Link to={to} className="inline-flex items-center gap-3 rounded-xl border-[3px] border-ink bg-white py-2 pl-2 pr-4 shadow-sm lift">
-      <span className={`flex size-10 items-center justify-center rounded-lg border-2 border-ink text-ink ${event.organizerType === 'ORGANIZATION' ? 'bg-pop-orange' : 'bg-pop-blue'}`} aria-hidden>
+    <Link to={to} className="inline-flex max-w-full items-center gap-3 rounded-xl border-[3px] border-ink bg-white py-2 pl-2 pr-4 shadow-sm lift">
+      <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg border-2 border-ink text-ink ${event.organizerType === 'ORGANIZATION' ? 'bg-pop-orange' : 'bg-pop-blue'}`} aria-hidden>
         {event.organizerType === 'ORGANIZATION' ? <Building2 className="size-5" /> : <UserRound className="size-5" />}
       </span>
-      <span className="leading-tight">
-        <span className="block text-xs font-bold uppercase tracking-wide text-slate-700">{event.organizerType === 'ORGANIZATION' ? 'Организация' : 'Организатор'}</span>
+      <span className="min-w-0 leading-tight">
+        <span className="block text-xs font-bold uppercase tracking-wide text-muted">{event.organizerType === 'ORGANIZATION' ? 'Организация' : 'Организатор'}</span>
         <span className="block font-bold">{event.organizerName}</span>
       </span>
     </Link>
@@ -221,7 +279,7 @@ function StatusBanner({ event }: { event: SportEvent }) {
   }
   if (event.past) {
     return (
-      <div className="rounded-2xl border-[3px] border-ink bg-white shadow-md p-4 font-semibold text-slate-700">Мероприятие уже прошло.</div>
+      <div className="rounded-2xl border-[3px] border-ink bg-white shadow-md p-4 font-semibold text-muted">Мероприятие уже прошло.</div>
     )
   }
   return null
@@ -257,7 +315,7 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
   const children = useAsync(() => (user?.role === 'USER' ? usersApi.children(user.id) : Promise.resolve([] as User[])), [user?.id])
 
   const mine = event.viewer.myRegistrations
-  const selfActive = mine.find((r) => r.participantId === user?.id && (r.status === 'APPROVED' || r.status === 'PENDING'))
+  const selfActive = selfRegistration(event, user)
   const activeChildIds = new Set(mine.filter((r) => r.child && (r.status === 'APPROVED' || r.status === 'PENDING')).map((r) => r.participantId))
   const childSafe = event.ageRestriction === 'CHILD_SAFE' && event.aiStatus === 'AI_APPROVED'
   const byApplication = event.registrationMode === 'BY_APPLICATION'
@@ -303,10 +361,10 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
   const canUseDocs = user && (user.role === 'USER' || user.role === 'CHILD')
 
   return (
-    <section className="card sticky top-24 space-y-4 p-5">
+    <section id="registration" className="card scroll-mt-24 space-y-4 p-5 lg:sticky lg:top-24">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-bold">Запись</h2>
-        <span className="text-slate-600">
+        <span className="text-muted">
           <Users className="mr-1 inline size-4" />
           {event.participantsCount}
           {event.capacity ? ` из ${event.capacity}` : ''} {byApplication && event.pendingCount > 0 ? `· заявок: ${event.pendingCount}` : ''}
@@ -325,10 +383,10 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
                 />
               </div>
               {registration.status === 'PENDING' && (
-                <p className="mt-2 text-sm text-slate-600">Ожидает решения организатора. До принятия вы ещё не подтверждённый участник.</p>
+                <p className="mt-2 text-sm text-muted">Ожидает решения организатора. До принятия вы ещё не подтверждённый участник.</p>
               )}
               {registration.decisionComment && (
-                <p className="mt-2 text-sm text-slate-700">
+                <p className="mt-2 text-sm text-muted">
                   <span className="font-semibold">Организатор:</span> {registration.decisionComment}
                 </p>
               )}
@@ -336,7 +394,7 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
                 <button
                   onClick={() => cancel(registration)}
                   disabled={busy === `cancel-${registration.id}`}
-                  className="mt-2 text-sm font-semibold text-slate-600 underline hover:text-red-600"
+                  className="mt-2 text-sm font-semibold text-muted underline hover:text-red-600"
                 >
                   {registration.status === 'PENDING' ? 'Отозвать заявку' : 'Отменить запись'}
                 </button>
@@ -375,14 +433,14 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
               <Button size="lg" variant={byApplication ? 'primary' : 'success'} className="w-full" loading={busy === 'self'} onClick={() => register()}>
                 {byApplication ? 'Подать заявку' : 'Записаться'}
               </Button>
-              <p className="text-center text-sm text-slate-600">{modeHints[event.registrationMode]}</p>
+              <p className="text-center text-sm text-muted">{modeHints[event.registrationMode]}</p>
             </>
           )}
           {user.role === 'USER' && (children.data?.length ?? 0) > 0 && (
             <div className="space-y-2 border-t-2 border-ink pt-3">
               <p className="font-semibold">Записать ребёнка</p>
               {!childSafe ? (
-                <p className="text-sm text-slate-600">Мероприятие не отмечено как безопасное для детей.</p>
+                <p className="text-sm text-muted">Мероприятие не отмечено как безопасное для детей.</p>
               ) : (
                 children.data!.map((child) => (
                   <Button
@@ -411,7 +469,7 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
 
       {canUseDocs && (
         <div className="space-y-2 border-t-2 border-ink pt-3">
-          <p className="text-sm text-slate-600">Заявление с данными события заполняется автоматически:</p>
+          <p className="text-sm text-muted">Заявление с данными события заполняется автоматически:</p>
           <Button variant="secondary" className="w-full" icon={<FileText className="size-5" />} onClick={() => setDocument({})}>
             {user.role === 'CHILD' ? 'Согласие родителя' : 'Заявление на участие'}
           </Button>
@@ -470,7 +528,7 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
 
   return (
     <section className="card space-y-4 p-5">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold">Вы организатор</h2>
         {event.status !== 'UNPUBLISHED' && event.status !== 'DELETED' && (
           <LinkButton to={`/events/${event.id}/edit`} variant="secondary" size="sm" icon={<Pencil className="size-4" />}>
@@ -486,10 +544,10 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
             <div key={registration.id} className="rounded-2xl border-[3px] border-ink bg-pop-lilac shadow-md/50 p-3">
               <p className="font-semibold">
                 {registration.participantName}
-                {registration.participantAge && <span className="font-normal text-slate-600">, {registration.participantAge} лет</span>}
+                {registration.participantAge && <span className="font-normal text-muted">, {registration.participantAge} лет</span>}
                 {registration.child && <span className="ml-1 text-sm text-emerald-700">(ребёнок, записал {registration.registeredByName})</span>}
               </p>
-              {registration.message && <p className="mt-1 text-slate-700">«{registration.message}»</p>}
+              {registration.message && <p className="mt-1 text-muted">«{registration.message}»</p>}
               <input
                 className="input mt-2 py-2 text-sm"
                 placeholder="Комментарий участнику (необязательно)"
@@ -512,7 +570,7 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
       <div>
         <h3 className="mb-3 inline-block rounded-md border-2 border-ink bg-pop-green px-2 py-0.5 text-base">Участники · {approved.length}</h3>
         {approved.length === 0 ? (
-          <p className="text-slate-600">Пока никто не записался.</p>
+          <p className="text-muted">Пока никто не записался.</p>
         ) : (
           <ul className="space-y-2">
             {approved.map((registration) => (
@@ -523,7 +581,7 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
                   {registration.child && <span className="ml-1 text-sm text-emerald-700">· ребёнок</span>}
                 </span>
                 {event.registrationMode === 'BY_APPLICATION' && (
-                  <button onClick={() => decide(registration, 'REJECTED')} className="ml-auto text-sm text-slate-600 hover:text-red-600">
+                  <button onClick={() => decide(registration, 'REJECTED')} className="ml-auto text-sm text-muted hover:text-red-600">
                     исключить
                   </button>
                 )}
@@ -534,7 +592,7 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
       </div>
 
       {other.length > 0 && (
-        <details className="text-sm text-slate-600">
+        <details className="text-sm text-muted">
           <summary className="cursor-pointer font-semibold">Отклонённые и отменённые · {other.length}</summary>
           <ul className="mt-2 space-y-1">
             {other.map((registration) => (
@@ -580,7 +638,7 @@ function AdminPanel({ event, onChanged }: { event: SportEvent; onChanged: () => 
         <Shield className="size-6" aria-hidden />
         Модерация
       </h2>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Администратор не рассматривает заявки участников — это делает организатор. Здесь — контроль публикации.
       </p>
       {event.status === 'PUBLISHED' ? (

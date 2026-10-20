@@ -36,8 +36,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserDto get(@PathVariable Long id) {
-        return userService.get(id);
+    public UserDto get(CurrentUser viewer, @PathVariable Long id) {
+        return userService.get(viewer, id);
     }
 
     @PostMapping

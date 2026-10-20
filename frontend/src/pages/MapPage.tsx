@@ -20,7 +20,7 @@ export function MapPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:-mb-6 lg:h-[calc(100svh_-_9.5rem)] lg:flex-row">
-      <section className="relative h-[calc(100svh_-_13rem)] max-h-screen shrink-0 overflow-hidden lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1">
+      <section className="relative h-[calc(100svh_-_var(--mobile-nav-h)_-_10rem)] min-h-80 shrink-0 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
         {events.loading && !events.data && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-[3px] border-ink bg-white">
             <Spinner label="Загружаем карту…" />
@@ -36,7 +36,7 @@ export function MapPage() {
           />
         )}
         {selected && (
-          <article className="card absolute inset-x-3 bottom-24 z-10 flex flex-col gap-2 p-4 lg:bottom-3 sm:left-auto sm:w-96">
+          <article className="card absolute inset-x-3 bottom-3 z-10 flex max-h-[calc(100%-1.5rem)] flex-col gap-2 overflow-y-auto p-4 sm:left-auto sm:w-96">
             <div className="flex items-start justify-between gap-2">
               <span className={`rounded-md border-2 border-ink px-2 py-0.5 text-sm font-bold ${sportTone(selected.sportTypeId)}`}>
                 <span aria-hidden>{selected.sportEmoji} </span>
@@ -61,7 +61,7 @@ export function MapPage() {
       <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-80 lg:overflow-y-auto">
         <div className="rounded-xl border-[3px] border-ink bg-white px-4 py-3 shadow-sm">
           <h1 className="text-xl">Карта мероприятий</h1>
-          <p className="mt-1 text-sm font-medium text-slate-700">
+          <p className="mt-1 text-sm font-medium text-muted">
             {located.length === 0
               ? 'Пока нет мероприятий с точкой на карте.'
               : `На карте ${located.length} ${plural(located.length, 'мероприятие', 'мероприятия', 'мероприятий')}. Кликните по метке или выберите из списка.`}
@@ -96,7 +96,7 @@ function EventRow({ event, active, onSelect }: { event: SportEvent; active: bool
         {event.sportName}
       </span>
       <span className="mt-0.5 block font-bold leading-snug">{event.title}</span>
-      <span className="mt-1 block text-sm text-slate-700">
+      <span className="mt-1 block text-sm text-muted">
         {formatRelativeDay(event.startAt)}, {formatTime(event.startAt)}
       </span>
     </button>

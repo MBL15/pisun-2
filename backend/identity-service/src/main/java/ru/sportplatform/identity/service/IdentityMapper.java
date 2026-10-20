@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.enums.RoleType;
+import ru.sportplatform.common.policy.ReputationPolicy;
 import ru.sportplatform.identity.domain.Family;
 import ru.sportplatform.identity.domain.Organization;
 import ru.sportplatform.identity.domain.UserAccount;
@@ -27,6 +28,7 @@ public class IdentityMapper {
         String spouseName = spouseName(user);
         Organization org = user.getOrganizationId() == null ? null
                 : organizations.findById(user.getOrganizationId()).orElse(null);
+        int reputation = ReputationPolicy.normalize(user.getReputation());
         return new UserDto(
                 user.getId(),
                 user.getDisplayName(),
@@ -46,8 +48,19 @@ public class IdentityMapper {
                 org == null ? null : org.getName(),
                 org == null ? null : org.getStatus(),
                 user.isDemo(),
-                user.getDemoLabel()
+                user.getDemoLabel(),
+                reputation,
+                canCreateEvents(user.getRole(), reputation, org == null ? null : org.getStatus())
         );
+    }
+
+    private static boolean canCreateEvents(RoleType role, int reputation,
+                                           ru.sportplatform.common.enums.ApplicationStatus orgStatus) {
+        return switch (role) {
+            case USER -> ReputationPolicy.canUserOrganize(reputation);
+            case ORGANIZATION -> orgStatus == ru.sportplatform.common.enums.ApplicationStatus.APPROVED;
+            default -> false;
+        };
     }
 
     private String spouseName(UserAccount user) {

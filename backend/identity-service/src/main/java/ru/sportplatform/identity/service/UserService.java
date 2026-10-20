@@ -10,6 +10,7 @@ import ru.sportplatform.common.dto.UserDto;
 import ru.sportplatform.common.enums.ApplicationStatus;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
+import ru.sportplatform.common.policy.ReputationPolicy;
 import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.identity.domain.Organization;
@@ -40,7 +41,18 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserDto get(Long id) {
+    public UserDto get(CurrentUser viewer, Long id) {
+        UserAccount user = find(id);
+        UserDto dto = mapper.toDto(user);
+        if (!canSeePrivateProfile(viewer, user)) {
+            return dto.asPublicView();
+        }
+        return dto;
+    }
+
+    /** Полный профиль для других сервисов (без маскировки). */
+    @Transactional(readOnly = true)
+    public UserDto getInternal(Long id) {
         return mapper.toDto(find(id));
     }
 
@@ -78,6 +90,7 @@ public class UserService {
                 .bio(request.bio())
                 .avatarColor(pickColor(request.displayName()))
                 .gender(request.role() == RoleType.USER ? request.gender() : null)
+                .reputation(ReputationPolicy.DEFAULT_SCORE)
                 .demo(false)
                 .build());
         if (request.role() == RoleType.USER && request.gender() == null) {
@@ -143,6 +156,23 @@ public class UserService {
 
     UserAccount find(Long id) {
         return users.findById(id).orElseThrow(() -> ApiException.notFound("Пользователь #" + id + " не найден"));
+    }
+
+    private boolean canSeePrivateProfile(CurrentUser viewer, UserAccount user) {
+        if (!viewer.isAuthenticated()) {
+            return false;
+        }
+        if (viewer.id().equals(user.getId()) || viewer.isAdmin()) {
+            return true;
+        }
+        UserAccount me = users.findById(viewer.id()).orElse(null);
+        if (me == null) {
+            return false;
+        }
+        if (user.getParentId() != null && user.getParentId().equals(viewer.id())) {
+            return true;
+        }
+        return me.getFamilyId() != null && me.getFamilyId().equals(user.getFamilyId());
     }
 
     static Organization newOrganization(OrganizationForm form, Long ownerId) {

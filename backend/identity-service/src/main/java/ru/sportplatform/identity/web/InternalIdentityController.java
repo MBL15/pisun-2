@@ -13,7 +13,7 @@ import ru.sportplatform.common.dto.OrganizationDto;
 import ru.sportplatform.identity.service.OrganizationService;
 
 /**
- * Межсервисные эндпоинты. Не проброшены через api-gateway, поэтому доступны только внутри сети сервисов.
+ * Межсервисные эндпоинты организаций. Не проброшены через api-gateway.
  */
 @RestController
 @RequestMapping("/internal/organizations")

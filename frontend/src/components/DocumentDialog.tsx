@@ -57,7 +57,7 @@ export function DocumentDialog({
               href={documentsApi.generateUrl(eventId, userId, childId)}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-slate-700 hover:bg-pop-yellow/50"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-muted hover:bg-pop-yellow/50"
             >
               <ExternalLink className="size-5" />
               Открыть в новой вкладке

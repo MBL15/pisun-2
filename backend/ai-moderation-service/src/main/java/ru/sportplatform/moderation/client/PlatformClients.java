@@ -13,7 +13,9 @@ import ru.sportplatform.common.dto.EventSnapshotDto;
 import ru.sportplatform.common.dto.EventStatusChangeRequest;
 import ru.sportplatform.common.dto.OrganizationDecisionRequest;
 import ru.sportplatform.common.dto.OrganizationDto;
+import ru.sportplatform.common.dto.ReputationPenaltyRequest;
 import ru.sportplatform.common.dto.UserDto;
+import ru.sportplatform.common.enums.OrganizerType;
 
 /** Вызовы внутренних эндпоинтов identity-service и event-service от имени администратора. */
 @Component
@@ -53,5 +55,16 @@ public class PlatformClients {
 
     public CommentSnapshotDto deleteComment(Long id) {
         return events.delete().uri("/internal/comments/{id}", id).retrieve().body(CommentSnapshotDto.class);
+    }
+
+    public void penalizeOrganizerReputation(EventSnapshotDto event, String reason) {
+        if (event.organizerType() != OrganizerType.USER || event.organizerUserId() == null) {
+            return;
+        }
+        identity.post()
+                .uri("/internal/users/{id}/reputation/moderation-penalty", event.organizerUserId())
+                .body(new ReputationPenaltyRequest(reason))
+                .retrieve()
+                .toBodilessEntity();
     }
 }

@@ -6,14 +6,15 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 
 | Путь | Назначение |
 |---|---|
-| `main.tsx` | Точка входа: `BrowserRouter`, `AuthProvider`, тосты |
+| `main.tsx` | Точка входа: `BrowserRouter`, `AuthProvider`, тосты, `initTheme()` до рендера |
+| `lib/theme.ts` | Светлая/тёмная тема: класс `dark` на `html`, ключ `sportvmeste.theme` |
 | `App.tsx` | Таблица маршрутов и `RequireRole` |
 | `api/client.ts` | `request()`, `api.get/post/put/delete/upload`, `ApiError`, `buildQuery`, заголовки сессии |
 | `api/endpoints.ts` | Типизированные обёртки по доменам: `usersApi`, `organizationsApi`, события, комментарии, модерация, ИИ, документы |
 | `api/types.ts` | TypeScript-типы, повторяющие DTO бэкенда |
 | `auth/AuthContext.tsx` | Демо-сессия: текущий пользователь, список демо-аккаунтов, `login`, `logout`, `homeFor(user)` |
 | `components/ui.tsx` | UI-кит: кнопки, поля, карточки, `Spinner`, `EmptyState`, `LinkButton` |
-| `components/Layout.tsx` | Шапка, переключатель ролей, кнопка крупного шрифта «T», мобильная нижняя навигация |
+| `components/Layout.tsx` | Шапка, переключатель ролей, тёмная тема (луна/солнце), крупный шрифт «T», мобильная нижняя навигация |
 | `components/maps.tsx` | Карты: выбор точки, мини-карта события, карта афиши |
 | `components/Discussion.tsx` | Обсуждение события с ответами и модерацией |
 | `components/EventCard.tsx`, `EventBadges.tsx` | Карточка в афише, бейджи статусов и возраста |
@@ -37,13 +38,15 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 
 | Маршрут | Доступ |
 |---|---|
-| `/`, `/map`, `/events/:id`, `/organizations`, `/organizations/:id`, `/users/:id`, `/login` | Все |
+| `/`, `/feed`, `/map`, `/events/:id`, `/organizations`, `/organizations/:id`, `/users/:id`, `/login` | Все |
 | `/events/new`, `/events/:id/edit` | `USER`, `ORGANIZATION` |
 | `/me` (кабинет) | `USER`, `CHILD` |
 | `/my-organization` | `ORGANIZATION` |
 | `/admin` | `ADMIN` |
 
-После входа `homeFor(user)` отправляет администратора в `/admin`, организацию в `/my-organization`, остальных на `/`.
+После входа `homeFor(user)` отправляет администратора в `/admin`, организацию в `/my-organization`, остальных на `/feed`. Лендинг — `/` (hero, CTA на афишу и вход).
+
+Тёмная тема: семантические токены `--color-paper`, `--color-ink`, `--color-surface`, `--color-muted` переопределяются на `html.dark` в `index.css`.
 
 Проверки ролей на фронтенде нужны только для удобства. Настоящие права проверяет бэкенд, а UI показывает его ответ.
 
