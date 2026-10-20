@@ -151,6 +151,29 @@ export function EventsMap({
   )
 }
 
+/** Зум колёсиком только когда курсор над картой — страница при этом не прокручивается. */
+function ScrollWheelZoomOnHover() {
+  const map = useMap()
+  useEffect(() => {
+    map.scrollWheelZoom.disable()
+    const container = map.getContainer()
+    const enable = () => map.scrollWheelZoom.enable()
+    const disable = () => map.scrollWheelZoom.disable()
+    container.addEventListener('mouseenter', enable)
+    container.addEventListener('mouseleave', disable)
+    container.addEventListener('focusin', enable)
+    container.addEventListener('focusout', disable)
+    return () => {
+      container.removeEventListener('mouseenter', enable)
+      container.removeEventListener('mouseleave', disable)
+      container.removeEventListener('focusin', enable)
+      container.removeEventListener('focusout', disable)
+      map.scrollWheelZoom.disable()
+    }
+  }, [map])
+  return null
+}
+
 function PickPointInner({
   latitude,
   longitude,
@@ -162,12 +185,15 @@ function PickPointInner({
   onPick: (lat: number, lon: number, address?: string) => void
   searchQuery?: string
 }) {
+  const map = useMap()
   const [position, setPosition] = useState<[number, number] | null>(
     latitude != null && longitude != null ? [latitude, longitude] : null,
   )
   const onPickRef = useRef(onPick)
   onPickRef.current = onPick
   const lastSearch = useRef<string | undefined>(undefined)
+  const positionRef = useRef(position)
+  positionRef.current = position
 
   const updatePoint = useCallback(async (lat: number, lon: number, syncAddress: boolean) => {
     setPosition([lat, lon])
@@ -197,20 +223,23 @@ function PickPointInner({
     lastSearch.current = q
     let cancelled = false
     void (async () => {
-      const hit = await geocodeAddress(q).catch(() => null)
+      const pos = positionRef.current
+      const near =
+        latitude != null && longitude != null
+          ? { lat: latitude, lon: longitude }
+          : pos
+            ? { lat: pos[0], lon: pos[1] }
+            : undefined
+      const hit = await geocodeAddress(q, near).catch(() => null)
       if (cancelled || !hit) return
       setPosition([hit.lat, hit.lon])
+      map.setView([hit.lat, hit.lon], Math.max(map.getZoom(), 16), { animate: true })
       onPickRef.current(hit.lat, hit.lon, hit.address)
     })()
     return () => {
       cancelled = true
     }
-  }, [searchQuery])
-
-  const map = useMap()
-  useEffect(() => {
-    if (position) map.panTo(position)
-  }, [position, map])
+  }, [searchQuery, latitude, longitude, map])
 
   if (!position) return null
 
@@ -248,15 +277,18 @@ export function PickPointMap({
   searchQuery?: string
 }) {
   const center: [number, number] = latitude != null && longitude != null ? [latitude, longitude] : [KRASNOYARSK.lat, KRASNOYARSK.lon]
-  const zoom = latitude != null ? 15 : 12
+  const zoom = latitude != null ? 16 : 12
 
   return (
     <div className="space-y-2">
-      <MapContainer center={center} zoom={zoom} scrollWheelZoom className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white sm:h-80">
+      <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white sm:h-80">
         <TileLayer url={TILE} attribution={ATTRIBUTION} />
+        <ScrollWheelZoomOnHover />
         <PickPointInner latitude={latitude} longitude={longitude} onPick={onPick} searchQuery={searchQuery} />
       </MapContainer>
-      <p className="text-sm text-muted">Кликните по карте или перетащите метку — адрес подставится в поле выше. Введите адрес и нажмите «Найти», чтобы поставить точку.</p>
+      <p className="text-sm text-muted">
+        Кликните по карте или перетащите метку — в строке появится адрес «город, улица, дом». Наведите курсор на карту и прокрутите колёсико, чтобы приблизить. Кнопка «На карте» ищет введённый адрес.
+      </p>
     </div>
   )
 }

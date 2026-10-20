@@ -111,6 +111,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [busy, setBusy] = useState(false)
   const [mapSearchQuery, setMapSearchQuery] = useState<string>()
   const geocodeTimer = useRef<number | undefined>(undefined)
+  const addressFromMapRef = useRef(false)
   const [agentPreview, setAgentPreview] = useState<EventVerificationPreview | null>(null)
   const [sportHints, setSportHints] = useState<SportSuggestItem[]>([])
   const [missingSportOpen, setMissingSportOpen] = useState(false)
@@ -122,10 +123,14 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
     sports.data?.find((s) => s.id === form.sportTypeId)?.name ?? (form.sportTypeId ? event?.sportName : sportSearch) ?? ''
 
   useEffect(() => {
+    if (addressFromMapRef.current) {
+      addressFromMapRef.current = false
+      return
+    }
     window.clearTimeout(geocodeTimer.current)
     const addr = form.address.trim()
     if (addr.length < 4) return
-    geocodeTimer.current = window.setTimeout(() => setMapSearchQuery(addr), 700)
+    geocodeTimer.current = window.setTimeout(() => setMapSearchQuery(addr), 900)
     return () => window.clearTimeout(geocodeTimer.current)
   }, [form.address])
 
@@ -318,7 +323,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
 
       <Section title="Где" icon={<MapPin className="size-6 text-brand-600" />}>
         <div className="space-y-5">
-          <Field label="Адрес или место" error={errors.address} hint="Кликните по карте, чтобы поставить точку. Участники смогут построить маршрут.">
+          <Field label="Адрес или место" error={errors.address} hint="Формат: город, улица, дом. Точку можно поставить кликом по карте или найти по тексту кнопкой «На карте».">
             <div className="flex gap-2">
               <input
                 className="input min-w-0"
@@ -336,14 +341,15 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             latitude={form.latitude}
             longitude={form.longitude}
             searchQuery={mapSearchQuery}
-            onPick={(lat, lon, address) =>
+            onPick={(lat, lon, address) => {
+              if (address?.trim()) addressFromMapRef.current = true
               setForm((f) => ({
                 ...f,
                 latitude: lat,
                 longitude: lon,
                 address: address?.trim() ? address : f.address,
               }))
-            }
+            }}
           />
           {form.latitude != null && form.longitude != null && (
             <p className="text-sm text-muted">
