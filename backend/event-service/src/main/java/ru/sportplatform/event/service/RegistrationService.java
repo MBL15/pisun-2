@@ -62,8 +62,10 @@ public class RegistrationService {
         }
 
         Long participantId = participant.id();
-        boolean alreadyActive = !registrations.findByEventIdAndParticipantIdAndStatusIn(eventId, participantId,
-                List.of(ApplicationStatus.PENDING, ApplicationStatus.APPROVED)).isEmpty();
+        boolean alreadyActive = registrations.existsByEventIdAndParticipantIdAndStatus(eventId, participantId,
+                ApplicationStatus.PENDING)
+                || registrations.existsByEventIdAndParticipantIdAndStatus(eventId, participantId,
+                ApplicationStatus.APPROVED);
         if (alreadyActive) {
             throw ApiException.conflict(participant.id().equals(me.id())
                     ? "Вы уже записаны или ваша заявка ждёт решения"
@@ -166,7 +168,10 @@ public class RegistrationService {
         if (childIds.isEmpty()) {
             return List.of();
         }
-        List<Registration> pending = registrations.findByAwaitingParentApprovalTrueAndParticipantIdIn(childIds);
+        var childIdSet = new java.util.HashSet<>(childIds);
+        List<Registration> pending = registrations.findByAwaitingParentApprovalTrue().stream()
+                .filter(r -> childIdSet.contains(r.getParticipantId()))
+                .toList();
         Map<Long, SportEvent> byId = events.findAllById(pending.stream().map(Registration::getEventId).distinct().toList())
                 .stream().collect(Collectors.toMap(SportEvent::getId, Function.identity()));
         return pending.stream()

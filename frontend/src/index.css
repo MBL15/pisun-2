@@ -330,6 +330,14 @@
     border: none !important;
   }
 
+  /* Leaflet сам ставит якорь в lat/lng — без дополнительного translate, иначе метка «уплывает» при зуме. */
+  .map-pin-host .map-pin {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+  }
+
   .ymaps-host [class*="copyrights-pane"] {
     z-index: 1 !important;
   }

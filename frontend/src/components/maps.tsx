@@ -18,6 +18,10 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_GLYPH = '🏅'
 const TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+/** Ширина/высота HTML-метки и якорь в острие (низ по центру). */
+const PIN_W = 48
+const PIN_H = 56
+const PIN_ANCHOR: [number, number] = [PIN_W / 2, PIN_H]
 
 function pinClass(options: { club?: boolean; past?: boolean; selected?: boolean }) {
   return [
@@ -44,8 +48,7 @@ function PinMarker({
   selected?: boolean
 }) {
   const html = `<div class="${pinClass({ club, past, selected })}"><span class="map-pin__badge"><span class="map-pin__glyph">${emoji}</span></span><span class="map-pin__tail"></span>${label ? `<span class="map-pin__label">${label}</span>` : ''}</div>`
-  const icon = L.divIcon({ html, className: 'map-pin-host', iconSize: [64, 72], iconAnchor: [32, 72] })
-  return icon
+  return L.divIcon({ html, className: 'map-pin-host', iconSize: [PIN_W, PIN_H], iconAnchor: PIN_ANCHOR })
 }
 
 export function MapLegend({ showPast = false, className = '' }: { showPast?: boolean; className?: string }) {
@@ -246,8 +249,8 @@ function PickPointInner({
   const pickerIcon = L.divIcon({
     html: `<div class="map-pin map-pin--picker"><span class="map-pin__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span><span class="map-pin__tail"></span></div>`,
     className: 'map-pin-host',
-    iconSize: [64, 72],
-    iconAnchor: [32, 72],
+    iconSize: [PIN_W, PIN_H],
+    iconAnchor: PIN_ANCHOR,
   })
 
   return (
@@ -309,8 +312,9 @@ export function MiniMap({
   const icon = PinMarker({ emoji: emoji ?? DEFAULT_GLYPH, club, selected: true })
   return (
     <div className="space-y-3">
-      <MapContainer center={[latitude, longitude]} zoom={15} scrollWheelZoom={false} dragging={false} className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white">
+      <MapContainer center={[latitude, longitude]} zoom={17} scrollWheelZoom={false} className="leaflet-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white">
         <TileLayer url={TILE} attribution={ATTRIBUTION} />
+        <ScrollWheelZoomOnHover />
         <Marker position={[latitude, longitude]} icon={icon}>
           <Popup>{title}</Popup>
         </Marker>

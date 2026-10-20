@@ -1,6 +1,5 @@
 package ru.sportplatform.event.repository;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,10 +13,9 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByEventIdAndStatus(Long eventId, ApplicationStatus status);
 
-    List<Registration> findByEventIdAndParticipantIdAndStatusIn(Long eventId, Long participantId,
-                                                                Collection<ApplicationStatus> statuses);
+    boolean existsByEventIdAndParticipantIdAndStatus(Long eventId, Long participantId, ApplicationStatus status);
 
     List<Registration> findByParticipantIdOrRegisteredByIdOrderByCreatedAtDesc(Long participantId, Long registeredById);
 
-    List<Registration> findByAwaitingParentApprovalTrueAndParticipantIdIn(List<Long> participantIds);
+    List<Registration> findByAwaitingParentApprovalTrue();
 }

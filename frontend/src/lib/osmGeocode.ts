@@ -118,10 +118,24 @@ export async function reverseGeocode(lat: number, lon: number): Promise<string |
     lat: String(lat),
     lon: String(lon),
     format: 'json',
-    zoom: '18',
+    zoom: '19',
     addressdetails: '1',
   })
-  return formatShortAddress(result.address, result.display_name)
+  const short = formatShortAddress(result.address, result.display_name)
+  if (short && result.address?.house_number) return short
+  const building = await nominatim<NominatimResult>('/reverse', {
+    lat: String(lat),
+    lon: String(lon),
+    format: 'json',
+    zoom: '18',
+    layer: 'address',
+    addressdetails: '1',
+  }).catch(() => null)
+  if (building) {
+    const refined = formatShortAddress(building.address, building.display_name)
+    if (refined) return refined
+  }
+  return short
 }
 
 export function osmPointUrl(lat: number, lon: number, zoom = 16): string {
