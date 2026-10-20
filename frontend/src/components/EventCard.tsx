@@ -6,7 +6,15 @@ import { DisplayNameWithBadge } from './VerifiedBadge'
 import { AgeBadge, EventStatusBadge, ModeBadge, RegistrationBadge } from './EventBadges'
 import { Badge } from './ui'
 
-export function EventCard({ event, showStatus = false }: { event: SportEvent; showStatus?: boolean }) {
+type EventCardProps = {
+  event: SportEvent
+  showStatus?: boolean
+  /** Афиша: выбор карточки без мгновенного перехода на страницу события */
+  onSelect?: () => void
+  selected?: boolean
+}
+
+export function EventCard({ event, showStatus = false, onSelect, selected = false }: EventCardProps) {
   const myActive = event.viewer.myRegistrations.find((r) => r.status === 'APPROVED' || r.status === 'PENDING')
   const spots =
     event.capacity == null
@@ -15,8 +23,12 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
         ? 'Мест нет'
         : `Свободно ${event.spotsLeft} из ${event.capacity}`
 
-  return (
-    <Link to={`/events/${event.id}`} className="card lift group flex min-w-0 flex-col overflow-hidden">
+  const cardClass = `card lift group flex min-w-0 flex-col overflow-hidden text-left ${
+    selected ? 'ring-4 ring-ink ring-offset-2 ring-offset-paper' : ''
+  }`
+
+  const inner = (
+    <>
       <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-[3px] border-ink px-4 py-3 sm:px-5 ${sportTone(event.sportTypeId)}`}>
         <span className="inline-flex min-w-0 items-center gap-2 font-bold text-ink">
           <span className="flex size-9 items-center justify-center rounded-lg border-2 border-ink bg-white text-xl leading-none" aria-hidden>
@@ -81,6 +93,20 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
           )}
         </div>
       </div>
+    </>
+  )
+
+  if (onSelect) {
+    return (
+      <button type="button" onClick={onSelect} aria-pressed={selected} className={`${cardClass} w-full cursor-pointer`}>
+        {inner}
+      </button>
+    )
+  }
+
+  return (
+    <Link to={`/events/${event.id}`} className={cardClass}>
+      {inner}
     </Link>
   )
 }
