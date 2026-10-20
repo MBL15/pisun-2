@@ -11,8 +11,6 @@ import { Button, EmptyState, ErrorBox, Field, LinkButton, Modal, PageHeader, Sec
 import { audienceLabels, levelLabels, modeHints, modeLabels, toLocalInput } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
-const CUSTOM = -1
-
 function defaultStart(): string {
   const date = new Date()
   date.setDate(date.getDate() + 1)
@@ -103,10 +101,10 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const { user } = useAuth()
   const sports = useAsync(() => sportsApi.list(), [])
   const [form, setForm] = useState<EventForm>(() => (event ? fromEvent(event) : emptyForm(defaultContact)))
-  const [sportChoice, setSportChoice] = useState<number | ''>(event?.sportTypeId ?? '')
+  const [sportSearch, setSportSearch] = useState(event?.sportName ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const [searchQuery, setSearchQuery] = useState<string>()
+  const [mapSearchQuery, setMapSearchQuery] = useState<string>()
   const [agentPreview, setAgentPreview] = useState<EventVerificationPreview | null>(null)
   const [sportHints, setSportHints] = useState<SportSuggestItem[]>([])
   const [missingSportOpen, setMissingSportOpen] = useState(false)
@@ -114,9 +112,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   const [missingSportResult, setMissingSportResult] = useState<SportNormalizeResult | null>(null)
   const [missingBusy, setMissingBusy] = useState(false)
   const selectedSportName =
-    sportChoice === CUSTOM
-      ? form.customSportName ?? ''
-      : sports.data?.find((s) => s.id === sportChoice)?.name ?? event?.sportName ?? ''
+    sports.data?.find((s) => s.id === form.sportTypeId)?.name ?? (form.sportTypeId ? event?.sportName : sportSearch) ?? ''
 
   useEffect(() => {
     if (!form.title.trim() && !form.description.trim()) {
@@ -145,21 +141,26 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
   }, [form.title, form.description, form.conditions, form.audience, form.startAt, selectedSportName, user?.displayName, user?.role])
 
   useEffect(() => {
-    const name = form.customSportName?.trim() ?? ''
-    if (sportChoice !== CUSTOM || name.length < 2) {
+    const q = sportSearch.trim()
+    if (q.length < 2 || form.sportTypeId != null) {
       setSportHints([])
       return
     }
     const timer = window.setTimeout(() => {
-      sportsApi.suggest(name).then(setSportHints).catch(() => setSportHints([]))
+      sportsApi.suggest(q).then(setSportHints).catch(() => setSportHints([]))
     }, 350)
     return () => window.clearTimeout(timer)
-  }, [sportChoice, form.customSportName])
+  }, [sportSearch, form.sportTypeId])
 
-  const chooseSport = (choice: number | '') => {
-    setSportChoice(choice)
-    if (choice === CUSTOM) setForm((f) => ({ ...f, sportTypeId: null }))
-    else setForm((f) => ({ ...f, sportTypeId: choice === '' ? null : choice, customSportName: null }))
+  const pickSport = (hint: SportSuggestItem) => {
+    setForm((f) => ({ ...f, sportTypeId: hint.id, customSportName: null }))
+    setSportSearch(hint.name)
+    setSportHints([])
+  }
+
+  const onSportSearchChange = (value: string) => {
+    setSportSearch(value)
+    setForm((f) => ({ ...f, sportTypeId: null, customSportName: null }))
   }
 
   const set = <K extends keyof EventForm>(key: K, value: EventForm[K]) => setForm((f) => ({ ...f, [key]: value }))
@@ -168,8 +169,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
     const next: Record<string, string> = {}
     if (!form.title.trim()) next.title = 'Укажите название'
     if (!form.description.trim()) next.description = 'Расскажите, что будет происходить'
-    if (sportChoice === '') next.sport = 'Выберите направление'
-    if (sportChoice === CUSTOM && !form.customSportName?.trim()) next.sport = 'Введите название своего направления'
+    if (!form.sportTypeId && !sportSearch.trim()) next.sport = 'Начните вводить вид спорта или выберите из подсказок'
     if (!form.startAt) next.startAt = 'Укажите дату и время'
     else if (new Date(form.startAt) < new Date()) next.startAt = 'Дата уже прошла'
     if (!form.address.trim()) next.address = 'Укажите место проведения'
@@ -190,7 +190,8 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
       title: form.title.trim(),
       description: form.description.trim(),
       address: form.address.trim(),
-      customSportName: sportChoice === CUSTOM ? blankToNull(form.customSportName) : null,
+      sportTypeId: form.sportTypeId,
+      customSportName: form.sportTypeId ? null : blankToNull(sportSearch),
       locationNote: blankToNull(form.locationNote),
       conditions: blankToNull(form.conditions),
       organizerContact: blankToNull(form.organizerContact),
@@ -222,55 +223,43 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
           <Field label="Название" error={errors.title}>
             <input className="input" value={form.title} maxLength={160} placeholder="Например: Футбол 5×5 во дворе" onChange={(e) => set('title', e.target.value)} />
           </Field>
-          <Field label="Направление" error={errors.sport} hint="Справочник — виды спорта из реестра Минспорта (основные категории).">
-            <select
+          <Field
+            label="Направление"
+            error={errors.sport}
+            hint="Введите своими словами — «футбик», «шахматы», «фрисби». Подсказки из реестра; если не нашли — куратор поможет."
+          >
+            <input
               className="input"
-              value={sportChoice}
-              onChange={(e) => chooseSport(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">— выберите —</option>
-              {sports.data?.map((sport) => (
-                <option key={sport.id} value={sport.id}>
-                  {sport.emoji} {sport.name}
-                </option>
-              ))}
-              <option value={CUSTOM}>➕ Нет вашего вида спорта?</option>
-            </select>
+              maxLength={80}
+              placeholder="Начните вводить вид спорта…"
+              value={sportSearch}
+              onChange={(e) => onSportSearchChange(e.target.value)}
+              autoComplete="off"
+            />
+            {form.sportTypeId != null && (
+              <p className="mt-2 text-sm font-medium text-brand-800">
+                Выбрано из справочника: {sports.data?.find((s) => s.id === form.sportTypeId)?.emoji} {selectedSportName}
+                <button type="button" className="ml-2 font-semibold underline" onClick={() => onSportSearchChange('')}>
+                  изменить
+                </button>
+              </p>
+            )}
+            {sportHints.length > 0 && (
+              <ul className="mt-2 space-y-1 rounded-lg border-2 border-ink bg-pop-yellow/30 p-2 text-sm" role="listbox">
+                {sportHints.map((hint) => (
+                  <li key={hint.id}>
+                    <button type="button" className="font-semibold underline" onClick={() => pickSport(hint)}>
+                      {hint.emoji} {hint.name}
+                    </button>{' '}
+                    — похоже на ваш запрос
+                  </li>
+                ))}
+              </ul>
+            )}
             <button type="button" className="mt-2 text-sm font-semibold text-brand-700 underline" onClick={() => setMissingSportOpen(true)}>
-              Нет вашего вида спорта? Опишите — куратор подберёт или предложит добавить
+              Не нашли? Спросите куратора видов спорта
             </button>
           </Field>
-          {sportChoice === CUSTOM && (
-            <Field label="Название направления">
-              <input
-                className="input"
-                maxLength={80}
-                placeholder="Например: Фрисби, Скалолазание, Йога"
-                value={form.customSportName ?? ''}
-                onChange={(e) => set('customSportName', e.target.value)}
-                autoFocus
-              />
-              {sportHints.length > 0 && (
-                <ul className="mt-2 space-y-1 rounded-lg border-2 border-ink bg-pop-yellow/30 p-2 text-sm">
-                  {sportHints.map((hint) => (
-                    <li key={hint.id}>
-                      <button
-                        type="button"
-                        className="font-semibold underline"
-                        onClick={() => {
-                          chooseSport(hint.id)
-                          set('customSportName', null)
-                        }}
-                      >
-                        {hint.emoji} {hint.name}
-                      </button>{' '}
-                      — похоже на ваш запрос
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Field>
-          )}
           {agentPreview && (
             <AgentHintsPanel
               title="Event Quality Guardian"
@@ -319,7 +308,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
                 placeholder="Красноярск, о. Татышев, у главного входа"
                 onChange={(e) => set('address', e.target.value)}
               />
-              <Button type="button" variant="secondary" onClick={() => setSearchQuery(form.address.trim() || undefined)} disabled={!form.address.trim()}>
+              <Button type="button" variant="secondary" onClick={() => setMapSearchQuery(form.address.trim() || undefined)} disabled={!form.address.trim()}>
                 Найти
               </Button>
             </div>
@@ -327,7 +316,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
           <PickPointMap
             latitude={form.latitude}
             longitude={form.longitude}
-            searchQuery={searchQuery}
+            searchQuery={mapSearchQuery}
             onPick={(lat, lon, address) =>
               setForm((f) => ({ ...f, latitude: lat, longitude: lon, address: address && !f.address.trim() ? address : f.address }))
             }
@@ -443,13 +432,27 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
             <div className="mt-4 space-y-3">
               <p className="font-medium">{missingSportResult.explanation}</p>
               <AgentHintsPanel suggestions={missingSportResult.suggestions} />
+              {missingSportResult.existingSportName && missingSportResult.existingSportTypeId && (
+                <Button
+                  onClick={() => {
+                    const id = missingSportResult.existingSportTypeId!
+                    const name = missingSportResult.existingSportName!
+                    setForm((f) => ({ ...f, sportTypeId: id, customSportName: null }))
+                    setSportSearch(name)
+                    setMissingSportOpen(false)
+                    notify('success', `Выбрано: ${name}`)
+                  }}
+                >
+                  Использовать «{missingSportResult.existingSportName}» из справочника
+                </Button>
+              )}
               {missingSportResult.acceptable && missingSportResult.proposedName && (
                 <Button
                   onClick={() => {
-                    chooseSport(CUSTOM)
-                    set('customSportName', missingSportResult.proposedName)
+                    const name = missingSportResult.proposedName!
+                    onSportSearchChange(name)
                     setMissingSportOpen(false)
-                    notify('success', 'Название подставлено в форму')
+                    notify('success', 'Название подставлено — можно публиковать')
                   }}
                 >
                   Принять «{missingSportResult.proposedName}»

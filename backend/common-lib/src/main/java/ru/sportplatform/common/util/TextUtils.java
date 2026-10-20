@@ -35,6 +35,30 @@ public final class TextUtils {
         return value == null || value.isBlank();
     }
 
+    /** Сленг и сокращения для поиска вида спорта («футбик» → «футбол»). */
+    public static String canonicalSportQuery(String raw) {
+        if (isBlank(raw)) {
+            return "";
+        }
+        String key = normalizeKey(raw);
+        if (key.equals("футбик") || key.equals("футболик") || key.equals("football") || key.startsWith("footbal")) {
+            return "футбол";
+        }
+        if (key.equals("волей") || key.equals("волейболик")) {
+            return "волейбол";
+        }
+        if (key.equals("баскет") || key.equals("баскетик")) {
+            return "баскетбол";
+        }
+        if (key.equals("шах") || (key.startsWith("шах") && key.length() <= 8)) {
+            return "шахматы";
+        }
+        if (key.equals("бегун") || key.equals("пробежка")) {
+            return "бег";
+        }
+        return raw.trim();
+    }
+
     public static boolean containsIgnoreCase(String haystack, String needle) {
         if (needle == null || needle.isBlank()) {
             return true;

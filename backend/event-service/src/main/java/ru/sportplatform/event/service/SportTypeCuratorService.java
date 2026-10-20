@@ -26,8 +26,13 @@ public class SportTypeCuratorService {
             return List.of();
         }
         String key = TextUtils.normalizeKey(query);
+        String expandedKey = TextUtils.normalizeKey(TextUtils.canonicalSportQuery(query));
         return sportTypes.findAllByOrderByCustomAscNameAsc().stream()
-                .map(s -> new SportSuggestItem(s.getId(), s.getName(), s.getEmoji(), score(key, TextUtils.normalizeKey(s.getName()))))
+                .map(s -> {
+                    String candidate = TextUtils.normalizeKey(s.getName());
+                    double best = Math.max(score(key, candidate), score(expandedKey, candidate));
+                    return new SportSuggestItem(s.getId(), s.getName(), s.getEmoji(), best);
+                })
                 .filter(item -> item.score() >= 0.45)
                 .sorted(Comparator.comparingDouble(SportSuggestItem::score).reversed())
                 .limit(8)

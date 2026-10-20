@@ -31,7 +31,13 @@ public class SportTypeNormalizer {
                         "Такой запрос не подходит для спортивного справочника.", List.of(), "HEURISTIC");
             }
         }
-        Match best = bestMatch(trimmed, knownNames);
+        Match best = bestMatch(TextUtils.canonicalSportQuery(trimmed), knownNames);
+        if (best == null || best.score() < 0.85) {
+            Match alt = bestMatch(trimmed, knownNames);
+            if (alt != null && (best == null || alt.score() > best.score())) {
+                best = alt;
+            }
+        }
         List<AgentSuggestion> hints = new ArrayList<>();
         if (best != null && best.score() >= 0.85) {
             hints.add(new AgentSuggestion("INFO", "sportType",
