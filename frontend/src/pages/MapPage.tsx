@@ -36,7 +36,7 @@ export function MapPage() {
           />
         )}
         {selected && (
-          <article className="card absolute inset-x-3 bottom-3 z-10 flex max-h-[calc(100%-1.5rem)] flex-col gap-2 overflow-y-auto p-4 sm:left-auto sm:w-96">
+          <article className="card absolute inset-x-2 bottom-2 z-10 flex max-h-[calc(100%-1rem)] flex-col gap-1.5 overflow-y-auto p-3 sm:inset-x-3 sm:bottom-3 sm:left-auto sm:w-96 sm:gap-2 sm:p-4">
             <div className="flex items-start justify-between gap-2">
               <span className={`rounded-md border-2 border-ink px-2 py-0.5 text-sm font-bold ${sportTone(selected.sportTypeId)}`}>
                 <span aria-hidden>{selected.sportEmoji} </span>
@@ -46,12 +46,12 @@ export function MapPage() {
                 Закрыть
               </button>
             </div>
-            <h2 className="text-lg leading-snug">{selected.title}</h2>
+            <h2 className="line-clamp-2 text-base leading-snug sm:text-lg">{selected.title}</h2>
             <p className="line-clamp-2 flex items-start gap-2 text-sm font-medium">
               <CalendarDays className="mt-0.5 size-4 shrink-0" aria-hidden />
               {formatRelativeDay(selected.startAt)}, {formatTime(selected.startAt)} · {selected.address}
             </p>
-            <Button onClick={() => navigate(`/events/${selected.id}`)} icon={<Navigation className="size-4" aria-hidden />}>
+            <Button size="sm" onClick={() => navigate(`/events/${selected.id}`)} icon={<Navigation className="size-4" aria-hidden />}>
               Подробнее и запись
             </Button>
           </article>
@@ -64,7 +64,7 @@ export function MapPage() {
           <p className="mt-1 text-sm font-medium text-muted">
             {located.length === 0
               ? 'Пока нет мероприятий с точкой на карте.'
-              : `На карте ${located.length} ${plural(located.length, 'мероприятие', 'мероприятия', 'мероприятий')}. Кликните по метке или выберите из списка.`}
+              : `На карте ${located.length} ${plural(located.length, 'мероприятие', 'мероприятия', 'мероприятий')}. Нажмите на метку или выберите из списка.`}
           </p>
           {located.length > 0 && <MapLegend showPast={located.some((event) => event.past)} className="mt-3" />}
         </div>

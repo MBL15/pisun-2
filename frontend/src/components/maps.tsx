@@ -30,6 +30,7 @@ function useYandexMap(
           { center: options.center, zoom: options.zoom, controls: options.controls ?? ['zoomControl', 'geolocationControl'] },
           { suppressMapOpenBlock: true },
         )
+        if (window.matchMedia('(max-width: 639px)').matches) map.controls.get('zoomControl')?.options.set('size', 'small')
         if (!options.scrollZoom) map.behaviors.disable('scrollZoom')
         if (options.touchPreview && window.matchMedia('(pointer: coarse)').matches) map.behaviors.disable('drag')
         mapRef.current = map
@@ -330,7 +331,7 @@ export function PickPointMap({
   if (error) return <MapFallback message={`${error}. Адрес можно указать текстом — карта необязательна.`} />
   return (
     <div className="space-y-2">
-      <div ref={containerRef} className="ymaps-host h-80 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
+      <div ref={containerRef} className="ymaps-host h-64 overflow-hidden rounded-xl border-[3px] border-ink bg-white sm:h-80" />
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
         <span>Кликните по карте или перетащите метку, чтобы указать точное место встречи.</span>
         {searchQuery && (
@@ -389,9 +390,9 @@ export function MiniMap({
         href={yandexRouteUrl(latitude, longitude)}
         target="_blank"
         rel="noreferrer"
-        className="lift flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-[3px] border-ink bg-[#ffcc00] px-5 py-3 text-lg font-bold text-ink shadow-md hover:bg-[#ffd633]"
+        className="lift flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-[3px] border-ink bg-[#ffcc00] px-4 py-3 text-center font-bold leading-tight text-[#111111] shadow-md hover:bg-[#ffd633] sm:px-5 sm:text-lg"
       >
-        <Navigation className="size-5" />
+        <Navigation className="size-5 shrink-0" />
         Построить маршрут в Яндекс Картах
       </a>
     </div>

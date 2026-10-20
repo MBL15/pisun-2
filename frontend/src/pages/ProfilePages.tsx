@@ -77,7 +77,7 @@ function ReputationPanel({ user }: { user: User }) {
 
   return (
     <div
-      className="rounded-2xl border-2 border-ink/10 bg-surface/80 p-4 dark:border-white/10"
+      className="rounded-2xl border-2 border-ink/10 bg-surface/80 p-3 sm:p-4 dark:border-white/10"
       aria-label={`Репутация ${score} из 100`}
     >
       <div className="flex flex-wrap items-start gap-3">
@@ -114,12 +114,19 @@ function ReputationPanel({ user }: { user: User }) {
 
 function ProfileCard({ user, action }: { user: User; action?: ReactNode }) {
   return (
-    <section className="card flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
-      <Avatar name={user.displayName} color={user.avatarColor} size="lg" />
+    <section className="card flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:gap-5 sm:p-6">
+      <span className="hidden sm:block">
+        <Avatar name={user.displayName} color={user.avatarColor} size="lg" />
+      </span>
       <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-extrabold sm:text-3xl">{user.displayName}</h1>
-          <Badge tone={user.role === 'CHILD' ? 'brand' : 'slate'}>{roleLabels[user.role]}</Badge>
+        <div className="flex items-center gap-3">
+          <span className="sm:hidden">
+            <Avatar name={user.displayName} color={user.avatarColor} />
+          </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-xl font-extrabold sm:text-3xl">{user.displayName}</h1>
+            <Badge tone={user.role === 'CHILD' ? 'brand' : 'slate'}>{roleLabels[user.role]}</Badge>
+          </div>
         </div>
         <p className="flex flex-wrap gap-x-5 gap-y-1 text-muted">
           {user.age && <span>{user.age} {plural(user.age, 'год', 'года', 'лет')}</span>}
@@ -207,7 +214,7 @@ export function CabinetPage() {
           )}
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {events.data?.map((event) => (
-              <div key={event.id} className="relative">
+              <div key={event.id} className="relative min-w-0">
                 {event.pendingCount > 0 && (
                   <span className="absolute -right-2 -top-2 z-10 rounded-full bg-accent-500 px-3 py-1 text-sm font-bold text-[#111111] shadow">
                     {event.pendingCount} {plural(event.pendingCount, 'заявка', 'заявки', 'заявок')}
@@ -531,7 +538,7 @@ function ProfileEditor({ user, onClose, onSaved }: { user: User; onClose: () => 
             </select>
           </Field>
         )}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
             Отмена
           </Button>

@@ -94,7 +94,7 @@ function useReasonDialog() {
 
 function StatusFilter<T extends string>({ value, onChange, options }: { value: T | ''; onChange: (v: T | '') => void; options: [T | '', string][] }) {
   return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
+    <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
       {options.map(([key, label]) => (
         <button
           key={key || 'all'}
@@ -152,14 +152,14 @@ function OrganizationsTab() {
             <Avatar name={org.name} color={org.logoColor} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-bold">{org.name}</h3>
+                <h3 className="text-lg font-bold sm:text-xl">{org.name}</h3>
                 <Badge tone={org.status === 'APPROVED' ? 'green' : org.status === 'PENDING' ? 'amber' : 'red'}>{organizationStatusLabels[org.status]}</Badge>
               </div>
               <p className="text-sm text-muted">
                 Заявитель: {org.ownerName} · подана {formatDateTime(org.createdAt)}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
               {org.status !== 'APPROVED' && (
                 <Button variant="success" size="sm" loading={busy === org.id} icon={<CheckCircle2 className="size-4" />} onClick={() => approve(org)}>
                   Одобрить

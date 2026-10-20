@@ -74,6 +74,14 @@
   }
 }
 
+/* Горизонтальные ленты вкладок и фильтров на телефоне листаются пальцем, полоса прокрутки не нужна. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
@@ -102,13 +110,21 @@
     --color-muted: #c4beb4;
     --color-brand-600: #8a9cff;
     --color-brand-500: #a8b8ff;
+    --color-brand-700: #a8b8ff;
+    --color-brand-800: #c4cfff;
+    --color-emerald-700: #5fe3a1;
     --glow-halo: #ffffff;
   }
 
   /* Белые панели в тёмной теме — тёмный текст; карточки на surface — светлый. */
-  html.dark .bg-white {
+  html.dark .bg-white,
+  html.dark .bg-white :where(.bg-surface, .card) {
     --color-ink: #111111;
     --color-muted: #475569;
+    --color-surface: #ffffff;
+    --color-brand-700: #1d35d4;
+    --color-brand-800: #1a2ca6;
+    --color-emerald-700: #047857;
   }
 
   html.dark :where(.bg-surface, .bg-paper, .card) {
@@ -128,6 +144,27 @@
   ) {
     --color-ink: #111111;
     --color-muted: #334155;
+    color: #111111;
+  }
+
+  /* Сплошные пастельные плашки и кнопки: `~=` не ловит `hover:` и полупрозрачные `/40`,
+     а `:is` перебивает `color: inherit` из preflight у ссылок и кнопок. */
+  :is(
+    [class~='bg-pop-green'],
+    [class~='bg-pop-red'],
+    [class~='bg-pop-orange'],
+    [class~='bg-pop-pink'],
+    [class~='bg-pop-lilac'],
+    [class~='bg-pop-cyan'],
+    [class~='bg-pop-yellow'],
+    [class~='bg-pop-blue'],
+    [class~='bg-white']
+  ) {
+    --color-ink: #111111;
+    --color-muted: #334155;
+    --color-brand-700: #1d35d4;
+    --color-brand-800: #1a2ca6;
+    --color-emerald-700: #047857;
     color: #111111;
   }
 

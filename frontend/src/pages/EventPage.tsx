@@ -113,7 +113,7 @@ export function EventPage() {
           </Section>
 
           <Section title="О мероприятии" icon={<Sparkles className="size-6 text-brand-600" />}>
-            <p className="whitespace-pre-line text-lg leading-relaxed text-ink">{event.description}</p>
+            <p className="whitespace-pre-line leading-relaxed text-ink sm:text-lg">{event.description}</p>
           </Section>
 
           <Section title="Условия участия" icon={<ListChecks className="size-6 text-brand-600" />}>
@@ -124,7 +124,7 @@ export function EventPage() {
                 {event.capacity ? `Мест: ${event.capacity}` : 'Без ограничения мест'}
               </Badge>
             </div>
-            <p className="whitespace-pre-line text-lg leading-relaxed text-ink">
+            <p className="whitespace-pre-line leading-relaxed text-ink sm:text-lg">
               {event.conditions || 'Организатор не указал особых требований.'}
             </p>
             <div className={`mt-4 rounded-xl border-[3px] border-ink p-4 ${event.registrationMode === 'FREE' ? 'bg-pop-green/40' : 'bg-pop-lilac/40'}`}>
@@ -165,7 +165,7 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
       </span>
       <div className="min-w-0">
         <dt className="text-xs font-bold uppercase tracking-wide text-muted">{label}</dt>
-        <dd className="break-words text-lg font-bold">{value}</dd>
+        <dd className="break-words font-bold sm:text-lg">{value}</dd>
       </div>
     </div>
   )
@@ -361,7 +361,7 @@ function RegistrationPanel({ event, user, onChanged }: { event: SportEvent; user
   const canUseDocs = user && (user.role === 'USER' || user.role === 'CHILD')
 
   return (
-    <section id="registration" className="card scroll-mt-24 space-y-4 p-5 lg:sticky lg:top-24">
+    <section id="registration" className="card scroll-mt-24 space-y-4 p-4 sm:p-5 lg:sticky lg:top-24">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-bold">Запись</h2>
         <span className="text-muted">
@@ -527,7 +527,7 @@ function OrganizerPanel({ event, onChanged }: { event: SportEvent; onChanged: ()
   const other = data?.filter((r) => r.status === 'REJECTED' || r.status === 'CANCELLED') ?? []
 
   return (
-    <section className="card space-y-4 p-5">
+    <section className="card space-y-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold">Вы организатор</h2>
         {event.status !== 'UNPUBLISHED' && event.status !== 'DELETED' && (
@@ -633,7 +633,7 @@ function AdminPanel({ event, onChanged }: { event: SportEvent; onChanged: () => 
   const presets = ['Нарушение правил платформы', 'Недостоверная информация о месте или времени', 'Коммерческая реклама, не связанная со спортом', 'Небезопасный формат мероприятия']
 
   return (
-    <section className="card space-y-3 border-ink p-5">
+    <section className="card space-y-3 border-ink p-4 sm:p-5">
       <h2 className="flex items-center gap-2 text-xl font-bold">
         <Shield className="size-6" aria-hidden />
         Модерация

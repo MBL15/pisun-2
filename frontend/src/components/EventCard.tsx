@@ -14,9 +14,9 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
         : `Свободно ${event.spotsLeft} из ${event.capacity}`
 
   return (
-    <Link to={`/events/${event.id}`} className="card lift group flex flex-col overflow-hidden">
-      <div className={`flex items-center justify-between gap-3 border-b-[3px] border-ink px-5 py-3 ${sportTone(event.sportTypeId)}`}>
-        <span className="inline-flex items-center gap-2 font-bold text-ink">
+    <Link to={`/events/${event.id}`} className="card lift group flex min-w-0 flex-col overflow-hidden">
+      <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-[3px] border-ink px-4 py-3 sm:px-5 ${sportTone(event.sportTypeId)}`}>
+        <span className="inline-flex min-w-0 items-center gap-2 font-bold text-ink">
           <span className="flex size-9 items-center justify-center rounded-lg border-2 border-ink bg-white text-xl leading-none" aria-hidden>
             {event.sportEmoji ?? '🏅'}
           </span>
@@ -25,7 +25,7 @@ export function EventCard({ event, showStatus = false }: { event: SportEvent; sh
         {showStatus ? <EventStatusBadge status={event.status} /> : <AgeBadge event={event} />}
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div>
           <h3 className="text-lg leading-snug decoration-[3px] underline-offset-4 group-hover:underline">{event.title}</h3>
           <p className="mt-1.5 line-clamp-2 text-muted">{event.description}</p>

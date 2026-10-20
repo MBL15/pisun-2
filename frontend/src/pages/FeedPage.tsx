@@ -84,7 +84,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border-[3px] border-ink bg-pop-yellow px-6 py-8 text-[#111111] shadow-lg sm:px-10 sm:py-12">
+      <section className="relative overflow-hidden rounded-2xl border-[3px] border-ink bg-pop-yellow px-5 py-7 text-[#111111] shadow-lg sm:px-10 sm:py-12">
         <div className="pointer-events-none absolute right-6 top-6 hidden gap-4 lg:flex" aria-hidden>
           <span className="flex size-24 rotate-[8deg] items-center justify-center rounded-2xl border-[3px] border-ink bg-pop-blue shadow-md">
             <Trophy className="size-12" strokeWidth={2.5} />
@@ -100,7 +100,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
           <span className="inline-block -rotate-2 rounded-md border-2 border-ink bg-white px-2.5 py-0.5 text-sm font-bold uppercase tracking-wider">
             Красноярск · спорт рядом
           </span>
-          <h1 className="mt-4 text-3xl font-black uppercase leading-[1.1] sm:text-5xl">
+          <h1 className="mt-4 text-[1.625rem] font-black uppercase leading-[1.1] min-[400px]:text-3xl sm:text-5xl">
             {isChild ? `Привет, ${user?.displayName.split(' ')[0]}! Во что поиграем?` : 'Хочется заниматься, но не с кем?'}
           </h1>
           <p className="mt-4 max-w-xl text-lg font-medium">
@@ -141,7 +141,7 @@ export function FeedPage({ initialView = 'list' }: { initialView?: 'list' | 'map
       )}
 
       <section className="space-y-4">
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 pt-1">
+        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 pt-1">
           <button
             onClick={() => setSportTypeId(undefined)}
             aria-pressed={!sportTypeId}

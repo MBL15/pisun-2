@@ -88,6 +88,7 @@ function RoleSwitcher() {
         className="flex min-h-11 items-center gap-2 rounded-xl border-[3px] border-ink bg-surface py-1 pl-1 pr-3 shadow-sm lift"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={user ? `${user.displayName}, ${roleLabels[user.role]}` : 'Выбрать роль'}
       >
         {user ? (
           <>
@@ -102,7 +103,7 @@ function RoleSwitcher() {
             <span className="flex size-8 items-center justify-center rounded-full border-2 border-ink bg-pop-yellow">
               <UserRound className="size-5 text-ink" aria-hidden />
             </span>
-            <span className="text-sm font-bold">Выбрать роль</span>
+            <span className="hidden whitespace-nowrap text-sm font-bold min-[375px]:inline">Выбрать роль</span>
           </>
         )}
         <ChevronDown className={`size-4 text-ink transition ${open ? 'rotate-180' : ''}`} aria-hidden />
@@ -278,13 +279,13 @@ export function Layout() {
             to={item.to}
             end={item.to === '/feed'}
             className={({ isActive }) =>
-              `mx-1 my-1.5 flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border-[3px] py-1 text-xs font-bold ${
+              `mx-0.5 my-1.5 flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border-[3px] py-1 text-xs font-bold tracking-tight min-[360px]:mx-1 min-[360px]:tracking-normal ${
                 isActive ? 'border-ink bg-pop-yellow text-ink' : 'border-transparent text-ink'
               }`
             }
           >
             {item.icon}
-            <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
+            <span className="max-w-full truncate min-[360px]:px-0.5">{item.short ?? item.label}</span>
           </NavLink>
         ))}
       </nav>

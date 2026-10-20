@@ -291,7 +291,7 @@ function CommentForm({
         onChange={(e) => setText(e.target.value)}
         autoFocus={Boolean(parent)}
       />
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Отмена

@@ -385,7 +385,7 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
       </Section>
 
       <div className="flex items-start gap-3 rounded-xl border-[3px] border-ink bg-pop-blue p-4 font-medium text-ink shadow-md">
-        <Bot className="size-6 shrink-0 text-brand-600" />
+        <Bot className="size-6 shrink-0" />
         <p>
           ИИ-модератор проверит текст на запрещённый контент и присвоит метку «Можно детям» или «18+». Если найдутся нарушения, мероприятие
           сначала посмотрит администратор.

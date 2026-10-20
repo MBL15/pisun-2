@@ -1,5 +1,5 @@
 import { Loader2, TriangleAlert, X } from 'lucide-react'
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { initials } from '../lib/format'
 
@@ -80,7 +80,7 @@ const badgeTones: Record<BadgeTone, string> = {
 
 export function Badge({ tone = 'slate', icon, children }: { tone?: BadgeTone; icon?: ReactNode; children: ReactNode }) {
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border-2 border-ink px-2.5 py-0.5 text-sm font-bold text-ink ${badgeTones[tone]}`}>
+    <span className={`inline-flex max-w-full shrink-0 items-center gap-1 rounded-full sm:whitespace-nowrap border-2 border-ink px-2.5 py-0.5 text-sm font-bold text-ink ${badgeTones[tone]}`}>
       {icon}
       {children}
     </span>
@@ -198,9 +198,9 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
 
 export function Section({ title, icon, action, children }: { title: string; icon?: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="card p-5 sm:p-6">
+    <section className="card p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-3 text-xl">
+        <h2 className="flex min-w-0 items-center gap-3 text-lg sm:text-xl">
           {icon && (
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-pop-yellow [&>svg]:size-5 [&>svg]:text-ink" aria-hidden>
               {icon}
@@ -224,8 +224,20 @@ export function Tabs<T extends string>({
   onChange: (value: T) => void
   items: { value: T; label: string; icon?: ReactNode; count?: number }[]
 }) {
+  const listRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const list = listRef.current
+    const active = list?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!list || !active) return
+    const box = list.getBoundingClientRect()
+    const tab = active.getBoundingClientRect()
+    if (tab.left < box.left) list.scrollBy({ left: tab.left - box.left - 8, behavior: 'smooth' })
+    else if (tab.right > box.right) list.scrollBy({ left: tab.right - box.right + 8, behavior: 'smooth' })
+  }, [value])
+
   return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist">
+    <div ref={listRef} className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist">
       {items.map((item) => (
         <button
           key={item.value}
@@ -253,7 +265,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl sm:text-4xl">
+        <h1 className="text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-4xl">
           <span className="box-decoration-clone bg-pop-yellow px-1.5 leading-[1.35]">{title}</span>
         </h1>
         {subtitle && <p className="mt-3 max-w-3xl text-base font-medium text-muted sm:text-lg">{subtitle}</p>}

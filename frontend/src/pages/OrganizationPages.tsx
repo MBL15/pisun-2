@@ -38,9 +38,14 @@ export function OrganizationsPage() {
       <div className="grid gap-5 sm:grid-cols-2">
         {data?.map((org) => (
           <Link key={org.id} to={`/organizations/${org.id}`} className="card flex gap-4 p-4 lift sm:p-5">
-            <Avatar name={org.name} color={org.logoColor} size="lg" />
+            <span className="contents sm:hidden">
+              <Avatar name={org.name} color={org.logoColor} />
+            </span>
+            <span className="hidden sm:contents">
+              <Avatar name={org.name} color={org.logoColor} size="lg" />
+            </span>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold">{org.name}</h2>
+              <h2 className="text-lg font-bold sm:text-xl">{org.name}</h2>
               <p className="mt-1 font-medium text-brand-700">{org.sportsInterests}</p>
               <p className="mt-2 line-clamp-2 text-muted">{org.description}</p>
               {org.city && (
@@ -84,20 +89,25 @@ export function OrganizationPage() {
 
 function OrganizationHeader({ org }: { org: Organization }) {
   return (
-    <section className="card p-5 sm:p-6">
+    <section className="card p-4 sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row">
-        <Avatar name={org.name} color={org.logoColor} size="lg" />
+        <span className="hidden sm:block">
+          <Avatar name={org.name} color={org.logoColor} size="lg" />
+        </span>
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-extrabold sm:text-3xl">{org.name}</h1>
+            <span className="sm:hidden">
+              <Avatar name={org.name} color={org.logoColor} />
+            </span>
+            <h1 className="min-w-0 flex-1 text-xl font-extrabold sm:flex-none sm:text-3xl">{org.name}</h1>
             {org.status === 'APPROVED' && (
               <Badge tone="green" icon={<CheckCircle2 className="size-4" />}>
                 Проверенная организация
               </Badge>
             )}
           </div>
-          <p className="text-lg font-medium text-brand-700">{org.sportsInterests}</p>
-          <p className="whitespace-pre-line text-lg text-muted">{org.description}</p>
+          <p className="font-medium text-brand-700 sm:text-lg">{org.sportsInterests}</p>
+          <p className="whitespace-pre-line text-muted sm:text-lg">{org.description}</p>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted">
             {(org.city || org.address) && (
               <span className="flex items-center gap-1.5">
@@ -260,7 +270,7 @@ function OrganizationEditor({ org, onSaved, onCancel }: { org: Organization | nu
   }
 
   return (
-    <form onSubmit={submit} className="card space-y-5 p-5 sm:p-6">
+    <form onSubmit={submit} className="card space-y-5 p-4 sm:p-6">
       {org?.status === 'REJECTED' && org.rejectionReason && (
         <div className="rounded-2xl border-[3px] border-ink bg-pop-red shadow-md p-4 text-ink">
           <span className="font-semibold">Замечание администратора:</span> {org.rejectionReason}
@@ -289,7 +299,7 @@ function OrganizationEditor({ org, onSaved, onCancel }: { org: Organization | nu
           <input className="input" value={form.website ?? ''} onChange={(e) => set('website', e.target.value)} />
         </Field>
       </div>
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel}>
             Отмена
