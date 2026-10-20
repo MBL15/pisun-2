@@ -9,15 +9,17 @@
 
 ## Запуск
 
+**Для проверки прототипа (как в README для экспертов):** `docker compose up --build` или `./docker-up.sh` из корня.
+
 | Задача | Windows | Linux, macOS |
 |---|---|---|
-| Запустить всё | `.\start.ps1` | `./start.sh` |
-| Пересобрать бэкенд и запустить | `.\start.ps1 -Rebuild` | — |
-| Сбросить данные к демо-состоянию | `.\start.ps1 -ResetData` | — |
-| Только бэкенд | `.\start.ps1 -NoFrontend` | — |
-| Остановить | `.\stop.ps1` | `./stop.sh` |
-| Docker с PostgreSQL | `docker compose up --build` | то же |
+| Docker (PostgreSQL) | `docker compose up --build` | то же / `./docker-up.sh` |
 | Сброс данных в Docker | `docker compose down -v` | то же |
+| Локально без Docker | `.\start.ps1` | `./start.sh` |
+| Пересобрать бэкенд и запустить | `.\start.ps1 -Rebuild` | — |
+| Сбросить данные к демо-состоянию | `.\start.ps1 -ResetData` | `./start.sh --reset` |
+| Только бэкенд | `.\start.ps1 -NoFrontend` | — |
+| Остановить локальный стек | `.\stop.ps1` | `./stop.sh` |
 
 Что делает `start.ps1`:
 
