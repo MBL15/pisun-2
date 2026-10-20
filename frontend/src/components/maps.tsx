@@ -395,3 +395,81 @@ export function MiniMap({
     </div>
   )
 }
+
+/** Маршрут от произвольного адреса до точки мероприятия (для записавшихся участников). */
+export function EventRoutePlanner({
+  latitude,
+  longitude,
+  eventTitle,
+}: {
+  latitude: number
+  longitude: number
+  eventTitle: string
+}) {
+  const [from, setFrom] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { containerRef, mapRef, ymapsRef, error: mapError, ready } = useYandexMap(
+    { center: [latitude, longitude], zoom: 11, controls: ['zoomControl', 'routeButtonControl'] },
+    () => {},
+  )
+
+  const build = async () => {
+    if (!from.trim()) {
+      setError('Укажите, откуда вы поедете')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const ymaps = ymapsRef.current ?? (await loadYandexMaps())
+      const map = mapRef.current
+      if (!map) throw new Error('Карта ещё не готова')
+      const start = await ymaps.geocode(`Красноярск, ${from.trim()}`, { results: 1 })
+      const startGeo = start.geoObjects.get(0)
+      if (!startGeo) throw new Error('Не нашли адрес отправления — уточните формулировку')
+      const startCoords = startGeo.geometry.getCoordinates()
+      map.geoObjects.removeAll()
+      const route = new ymaps.multiRouter.MultiRoute(
+        { referencePoints: [startCoords, [latitude, longitude]], params: { routingMode: 'auto' } },
+        { boundsAutoApply: true, wayPointVisible: false },
+      )
+      map.geoObjects.add(route)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось построить маршрут')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border-[3px] border-ink bg-pop-blue/25 p-4">
+      <p className="font-bold">Как добраться до «{eventTitle}»</p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          className="input flex-1"
+          placeholder="Откуда ехать: дом, метро, адрес"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={build}
+          disabled={busy || !ready}
+          className="lift min-h-11 rounded-xl border-[3px] border-ink bg-[#ffcc00] px-4 font-bold shadow-md hover:bg-[#ffd633] disabled:opacity-60"
+        >
+          {busy ? 'Строим…' : 'Показать маршрут'}
+        </button>
+      </div>
+      {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
+      {mapError ? (
+        <MapFallback message={mapError} lat={latitude} lon={longitude} />
+      ) : (
+        <div ref={containerRef} className="ymaps-host h-72 overflow-hidden rounded-xl border-[3px] border-ink bg-white" />
+      )}
+      <a href={yandexRouteUrl(latitude, longitude, from)} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-700 underline">
+        Открыть тот же маршрут в приложении Яндекс Карт
+      </a>
+    </div>
+  )
+}

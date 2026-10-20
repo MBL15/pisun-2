@@ -121,8 +121,12 @@ export const organizationStatusLabels: Record<ApplicationStatus, string> = {
   CANCELLED: 'Отозвана',
 }
 
-export function yandexRouteUrl(lat: number, lon: number): string {
-  return `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`
+export function yandexRouteUrl(lat: number, lon: number, from?: string): string {
+  const dest = `${lat},${lon}`
+  if (from?.trim()) {
+    return `https://yandex.ru/maps/?rtext=${encodeURIComponent(from.trim())}~${dest}&rtt=auto`
+  }
+  return `https://yandex.ru/maps/?rtext=~${dest}&rtt=auto`
 }
 
 export function yandexPointUrl(lat: number, lon: number): string {

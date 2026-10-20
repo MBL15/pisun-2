@@ -71,6 +71,8 @@ React 19, TypeScript, Vite, Tailwind CSS v4 (через `@tailwindcss/vite`), Re
 |---|---|
 | `VITE_API_URL` | `http://localhost:8080` |
 | `VITE_YANDEX_MAPS_API_KEY` | пусто |
+| `VITE_YANDEX_GEOCODER_API_KEY` | пусто — отдельный ключ геокодера (подсказки адресов) |
+| `VITE_YANDEX_ROUTER_API_KEY` | пусто — маршрутизация на карте «Как добраться» в личном кабинете |
 
 ## Команды
 

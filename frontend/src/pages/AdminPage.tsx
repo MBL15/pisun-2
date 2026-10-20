@@ -442,6 +442,7 @@ function AiTab() {
   const { notify } = useToast()
   const settings = useAsync(() => aiApi.settings(), [])
   const verdicts = useAsync(() => aiApi.verdicts(), [])
+  const agentStats = useAsync(() => aiApi.agentStats(), [])
   const [draft, setDraft] = useState<AiSettings | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -510,6 +511,17 @@ function AiTab() {
       </section>
 
       <section className="space-y-3">
+        {agentStats.data && (
+          <article className="card space-y-2 p-4">
+            <h2 className="text-xl font-bold">Event Quality Guardian — за 24 часа</h2>
+            <p className="text-slate-700">
+              Проверок: {agentStats.data.checks24h}, с флагами: {agentStats.data.flagged24h}, авто-придержек: {agentStats.data.autoUnpublish24h}
+            </p>
+            {agentStats.data.topFlagReasons.length > 0 && (
+              <p className="text-sm text-slate-600">Частые причины: {agentStats.data.topFlagReasons.join(' · ')}</p>
+            )}
+          </article>
+        )}
         <h2 className="text-xl font-bold">Последние проверки</h2>
         {verdicts.loading && !verdicts.data && <Spinner />}
         {verdicts.data?.map((verdict) => (

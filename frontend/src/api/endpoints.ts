@@ -16,6 +16,10 @@ import type {
   Registration,
   SportEvent,
   SportType,
+  SportSuggestItem,
+  SportNormalizeResult,
+  EventVerificationPreview,
+  AgentStats,
   User,
   Family,
 } from './types'
@@ -50,6 +54,8 @@ export const organizationsApi = {
 
 export const sportsApi = {
   list: () => api.get<SportType[]>('/api/sports'),
+  suggest: (q: string) => api.get<SportSuggestItem[]>(`/api/sports/suggest${buildQuery({ q })}`),
+  propose: (name: string) => api.post<SportNormalizeResult>('/api/sports/propose', { name }),
 }
 
 export const eventsApi = {
@@ -91,6 +97,24 @@ export const moderationApi = {
 
 export const aiApi = {
   verdicts: () => api.get<AiVerdict[]>('/api/ai/verdicts'),
+  agentStats: () => api.get<AgentStats>('/api/ai/agent-stats'),
+  verifyEventDraft: (body: {
+    title: string
+    description?: string | null
+    conditions?: string | null
+    sportName?: string | null
+    audience: string
+    startAt: string
+    organizerName?: string
+    organizationEvent?: boolean
+    equipment?: string | null
+  }) =>
+    api.post<EventVerificationPreview>('/api/ai/verify-event', {
+      eventId: null,
+      ...body,
+      mode: 'DRAFT',
+      organizationEvent: body.organizationEvent ?? false,
+    }),
   settings: () => api.get<AiSettings>('/api/ai/settings'),
   updateSettings: (body: Omit<AiSettings, 'llmConfigured' | 'llmModel' | 'updatedAt' | 'updatedBy'>) =>
     api.put<AiSettings>('/api/ai/settings', body),
