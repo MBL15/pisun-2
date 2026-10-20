@@ -189,6 +189,8 @@ export interface ViewerState {
   canLeaveReview: boolean
   reviewBlockedReason: string | null
   myReviewStars: number | null
+  reputationPenaltyApplied: number | null
+  reputationAfter: number | null
 }
 
 export interface SportEvent {

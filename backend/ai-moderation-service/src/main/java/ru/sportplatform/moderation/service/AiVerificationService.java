@@ -21,6 +21,8 @@ import ru.sportplatform.common.enums.AgeRestriction;
 import ru.sportplatform.common.enums.AiStatus;
 import ru.sportplatform.common.enums.Audience;
 import ru.sportplatform.common.enums.EventVerificationMode;
+import ru.sportplatform.common.policy.ProhibitedContentScanner;
+import ru.sportplatform.common.policy.SevereContentPolicy;
 import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.moderation.ai.EventQualityGuardian;
 import ru.sportplatform.moderation.ai.HeuristicAnalyzer;
@@ -83,8 +85,11 @@ public class AiVerificationService {
             reasons.addAll(heuristic.kidsReasons());
         }
 
-        boolean hold = flagged && settings.isAutoHoldFlagged();
-        String summary = summary(flagged, adultOnly, hold, request.organizationEvent(), heuristic, llmVerdict);
+        boolean instantRemoval = ProhibitedContentScanner.requiresInstantBan(request.title(), request.description(),
+                request.conditions())
+                || SevereContentPolicy.requiresInstantRemoval(new ArrayList<>(reasons));
+        boolean hold = flagged && settings.isAutoHoldFlagged() && !instantRemoval;
+        String summary = summary(flagged, adultOnly, hold, instantRemoval, request.organizationEvent(), heuristic, llmVerdict);
         String source = llmVerdict.isPresent() ? "LLM+HEURISTIC" : "HEURISTIC";
         var suggestions = guardian.suggestions(request, heuristic, age);
         var variants = guardian.descriptionVariants(request);
@@ -160,12 +165,18 @@ public class AiVerificationService {
                 result.suggestions(), result.descriptionVariants());
     }
 
-    private static String summary(boolean flagged, boolean adultOnly, boolean hold, boolean organizationEvent,
-                                  HeuristicResult heuristic, Optional<LlmVerdict> llmVerdict) {
+    private static String summary(boolean flagged, boolean adultOnly, boolean hold, boolean instantRemoval,
+                                  boolean organizationEvent, HeuristicResult heuristic, Optional<LlmVerdict> llmVerdict) {
         StringBuilder text = new StringBuilder();
         if (flagged) {
-            text.append("Найдены возможные нарушения правил платформы. ");
-            if (organizationEvent) {
+            if (instantRemoval) {
+                text.append("Обнаружено запрещённое содержание. Мероприятие удалено автоматически, репутация организатора снижена. ");
+            } else {
+                text.append("Найдены возможные нарушения правил платформы. ");
+            }
+            if (instantRemoval) {
+                // summary уже задан выше
+            } else if (organizationEvent) {
                 text.append("Допущенная организация пublикует без премодерации — администратор получил сигнал. ");
             } else if (hold) {
                 text.append("Событие отправлено администратору на проверку и пока не видно в ленте. ");

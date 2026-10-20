@@ -1,4 +1,4 @@
-import { Bot, Check, Hourglass, MapPin, Plus, Save, Users } from 'lucide-react'
+import { Bot, Check, Hourglass, MapPin, Plus, Save, ShieldAlert, Users } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { aiApi, eventsApi, sportsApi } from '../api/endpoints'
@@ -103,7 +103,8 @@ export function EventFormPage() {
 function EventEditor({ event, defaultContact }: { event: SportEvent | null; defaultContact: string | null }) {
   const navigate = useNavigate()
   const { notify } = useToast()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
+  const [autoBan, setAutoBan] = useState<{ penalty: number; after: number; reason: string } | null>(null)
   const sports = useAsync(() => sportsApi.list(), [])
   const [form, setForm] = useState<EventForm>(() => (event ? fromEvent(event) : emptyForm(defaultContact)))
   const [sportSearch, setSportSearch] = useState(event?.sportName ?? '')
@@ -218,6 +219,21 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
     }
     try {
       const saved = event ? await eventsApi.update(event.id, body) : await eventsApi.create(body)
+      const penalty = saved.viewer.reputationPenaltyApplied
+      if (saved.status === 'DELETED' && penalty != null) {
+        await refreshUser()
+        notify(
+          'error',
+          'Мероприятие удалено',
+          `Запрещённое содержание. Репутация −${penalty} баллов${saved.viewer.reputationAfter != null ? ` (сейчас ${saved.viewer.reputationAfter})` : ''}.`,
+        )
+        setAutoBan({
+          penalty,
+          after: saved.viewer.reputationAfter ?? user!.reputation - penalty,
+          reason: saved.moderationReason ?? saved.aiSummary ?? 'Автоматическая модерация',
+        })
+        return
+      }
       if (saved.status === 'ON_REVIEW') {
         notify('error', 'Отправлено на проверку', saved.aiSummary ?? 'ИИ-модератор нашёл возможные нарушения — администратор проверит мероприятие.')
       } else {
@@ -509,6 +525,26 @@ function EventEditor({ event, defaultContact }: { event: SportEvent | null; defa
               )}
             </div>
           )}
+      </Modal>
+      <Modal open={autoBan != null} title="Мероприятие заблокировано" onClose={() => { setAutoBan(null); navigate('/profile', { replace: true }) }}>
+        <div className="space-y-4">
+          <div className="flex gap-3 rounded-xl border-[3px] border-ink bg-pop-red/80 p-4">
+            <ShieldAlert className="size-8 shrink-0" aria-hidden />
+            <div>
+              <p className="font-bold">Запрещённое содержание</p>
+              <p className="mt-1 text-sm">{autoBan?.reason}</p>
+            </div>
+          </div>
+          {autoBan && (
+            <p className="text-lg font-semibold">
+              Репутация снижена на <strong>{autoBan.penalty}</strong> баллов. Сейчас у вас <strong>{autoBan.after}</strong> из 100.
+            </p>
+          )}
+          <p className="text-sm text-muted">Создайте новое мероприятие без запрещённых слов. При репутации ниже 30 публикация будет недоступна.</p>
+          <Button type="button" className="w-full" onClick={() => { setAutoBan(null); navigate('/profile', { replace: true }) }}>
+            Понятно, в кабинет
+          </Button>
+        </div>
       </Modal>
       <InviteFriendsModal
         open={inviteEventId != null}

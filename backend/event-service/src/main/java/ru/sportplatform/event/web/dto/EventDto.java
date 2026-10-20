@@ -68,7 +68,10 @@ public record EventDto(
             List<RegistrationDto> myRegistrations,
             boolean canLeaveReview,
             String reviewBlockedReason,
-            Integer myReviewStars
+            Integer myReviewStars,
+            /** Штраф репутации после автоудаления (только организатор, только в ответе create/update). */
+            Integer reputationPenaltyApplied,
+            Integer reputationAfter
     ) {
     }
 }

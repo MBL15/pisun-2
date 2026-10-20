@@ -36,12 +36,12 @@ public class IdentityClient {
         return ids == null ? List.of() : ids;
     }
 
-    public void applyReputationDelta(Long userId, int delta, String reason) {
-        client.post()
+    public UserDto applyReputationDelta(Long userId, int delta, String reason) {
+        return client.post()
                 .uri("/internal/users/{id}/reputation/delta", userId)
                 .body(new ReputationDeltaRequest(delta, reason))
                 .retrieve()
-                .toBodilessEntity();
+                .body(UserDto.class);
     }
 
     public boolean areFriends(Long userA, Long userB) {

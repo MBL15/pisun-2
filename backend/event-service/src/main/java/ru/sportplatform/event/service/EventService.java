@@ -28,6 +28,8 @@ import ru.sportplatform.common.enums.RegistrationMode;
 import ru.sportplatform.common.enums.RoleType;
 import ru.sportplatform.common.error.ApiException;
 import ru.sportplatform.common.policy.ReputationPolicy;
+import ru.sportplatform.common.policy.ProhibitedContentScanner;
+import ru.sportplatform.common.policy.SevereContentPolicy;
 import ru.sportplatform.common.util.TextUtils;
 import ru.sportplatform.common.web.CurrentUser;
 import ru.sportplatform.event.client.AiClient;
@@ -153,10 +155,12 @@ public class EventService {
         event.setOrganizationId(orgEvent ? author.organizationId() : null);
         event.setOrganizerVerified(author.verified());
 
-        applyVerdict(event, ai.verifyEvent(verificationRequest(event)), author);
+        EventVerificationResult verdict = ai.verifyEvent(verificationRequest(event));
+        applyVerdict(event, verdict, author);
         SportEvent saved = events.save(event);
         saveFriendInvites(saved, author.id(), form.inviteFriendIds());
-        return toDto(saved, current);
+        ReputationOutcome reputation = applyAutoRemovalPenalty(saved, verdict, author);
+        return toDto(saved, current, reputation);
     }
 
     @Transactional
@@ -178,8 +182,10 @@ public class EventService {
         applyForm(event, form, sport);
         UserDto author = identity.getUser(current.id());
         event.setOrganizerVerified(author.verified());
-        applyVerdict(event, ai.verifyEvent(verificationRequest(event)), author);
-        return toDto(event, current);
+        EventVerificationResult verdict = ai.verifyEvent(verificationRequest(event));
+        applyVerdict(event, verdict, author);
+        ReputationOutcome reputation = applyAutoRemovalPenalty(event, verdict, author);
+        return toDto(event, current, reputation);
     }
 
     private void ensureCanOrganize(UserDto author) {
@@ -249,22 +255,28 @@ public class EventService {
     /**
      * Событие пользователя с вердиктом FLAGGED уходит на проверку администратору. Допущенная организация
      * публикует без премодерации — вердикт ИИ лишь подсвечивается администратору.
+     * Жёсткие нарушения (секс, наркотики, насилие и т.п.) — сразу {@link EventStatus#DELETED}, без ON_REVIEW.
      */
     private static void applyVerdict(SportEvent event, EventVerificationResult verdict, UserDto author) {
         event.setAiStatus(verdict.status());
         event.setAgeRestriction(event.getAudience() == Audience.ADULTS ? AgeRestriction.ADULT_ONLY : verdict.ageRestriction());
         event.setAiSummary(verdict.summary());
         event.setAiReasons(verdict.reasons() == null ? null : String.join("\n", verdict.reasons()));
+
+        if (shouldInstantRemove(event, verdict)) {
+            event.setAiStatus(AiStatus.FLAGGED);
+            event.setAiSummary("Обнаружено запрещённое содержание. Мероприятие удалено автоматически, репутация организатора снижена.");
+            event.setStatus(EventStatus.DELETED);
+            event.setModerationReason(
+                    "Мероприятие удалено автоматически: в тексте запрещённое содержание. "
+                            + "Создайте новое событие с корректным описанием.");
+            event.setModeratedBy("ИИ-модератор");
+            event.setModeratedAt(Instant.now());
+            return;
+        }
+
         if (event.getVisibility() == EventVisibility.FRIENDS_ONLY) {
-            if (isInstantBlock(verdict)) {
-                event.setStatus(EventStatus.UNPUBLISHED);
-                event.setModerationReason("Мероприятие заблокировано автоматически из‑за запрещённого содержания. "
-                        + "Исправьте описание или создайте новое событие.");
-                event.setModeratedBy("ИИ-модератор");
-                event.setModeratedAt(Instant.now());
-            } else {
-                event.setStatus(EventStatus.PUBLISHED);
-            }
+            event.setStatus(EventStatus.PUBLISHED);
             return;
         }
         boolean hold = verdict.hold()
@@ -273,22 +285,27 @@ public class EventService {
         event.setStatus(hold ? EventStatus.ON_REVIEW : EventStatus.PUBLISHED);
     }
 
-    /** Наркотики, секс, насилие (в т.ч. над детьми) — немедленная блокировка без очереди администратора. */
-    private static boolean isInstantBlock(EventVerificationResult verdict) {
-        if (verdict.status() != AiStatus.FLAGGED || verdict.reasons() == null) {
-            return false;
+    private record ReputationOutcome(Integer penaltyApplied, Integer reputationAfter) {
+        static ReputationOutcome none() {
+            return new ReputationOutcome(null, null);
         }
-        return verdict.reasons().stream().anyMatch(EventService::isSevereReason);
     }
 
-    private static boolean isSevereReason(String reason) {
-        if (reason == null) {
-            return false;
+    private static boolean shouldInstantRemove(SportEvent event, EventVerificationResult verdict) {
+        if (ProhibitedContentScanner.requiresInstantBan(event.getTitle(), event.getDescription(), event.getConditions())) {
+            return true;
         }
-        return reason.startsWith("Наркотические вещества")
-                || reason.startsWith("Оружие и насилие")
-                || reason.startsWith("Сексуальный контент")
-                || reason.startsWith("Насилие над детьми");
+        return verdict.status() == AiStatus.FLAGGED && SevereContentPolicy.requiresInstantRemoval(verdict.reasons());
+    }
+
+    private ReputationOutcome applyAutoRemovalPenalty(SportEvent event, EventVerificationResult verdict, UserDto author) {
+        if (event.getStatus() != EventStatus.DELETED || !shouldInstantRemove(event, verdict)) {
+            return ReputationOutcome.none();
+        }
+        int penalty = SevereContentPolicy.randomPenalty();
+        UserDto updated = identity.applyReputationDelta(author.id(), -penalty,
+                "Автоудаление мероприятия «" + event.getTitle() + "»: запрещённое содержание");
+        return new ReputationOutcome(penalty, updated.reputation());
     }
 
     private void saveFriendInvites(SportEvent event, Long organizerId, List<Long> inviteFriendIds) {
@@ -415,6 +432,10 @@ public class EventService {
     // ---------- маппинг ----------
 
     public EventDto toDto(SportEvent e, CurrentUser current) {
+        return toDto(e, current, ReputationOutcome.none());
+    }
+
+    private EventDto toDto(SportEvent e, CurrentUser current, ReputationOutcome reputation) {
         List<Registration> regs = registrations.findByEventIdOrderByCreatedAtAsc(e.getId());
         long approved = regs.stream().filter(r -> r.getStatus() == ApplicationStatus.APPROVED).count();
         long pending = regs.stream().filter(r -> r.getStatus() == ApplicationStatus.PENDING).count();
@@ -451,7 +472,9 @@ public class EventService {
                 e.getEndAt().isBefore(LocalDateTime.now()),
                 reviewSummary,
                 new EventDto.ViewerState(organizer, blocked == null, blocked, canSeeContacts, mine,
-                        reviewBlocked == null, reviewBlocked, myReviewStars)
+                        reviewBlocked == null, reviewBlocked, myReviewStars,
+                        organizer && reputation.penaltyApplied() != null ? reputation.penaltyApplied() : null,
+                        organizer && reputation.reputationAfter() != null ? reputation.reputationAfter() : null)
         );
     }
 

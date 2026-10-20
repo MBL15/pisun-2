@@ -29,7 +29,7 @@ public final class ReputationPolicy {
         return REVIEW_STAR_DELTA[stars];
     }
 
-    public static int applyDelta(int current, int delta) {
+    public static int applyDelta(Integer current, int delta) {
         return Math.min(MAX_SCORE, Math.max(0, normalize(current) + delta));
     }
 }

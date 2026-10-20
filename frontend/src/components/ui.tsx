@@ -166,7 +166,7 @@ export function Modal({
         role="dialog"
         aria-modal
         aria-label={title}
-        className={`flex max-h-[92svh] w-full flex-col rounded-t-2xl border-[3px] border-ink bg-white shadow-xl sm:rounded-2xl ${wide ? 'sm:max-w-4xl' : 'sm:max-w-lg'}`}
+        className={`flex max-h-[92svh] w-full flex-col rounded-t-2xl border-[3px] border-ink bg-surface shadow-xl sm:rounded-2xl ${wide ? 'sm:max-w-4xl' : 'sm:max-w-lg'}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-4 rounded-t-xl border-b-[3px] border-ink bg-pop-yellow px-4 py-3 sm:px-6 sm:py-4">
